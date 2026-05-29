@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+*.tsbuildinfo
+
+# Build outputs
+.next/
+dist/
+build/
+
+# Local data and secrets
+.env
+.env.local
+data/
+*.db
+*.sqlite
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Local-only AI coding skills
+.local-skills/

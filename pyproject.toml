@@ -1,0 +1,6 @@
+[project]
+name = "ai-short-drama-api"
+version = "0.1.0"
+requires-python = ">=3.11,<3.12"
+description = "Backend environment metadata for the AI short drama workspace."
+
