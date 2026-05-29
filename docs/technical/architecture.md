@@ -35,13 +35,41 @@ apps
         └── services
 ```
 
-## 4. 一期核心模块
+仓库级配套结构：
+
+```text
+.
+├── docs
+├── rules
+├── skills
+└── workspace
+```
+
+- `rules` 保存用户侧短剧创作规则。
+- `skills` 保存用户侧业务 skill。
+- `workspace` 保存本地运行产物约定，具体项目产物默认不提交 GitHub。
+
+更详细的结构说明见 [项目结构约定](./project-structure.md)。
+
+## 4. 模块边界
+
+后端继续保持 `api / core / models / services` 分层。
+
+后续预留但暂不实现：
+
+- `generation`：文本生成、图片生成和 AI 任务记录。
+- `assets`：人物示意图和本地素材管理。
+- `workspace`：项目工作区目录和导出文件写入。
+
+前端继续保持 App Router 和集中 API service 层。页面复杂度上升后，再新增 `components`、`features`、`types` 等目录。
+
+## 5. 一期核心模块
 
 - Settings：模型 API 配置与连通性测试。
 - Projects：项目创建与时长配置。
 - Generation：后续承载选题、故事大纲、人物、分集和剧本生成。
 
-## 5. 数据策略
+## 6. 数据策略
 
 第一期使用 PostgreSQL 保存：
 
@@ -57,7 +85,7 @@ API Key 当前仅做接口返回脱敏，后续需要在产品化前增加系统
 postgresql+psycopg://ai_short_drama:ai_short_drama@127.0.0.1:5432/ai_short_drama
 ```
 
-## 6. 接口边界
+## 7. 接口边界
 
 当前优先实现：
 
@@ -68,7 +96,7 @@ postgresql+psycopg://ai_short_drama:ai_short_drama@127.0.0.1:5432/ai_short_drama
 - `GET /api/projects`
 - `POST /api/projects`
 
-## 7. 数据迁移
+## 8. 数据迁移
 
 数据库 schema 通过 Alembic 管理：
 

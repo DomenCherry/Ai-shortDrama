@@ -13,6 +13,16 @@ from app.models.db_models import ModelApiConfig, ModelApiTestLog
 from app.models.schemas import ModelApiConfigCreate
 
 
+IMAGE_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
+    "volcengine_seedream": {
+        "provider_name": "火山方舟 Seedream",
+        "api_base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "endpoint_path": "/images/generations",
+        "supports_reference_image": True,
+    }
+}
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -31,11 +41,15 @@ def _config_to_response(config: ModelApiConfig) -> dict[str, Any]:
     return {
         "id": config.id,
         "config_type": config.config_type,
+        "provider_mode": config.provider_mode,
+        "provider_preset": config.provider_preset,
         "provider_name": config.provider_name,
         "api_base_url": config.api_base_url,
         "api_key_masked": _mask_api_key(config.api_key_secret),
         "model_name": config.model_name,
         "image_size": config.image_size,
+        "endpoint_path": config.endpoint_path,
+        "supports_reference_image": config.supports_reference_image,
         "remark": config.remark,
         "enabled": config.enabled,
         "last_test_status": config.last_test_status,
@@ -57,9 +71,56 @@ def list_configs() -> list[dict[str, Any]]:
         return [_config_to_response(config) for config in configs]
 
 
+def _validate_url(value: str | None) -> str:
+    if not value or not value.strip():
+        raise ValueError("请填写 API 地址")
+    normalized = value.strip().rstrip("/")
+    if not normalized.startswith(("http://", "https://")) or " " in normalized:
+        raise ValueError("API 地址必须以 http:// 或 https:// 开头，且不能包含空格")
+    return normalized
+
+
+def _image_endpoint_path(value: str | None) -> str:
+    if not value:
+        return "/images/generations"
+    endpoint_path = value.strip()
+    return endpoint_path if endpoint_path.startswith("/") else f"/{endpoint_path}"
+
+
+def _resolve_provider_fields(payload: ModelApiConfigCreate) -> dict[str, Any]:
+    if payload.provider_mode == "preset":
+        if payload.config_type != "image":
+            raise ValueError("供应商预设目前仅用于图片模型配置")
+        if not payload.provider_preset or payload.provider_preset not in IMAGE_PROVIDER_PRESETS:
+            raise ValueError("该供应商预设暂不可用，请选择自定义配置")
+
+        preset = IMAGE_PROVIDER_PRESETS[payload.provider_preset]
+        return {
+            "provider_mode": "preset",
+            "provider_preset": payload.provider_preset,
+            "provider_name": preset["provider_name"],
+            "api_base_url": preset["api_base_url"],
+            "endpoint_path": preset["endpoint_path"],
+            "supports_reference_image": preset["supports_reference_image"],
+        }
+
+    if not payload.provider_name:
+        raise ValueError("请填写供应商名称")
+
+    return {
+        "provider_mode": "custom",
+        "provider_preset": None,
+        "provider_name": payload.provider_name,
+        "api_base_url": _validate_url(payload.api_base_url),
+        "endpoint_path": _image_endpoint_path(payload.endpoint_path) if payload.config_type == "image" else None,
+        "supports_reference_image": payload.supports_reference_image if payload.config_type == "image" else False,
+    }
+
+
 def create_config(payload: ModelApiConfigCreate) -> dict[str, Any]:
     config_id = str(uuid4())
     now = _now()
+    provider_fields = _resolve_provider_fields(payload)
 
     with get_session() as session:
         if payload.enabled:
@@ -72,11 +133,15 @@ def create_config(payload: ModelApiConfigCreate) -> dict[str, Any]:
         config = ModelApiConfig(
             id=config_id,
             config_type=payload.config_type,
-            provider_name=payload.provider_name,
-            api_base_url=str(payload.api_base_url).rstrip("/"),
+            provider_mode=provider_fields["provider_mode"],
+            provider_preset=provider_fields["provider_preset"],
+            provider_name=provider_fields["provider_name"],
+            api_base_url=provider_fields["api_base_url"],
             api_key_secret=payload.api_key,
             model_name=payload.model_name,
             image_size=payload.image_size,
+            endpoint_path=provider_fields["endpoint_path"],
+            supports_reference_image=provider_fields["supports_reference_image"],
             remark=payload.remark,
             enabled=payload.enabled,
             last_test_status="untested",
@@ -104,11 +169,15 @@ def get_enabled_config(config_type: str) -> Optional[dict[str, Any]]:
         return {
             "id": config.id,
             "config_type": config.config_type,
+            "provider_mode": config.provider_mode,
+            "provider_preset": config.provider_preset,
             "provider_name": config.provider_name,
             "api_base_url": config.api_base_url,
             "api_key_secret": config.api_key_secret,
             "model_name": config.model_name,
             "image_size": config.image_size,
+            "endpoint_path": config.endpoint_path,
+            "supports_reference_image": config.supports_reference_image,
             "last_test_status": config.last_test_status,
         }
 
@@ -126,6 +195,8 @@ async def test_config(config_id: str) -> dict[str, Any]:
             "api_key_secret": config.api_key_secret,
             "model_name": config.model_name,
             "image_size": config.image_size,
+            "endpoint_path": config.endpoint_path,
+            "supports_reference_image": config.supports_reference_image,
         }
 
     start = perf_counter()
@@ -211,7 +282,7 @@ async def _test_text_config(config: dict[str, Any]) -> str:
 
 
 async def _test_image_config(config: dict[str, Any]) -> str:
-    url = f"{config['api_base_url'].rstrip('/')}/images/generations"
+    url = _join_api_url(config["api_base_url"], config.get("endpoint_path") or "/images/generations")
     payload = {
         "model": config["model_name"],
         "prompt": "一张简单的角色头像示意图，现代都市风格，干净背景。",
@@ -228,3 +299,7 @@ async def _test_image_config(config: dict[str, Any]) -> str:
     if not image_result:
         raise ValueError("接口响应格式无法解析")
     return "image result received"
+
+
+def _join_api_url(api_base_url: str, endpoint_path: str) -> str:
+    return f"{api_base_url.rstrip('/')}/{endpoint_path.lstrip('/')}"

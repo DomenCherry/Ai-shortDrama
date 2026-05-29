@@ -25,9 +25,11 @@ def get_session_factory():
 
 def initialize_database() -> None:
     from app.models.db_models import (  # noqa: F401
+        CharacterCard,
         ModelApiConfig,
         ModelApiTestLog,
         Project,
+        ProjectCharacterSnapshot,
     )
 
     Base.metadata.create_all(bind=get_engine())

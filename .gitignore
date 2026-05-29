@@ -17,6 +17,12 @@ data/
 *.db
 *.sqlite
 
+# Local workspace runtime artifacts
+workspace/projects/*
+!workspace/projects/.gitkeep
+workspace/assets/*
+!workspace/assets/.gitkeep
+
 # OS / editor
 .DS_Store
 .vscode/

@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 class Settings(BaseModel):
     app_name: str = "AI Short Drama API"
     cors_origins: list[str] = ["http://localhost:3000"]
+    asset_root: str = "workspace/assets"
     database_url: str = (
         "postgresql+psycopg://ai_short_drama:ai_short_drama@127.0.0.1:5432/ai_short_drama"
     )
@@ -23,4 +24,5 @@ def get_settings() -> Settings:
             "API_DATABASE_URL",
             "postgresql+psycopg://ai_short_drama:ai_short_drama@127.0.0.1:5432/ai_short_drama",
         ),
+        asset_root=os.getenv("API_ASSET_ROOT", "workspace/assets"),
     )

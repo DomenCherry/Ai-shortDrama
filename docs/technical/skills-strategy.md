@@ -43,12 +43,14 @@
 当前初始 skill：
 
 - `.local-skills/ai-short-drama-dev/SKILL.md`
+- `.local-skills/frontend-nextjs-dev/SKILL.md`
 
 适用场景：
 
 - 实现第一期功能。
 - 修改 FastAPI 后端。
 - 修改 Next.js 前端。
+- 按 `docs/technical/frontend-style-guide.md` 保持前端页面风格一致。
 - 新增数据库表和 Alembic migration。
 - 根据 PRD 和详细设计文档推进开发。
 
@@ -77,7 +79,6 @@ skills/
 开发辅助 skill 可以继续增加：
 
 - `api-feature-dev`：后端功能开发规范。
-- `frontend-workbench-dev`：前端工作台开发规范。
 - `db-migration-dev`：数据库迁移规范。
 
 用户侧业务 skill 可以继续增加：
@@ -88,4 +89,3 @@ skills/
 - `short-drama-episode-outliner`：分集大纲。
 - `short-drama-script-writer`：单集剧本。
 - `short-drama-storyboard-planner`：分镜拆解。
-

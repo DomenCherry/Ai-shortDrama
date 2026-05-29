@@ -16,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <nav className="nav">
               <Link href="/">项目</Link>
               <Link href="/projects/new">创建项目</Link>
+              <Link href="/character-cards">角色卡库</Link>
               <Link href="/settings">模型配置</Link>
             </nav>
           </aside>
@@ -25,4 +26,3 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
-
