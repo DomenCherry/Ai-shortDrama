@@ -100,18 +100,18 @@ select {
 
 .stack {
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .grid-2 {
   display: grid;
-  gap: 16px;
+  gap: 20px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .field {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .field label {
@@ -241,7 +241,11 @@ select {
 
 .form-section {
   border-top: 1px solid var(--line);
-  padding-top: 16px;
+  padding-top: 20px;
+}
+
+.form-section > .grid-2 {
+  margin-top: 2px;
 }
 
 .asset-workspace {
@@ -369,6 +373,10 @@ select {
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
+}
+
+.turnaround-prompt-field textarea {
+  min-height: 220px;
 }
 
 .turnaround-preview img {

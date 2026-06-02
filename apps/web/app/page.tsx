@@ -1,14 +1,37 @@
-import Link from "next/link";
+"use client";
 
-export default function HomePage() {
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { listProjects, ProjectSummary } from "@/lib/api";
+
+export default function ProjectManagementPage() {
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    void refreshProjects();
+  }, []);
+
+  const refreshProjects = async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      const projectList = await listProjects();
+      setProjects(projectList);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "项目列表加载失败");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div>
+    <div className="stack">
       <header className="page-header">
         <div>
-          <h1 className="page-title">我的短剧项目</h1>
-          <p className="page-description">
-            先配置模型 API，再创建第一个短剧项目。第一期会从项目创建和文本生成链路开始搭建。
-          </p>
+          <h1 className="page-title">项目管理</h1>
+          <p className="page-description">查看已有短剧项目，继续编辑项目资料，或创建新的短剧项目。</p>
         </div>
         <Link className="button" href="/projects/new">
           创建项目
@@ -16,18 +39,64 @@ export default function HomePage() {
       </header>
 
       <section className="panel stack">
-        <h2>当前框架能力</h2>
-        <p className="hint">项目列表接口已经预留，下一步会接入真实项目列表展示。</p>
-        <div className="actions" style={{ justifyContent: "flex-start" }}>
-          <Link className="button secondary" href="/settings">
-            配置模型 API
-          </Link>
-          <Link className="button" href="/projects/new">
-            创建第一个项目
-          </Link>
+        <div className="section-heading">
+          <h2>项目列表</h2>
+          <span className="hint">{isLoading ? "加载中..." : `${projects.length} 个项目`}</span>
         </div>
+
+        {error ? (
+          <div className="stack">
+            <div className="error">{error}</div>
+            <div className="actions" style={{ justifyContent: "flex-start" }}>
+              <button className="button secondary" type="button" onClick={() => void refreshProjects()}>
+                重试
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {!isLoading && !error && projects.length === 0 ? (
+          <div className="empty-state stack">
+            <p>还没有短剧项目。</p>
+            <div className="actions" style={{ justifyContent: "flex-start" }}>
+              <Link className="button" href="/projects/new">
+                创建第一个项目
+              </Link>
+            </div>
+          </div>
+        ) : null}
+
+        {projects.length > 0 ? (
+          <div className="asset-list asset-list-wide">
+            {projects.map((project) => (
+              <article className="asset-card" key={project.id}>
+                <div className="asset-card-main">
+                  <div className="asset-card-title">
+                    <strong>{project.title}</strong>
+                    <span className={`status-badge status-${project.status === "draft" ? "draft" : "active"}`}>
+                      {project.status === "draft" ? "草稿" : project.status}
+                    </span>
+                  </div>
+                  <div className="hint">
+                    {project.genre || "未设置题材"} · {project.target_platform || "未设置平台"} · {project.episode_count} 集 ·
+                    单集 {formatNumber(project.episode_duration)} 分钟 · 总时长 {formatNumber(project.total_duration)} 分钟
+                  </div>
+                  <p>{project.idea}</p>
+                  <p className="hint">更新时间：{new Date(project.updated_at).toLocaleString()}</p>
+                </div>
+                <div className="asset-card-actions">
+                  {/* 项目工作台尚未落地，先保留不可跳转的状态文案，避免给用户一个空路由。 */}
+                  <span className="hint">项目工作台待接入</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : null}
       </section>
     </div>
   );
 }
 
+function formatNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}

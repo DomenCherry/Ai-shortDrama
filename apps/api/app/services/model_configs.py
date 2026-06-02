@@ -10,7 +10,7 @@ from sqlalchemy import select, update
 
 from app.core.db import get_session
 from app.models.db_models import ModelApiConfig, ModelApiTestLog
-from app.models.schemas import ModelApiConfigCreate
+from app.models.schemas import ModelApiConfigCreate, ModelApiConfigUpdate
 
 
 IMAGE_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
@@ -63,12 +63,20 @@ def _config_to_response(config: ModelApiConfig) -> dict[str, Any]:
 def list_configs() -> list[dict[str, Any]]:
     with get_session() as session:
         configs = session.scalars(
-            select(ModelApiConfig).order_by(
+            select(ModelApiConfig).where(ModelApiConfig.deleted_at.is_(None)).order_by(
                 ModelApiConfig.config_type.asc(),
                 ModelApiConfig.updated_at.desc(),
             )
         ).all()
         return [_config_to_response(config) for config in configs]
+
+
+def get_config(config_id: str) -> dict[str, Any]:
+    with get_session() as session:
+        config = session.get(ModelApiConfig, config_id)
+        if config is None or config.deleted_at is not None:
+            raise ValueError("模型配置不存在")
+        return _config_to_response(config)
 
 
 def _validate_url(value: str | None) -> str:
@@ -127,6 +135,7 @@ def create_config(payload: ModelApiConfigCreate) -> dict[str, Any]:
             session.execute(
                 update(ModelApiConfig)
                 .where(ModelApiConfig.config_type == payload.config_type)
+                .where(ModelApiConfig.deleted_at.is_(None))
                 .values(enabled=False)
             )
 
@@ -159,6 +168,7 @@ def get_enabled_config(config_type: str) -> Optional[dict[str, Any]]:
             select(ModelApiConfig)
             .where(ModelApiConfig.config_type == config_type)
             .where(ModelApiConfig.enabled.is_(True))
+            .where(ModelApiConfig.deleted_at.is_(None))
             .order_by(ModelApiConfig.updated_at.desc())
             .limit(1)
         ).first()
@@ -185,7 +195,7 @@ def get_enabled_config(config_type: str) -> Optional[dict[str, Any]]:
 async def test_config(config_id: str) -> dict[str, Any]:
     with get_session() as session:
         config = session.get(ModelApiConfig, config_id)
-        if config is None:
+        if config is None or config.deleted_at is not None:
             raise ValueError("模型配置不存在")
 
         config_snapshot = {
@@ -226,7 +236,7 @@ async def test_config(config_id: str) -> dict[str, Any]:
 
     with get_session() as session:
         config = session.get(ModelApiConfig, config_id)
-        if config is None:
+        if config is None or config.deleted_at is not None:
             raise ValueError("模型配置不存在")
 
         config.last_test_status = status
@@ -258,7 +268,7 @@ async def test_config(config_id: str) -> dict[str, Any]:
 
 
 async def _test_text_config(config: dict[str, Any]) -> str:
-    url = f"{config['api_base_url'].rstrip('/')}/chat/completions"
+    url = _text_chat_completions_url(config["api_base_url"])
     payload = {
         "model": config["model_name"],
         "messages": [{"role": "user", "content": "请返回一句中文短句：接口可用。"}],
@@ -303,3 +313,111 @@ async def _test_image_config(config: dict[str, Any]) -> str:
 
 def _join_api_url(api_base_url: str, endpoint_path: str) -> str:
     return f"{api_base_url.rstrip('/')}/{endpoint_path.lstrip('/')}"
+
+
+def _text_chat_completions_url(api_base_url: str) -> str:
+    normalized_base_url = api_base_url.rstrip("/")
+    # 文本模型配置约定填写 Base URL，但兼容用户误填完整 chat completions 路径，避免重复拼接导致 404。
+    if normalized_base_url.endswith("/chat/completions"):
+        return normalized_base_url
+    return f"{normalized_base_url}/chat/completions"
+
+
+def update_config(config_id: str, payload: ModelApiConfigUpdate) -> dict[str, Any]:
+    with get_session() as session:
+        config = session.get(ModelApiConfig, config_id)
+        if config is None or config.deleted_at is not None:
+            raise ValueError("模型配置不存在")
+
+        provider_fields = _resolve_provider_fields_for_update(config.config_type, payload)
+
+        if payload.enabled is True:
+            session.execute(
+                update(ModelApiConfig)
+                .where(ModelApiConfig.config_type == config.config_type)
+                .where(ModelApiConfig.id != config_id)
+                .where(ModelApiConfig.deleted_at.is_(None))
+                .values(enabled=False)
+            )
+
+        config.provider_mode = provider_fields["provider_mode"]
+        config.provider_preset = provider_fields["provider_preset"]
+        config.provider_name = provider_fields["provider_name"]
+        config.api_base_url = provider_fields["api_base_url"]
+        if payload.api_key:
+            config.api_key_secret = payload.api_key
+        config.model_name = payload.model_name
+        config.image_size = payload.image_size
+        config.endpoint_path = provider_fields["endpoint_path"]
+        config.supports_reference_image = provider_fields["supports_reference_image"]
+        config.remark = payload.remark
+        if payload.enabled is not None:
+            config.enabled = payload.enabled
+        config.last_test_status = "untested"
+        config.updated_at = _now()
+
+        session.flush()
+        return _config_to_response(config)
+
+
+def _resolve_provider_fields_for_update(config_type: str, payload: ModelApiConfigUpdate) -> dict[str, Any]:
+    if payload.provider_mode == "preset":
+        if config_type != "image":
+            raise ValueError("供应商预设目前仅用于图片模型配置")
+        if not payload.provider_preset or payload.provider_preset not in IMAGE_PROVIDER_PRESETS:
+            raise ValueError("该供应商预设暂不可用，请选择自定义配置")
+
+        preset = IMAGE_PROVIDER_PRESETS[payload.provider_preset]
+        return {
+            "provider_mode": "preset",
+            "provider_preset": payload.provider_preset,
+            "provider_name": preset["provider_name"],
+            "api_base_url": preset["api_base_url"],
+            "endpoint_path": preset["endpoint_path"],
+            "supports_reference_image": preset["supports_reference_image"],
+        }
+
+    if not payload.provider_name:
+        raise ValueError("请填写供应商名称")
+
+    return {
+        "provider_mode": "custom",
+        "provider_preset": None,
+        "provider_name": payload.provider_name,
+        "api_base_url": _validate_url(payload.api_base_url),
+        "endpoint_path": _image_endpoint_path(payload.endpoint_path) if config_type == "image" else None,
+        "supports_reference_image": payload.supports_reference_image if config_type == "image" else False,
+    }
+
+
+def delete_config(config_id: str) -> None:
+    with get_session() as session:
+        config = session.get(ModelApiConfig, config_id)
+        if config is None or config.deleted_at is not None:
+            raise ValueError("模型配置不存在")
+
+        now = _now()
+        # 软删除配置，避免破坏 model_api_test_logs 的外键引用，同时让配置不再参与生成任务。
+        config.enabled = False
+        config.deleted_at = now
+        config.updated_at = now
+
+
+def enable_config(config_id: str) -> dict[str, Any]:
+    with get_session() as session:
+        config = session.get(ModelApiConfig, config_id)
+        if config is None or config.deleted_at is not None:
+            raise ValueError("模型配置不存在")
+
+        session.execute(
+            update(ModelApiConfig)
+            .where(ModelApiConfig.config_type == config.config_type)
+            .where(ModelApiConfig.id != config_id)
+            .where(ModelApiConfig.deleted_at.is_(None))
+            .values(enabled=False)
+        )
+
+        config.enabled = True
+        config.updated_at = _now()
+        session.flush()
+        return _config_to_response(config)

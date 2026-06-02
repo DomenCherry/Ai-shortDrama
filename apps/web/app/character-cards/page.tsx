@@ -16,6 +16,8 @@ export default function CharacterCardsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [archivingCardId, setArchivingCardId] = useState("");
   const [activatingCardId, setActivatingCardId] = useState("");
+  // 列表筛选保留旧数据中的原始类型值，避免字段边界调整后旧角色卡无法按原值筛选。
+  const roleFilterOptions = Array.from(new Set([...roleTypes, ...cards.map((card) => card.role_type)]));
 
   useEffect(() => {
     void refreshCards();
@@ -80,7 +82,7 @@ export default function CharacterCardsPage() {
         <div>
           <h1 className="page-title">角色卡库</h1>
           <p className="page-description">
-            管理可复用人物设定。角色卡加载到项目后会生成项目内快照，项目内修改不会回写原始角色卡。
+            管理可复用人物资产。角色卡只保存跨项目稳定的人设、口吻和视觉素材，具体剧情在项目内塑造。
           </p>
         </div>
         <Link className="button" href="/character-cards/new">
@@ -111,10 +113,10 @@ export default function CharacterCardsPage() {
             </select>
           </div>
           <div className="field">
-            <label>角色类型</label>
+            <label>人物原型</label>
             <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
-              <option value="">全部类型</option>
-              {roleTypes.map((role) => (
+              <option value="">全部原型</option>
+              {roleFilterOptions.map((role) => (
                 <option key={role} value={role}>
                   {role}
                 </option>
@@ -162,7 +164,7 @@ export default function CharacterCardsPage() {
                   {card.gender} · {card.role_type} · v{card.version} · {new Date(card.updated_at).toLocaleString()}
                 </div>
                 <p>{card.identity}</p>
-                <p className="hint">{card.goal}</p>
+                <p className="hint">核心欲望 / 人物执念：{card.goal}</p>
                 <p className="hint">{card.image_keywords || "未设置形象关键词"}</p>
               </Link>
               <div className="asset-card-actions">

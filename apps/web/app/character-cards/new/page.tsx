@@ -5,10 +5,13 @@ import { FormEvent, MouseEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createCharacterCard, generateCharacterTurnaround, uploadCharacterReferenceImage } from "@/lib/api";
 import {
+  buildTurnaroundPrompt,
   CharacterCardForm,
   CharacterCardFormView,
   emptyCharacterCardForm,
   formToPayload,
+  TurnaroundPromptField,
+  validateTurnaroundPromptFields,
   validateCharacterCard
 } from "../_components/CharacterCardForm";
 
@@ -20,12 +23,16 @@ export default function NewCharacterCardPage() {
   const [isUploadingReference, setIsUploadingReference] = useState(false);
   const [isGeneratingTurnaround, setIsGeneratingTurnaround] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [hasManualTurnaroundPromptChange, setHasManualTurnaroundPromptChange] = useState(false);
   const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
   const validationError = validateCharacterCard(form);
   const isBusy = isSaving || isUploadingReference || isGeneratingTurnaround;
 
   const updateField = (field: keyof CharacterCardForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
+    if (field === "turnaround_prompt") {
+      setHasManualTurnaroundPromptChange(true);
+    }
     setHasUnsavedChanges(true);
     setError("");
   };
@@ -95,6 +102,30 @@ export default function NewCharacterCardPage() {
     }
   };
 
+  const generateTurnaroundPrompt = () => {
+    const promptError = validateTurnaroundPromptFields(form);
+    if (promptError) {
+      setError(promptError);
+      return;
+    }
+    if (
+      form.turnaround_prompt.trim() &&
+      hasManualTurnaroundPromptChange &&
+      !window.confirm("当前三视图提示词已有手动修改，确认覆盖吗？")
+    ) {
+      return;
+    }
+
+    // 生成提示词只是本地文本辅助动作，不创建角色卡，也不调用图片模型。
+    setForm((current) => ({
+      ...current,
+      turnaround_prompt: buildTurnaroundPrompt(current, hasManualTurnaroundPromptChange)
+    }));
+    setHasManualTurnaroundPromptChange(false);
+    setHasUnsavedChanges(true);
+    setError("");
+  };
+
   const generateTurnaroundFromNewCard = async () => {
     setHasTriedSubmit(true);
     if (validationError) {
@@ -129,7 +160,7 @@ export default function NewCharacterCardPage() {
       <header className="page-header">
         <div>
           <h1 className="page-title">新建角色卡</h1>
-          <p className="page-description">创建可在多个短剧项目中复用的人物资产。保存后会进入角色详情编辑页。</p>
+          <p className="page-description">创建可在多个短剧项目中复用的人物资产。具体剧情目标、人物关系和冲突会在项目内塑造。</p>
         </div>
         <Link className="button secondary" href="/character-cards" onClick={guardLeaveToList}>
           返回列表
@@ -165,11 +196,17 @@ export default function NewCharacterCardPage() {
         <section className="form-section stack">
           <h3>人物三视图</h3>
           <p className="field-hint">
-            点击后系统会先自动保存角色卡草稿，再调用已测试成功的图片生成 API 生成人物三视图。
+            先根据当前字段生成可编辑提示词，确认内容后再调用已测试成功的图片生成 API 生成人物三视图。
           </p>
-          <button className="button secondary" disabled={isBusy} type="button" onClick={generateTurnaroundFromNewCard}>
-            {isGeneratingTurnaround ? "生成中..." : "生成人物三视图"}
-          </button>
+          <TurnaroundPromptField form={form} onChange={updateField} disabled={isBusy} />
+          <div className="actions action-wrap">
+            <button className="button secondary" disabled={isBusy} type="button" onClick={generateTurnaroundPrompt}>
+              生成提示词
+            </button>
+            <button className="button secondary" disabled={isBusy} type="button" onClick={generateTurnaroundFromNewCard}>
+              {isGeneratingTurnaround ? "生成中..." : "生成人物三视图"}
+            </button>
+          </div>
         </section>
 
         {hasTriedSubmit && validationError ? <div className="error">{validationError}</div> : null}

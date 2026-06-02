@@ -27,7 +27,7 @@ export type CharacterCardForm = {
   status: CharacterCardStatus;
 };
 
-export const roleTypes = ["主角", "反派", "配角", "导师", "关键推动者", "其他"];
+export const roleTypes = ["复仇者", "守护者", "操控者", "成长型", "权力型", "治愈型", "探索者", "其他"];
 export const genderOptions: CharacterGender[] = ["男", "女"];
 
 export const statuses: { label: string; value: "" | CharacterCardStatus }[] = [
@@ -40,7 +40,7 @@ export const statuses: { label: string; value: "" | CharacterCardStatus }[] = [
 export const emptyCharacterCardForm: CharacterCardForm = {
   name: "",
   gender: "",
-  role_type: "配角",
+  role_type: "成长型",
   identity: "",
   background: "",
   personality: "",
@@ -69,6 +69,9 @@ type CharacterCardFormViewProps = {
 };
 
 export function CharacterCardFormView({ form, onChange, disabled = false, hideStatusField = false }: CharacterCardFormViewProps) {
+  // 旧角色卡可能仍保存“主角/反派/配角”等旧版角色类型，编辑时需要展示原值并避免保存时被静默改写。
+  const roleOptions = roleTypes.includes(form.role_type) || !form.role_type ? roleTypes : [form.role_type, ...roleTypes];
+
   return (
     <div className="stack">
       <section className="form-section stack">
@@ -96,15 +99,15 @@ export function CharacterCardFormView({ form, onChange, disabled = false, hideSt
             <span className="field-hint">性别会用于人物设定、对白称谓和三视图生成，只支持男或女。</span>
           </div>
           <div className="field">
-            <label>角色类型</label>
+            <label>人物原型</label>
             <select disabled={disabled} value={form.role_type} onChange={(event) => onChange("role_type", event.target.value)}>
-              {roleTypes.map((role) => (
+              {roleOptions.map((role) => (
                 <option key={role} value={role}>
                   {role}
                 </option>
               ))}
             </select>
-            <span className="field-hint">选择角色在故事里的主要剧情功能，例如主角、反派或关键推动者。</span>
+            <span className="field-hint">选择跨项目稳定的人设原型，例如复仇者、守护者、操控者或成长型。</span>
           </div>
         </div>
         <InputField
@@ -130,18 +133,12 @@ export function CharacterCardFormView({ form, onChange, disabled = false, hideSt
       </section>
 
       <section className="form-section stack">
-        <h3>人物动机与剧情功能</h3>
+        <h3>人物资产设定</h3>
         <div className="grid-2">
-          <TextAreaField disabled={disabled} label="人物背景" field="background" form={form} onChange={onChange} placeholder="例如：幼年被家族边缘化，成年后以投资人身份回归。" hint="写清出身、经历和当前处境。" />
+          <TextAreaField disabled={disabled} label="人物背景" field="background" form={form} onChange={onChange} placeholder="例如：幼年被家族边缘化，成年后以投资人身份回归。" hint="写清跨项目稳定的出身、经历和处境，不写具体项目集数剧情。" />
           <TextAreaField disabled={disabled} label="性格" field="personality" form={form} onChange={onChange} placeholder="例如：外冷内热、极强控制欲、习惯先观察再行动。" hint="描述稳定性格特征，避免只写单个形容词。" />
-          <TextAreaField disabled={disabled} label="人物目标" field="goal" form={form} onChange={onChange} placeholder="例如：夺回母亲留下的公司控制权。" hint="写清短剧主线里角色最想达成什么。" />
-          <TextAreaField disabled={disabled} label="深层动机" field="motivation" form={form} onChange={onChange} placeholder="例如：证明自己不是家族弃子，也替母亲讨回公道。" hint="解释为什么这个目标对角色非做不可。" />
-          <TextAreaField disabled={disabled} label="人物秘密" field="secret" form={form} onChange={onChange} placeholder="例如：真实身份并非养女，而是失踪继承人的亲生女儿。" hint="用于后续反转、悬念和钩子设计。" />
-          <TextAreaField disabled={disabled} label="冲突点" field="conflict_points" form={form} onChange={onChange} placeholder="例如：与男主目标一致但手段相反；与反派存在旧日恩怨。" hint="写清角色与其他角色或世界观规则的矛盾。" />
-          <TextAreaField disabled={disabled} label="人物关系说明" field="relationship_notes" form={form} onChange={onChange} placeholder="例如：与男主互相利用，与继母长期敌对，与弟弟存在保护关系。" hint="写清利益、情感和权力关系。" />
-          <TextAreaField disabled={disabled} label="情感弧线" field="emotional_arc" form={form} onChange={onChange} placeholder="例如：从不信任任何人，到愿意承担情感风险。" hint="描述角色在故事中的变化方向。" />
+          <TextAreaField disabled={disabled} label="核心欲望 / 人物执念" field="goal" form={form} onChange={onChange} placeholder="例如：证明自身价值、掌控命运、守护亲人、摆脱被安排的人生。" hint="描述角色跨项目稳定的内在驱动力，不填写某个项目的具体剧情目标。" />
         </div>
-        <TextAreaField disabled={disabled} label="剧情功能" field="story_function" form={form} onChange={onChange} placeholder="例如：制造误会、推动复仇线、在第 12 集揭露关键秘密。" hint="说明角色在短剧结构中的用途。" />
       </section>
 
       <section className="form-section stack">
@@ -152,7 +149,6 @@ export function CharacterCardFormView({ form, onChange, disabled = false, hideSt
           <TextAreaField disabled={disabled} label="视觉描述" field="visual_description" form={form} onChange={onChange} placeholder="例如：28 岁左右，冷静克制，黑色长发，浅色西装，眼神疏离但有攻击性。" hint="用于人物三视图和后续视频一致性参考。" />
           <TextAreaField disabled={disabled} label="形象关键词" field="image_keywords" form={form} onChange={onChange} placeholder="例如：冷感、精英感、黑长直、浅色西装、克制、危险感" hint="建议 3 到 12 个关键词，快速约束视觉方向。" />
         </div>
-        <TextAreaField disabled={disabled} label="三视图提示词" field="turnaround_prompt" form={form} onChange={onChange} placeholder="例如：全身角色设计，正面、侧面、背面，统一服装，干净背景，短剧人物设定图。" hint="可补充年龄、体型、发型、服装、气质、色彩和风格；不要指定模仿现实人物。" />
         <ReferencePreview url={form.reference_image_url} />
       </section>
     </div>
@@ -234,6 +230,31 @@ export function ReferencePreview({ url }: { url: string }) {
   );
 }
 
+export function TurnaroundPromptField({
+  form,
+  onChange,
+  disabled = false
+}: {
+  form: CharacterCardForm;
+  onChange: (field: keyof CharacterCardForm, value: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="field turnaround-prompt-field">
+      <label>三视图提示词</label>
+      <textarea
+        disabled={disabled}
+        value={form.turnaround_prompt}
+        onChange={(event) => onChange("turnaround_prompt", event.target.value)}
+        placeholder="例如：全身角色设计，正面、侧面、背面，统一服装，干净背景，短剧人物设定图。"
+      />
+      <span className="field-hint">
+        可先点击“生成提示词”自动拼接，再手动补充年龄、体型、发型、服装、气质、色彩和风格；不要指定模仿现实人物。
+      </span>
+    </div>
+  );
+}
+
 export function validateCharacterCard(form: CharacterCardForm) {
   if (!form.name.trim()) {
     return "角色名不能为空。";
@@ -242,15 +263,45 @@ export function validateCharacterCard(form: CharacterCardForm) {
     return "性别不能为空。";
   }
   if (!form.role_type.trim()) {
-    return "角色类型不能为空。";
+    return "人物原型不能为空。";
   }
   if (!form.identity.trim()) {
     return "身份摘要不能为空。";
   }
   if (!form.goal.trim()) {
-    return "人物目标不能为空。";
+    return "核心欲望 / 人物执念不能为空。";
   }
   return "";
+}
+
+export function validateTurnaroundPromptFields(form: CharacterCardForm) {
+  if (!form.name.trim() || !form.gender || !form.identity.trim()) {
+    return "请先填写角色名、性别和身份摘要后再生成提示词。";
+  }
+  return "";
+}
+
+export function buildTurnaroundPrompt(form: CharacterCardForm, includeCurrentPrompt = true) {
+  const parts = [
+    "请生成同一角色的人物三视图，画面包含正面、侧面、背面，全身，统一服装，干净背景。",
+    "输出应适合作为短剧人物视觉参考，不模仿任何特定现实人物。",
+    fieldLine("角色名", form.name),
+    fieldLine("性别", form.gender),
+    fieldLine("身份摘要", form.identity),
+    fieldLine("视觉描述", form.visual_description),
+    fieldLine("形象关键词", form.image_keywords),
+    fieldLine("人物原型", form.role_type),
+    fieldLine("性格", form.personality),
+    fieldLine("核心欲望 / 人物执念", form.goal),
+    fieldLine("用户三视图补充", includeCurrentPrompt ? form.turnaround_prompt : "")
+  ].filter(Boolean);
+
+  if (form.reference_image_url.trim()) {
+    // 自动提示词只描述参考图用途，不写入本地路径，避免把本机文件系统信息暴露给模型或用户。
+    parts.push("参考图说明：参考图用于服装、脸部风格或整体氛围参考。");
+  }
+
+  return parts.join("\n");
 }
 
 export function formToPayload(form: CharacterCardForm): CharacterCardPayload {
@@ -283,7 +334,7 @@ export function cardToForm(card: CharacterCard): CharacterCardForm {
   return {
     name: card.name ?? "",
     gender: card.gender ?? "",
-    role_type: card.role_type ?? "配角",
+    role_type: card.role_type ?? "成长型",
     identity: card.identity ?? "",
     background: card.background ?? "",
     personality: card.personality ?? "",
@@ -313,6 +364,11 @@ export function statusLabel(status: CharacterCardStatus) {
 
 function optionalText(value: string) {
   return value.trim() || undefined;
+}
+
+function fieldLine(label: string, value: string) {
+  const text = value.trim();
+  return text ? `${label}：${text}` : "";
 }
 
 function toGender(value: CharacterCardForm["gender"]): CharacterGender {

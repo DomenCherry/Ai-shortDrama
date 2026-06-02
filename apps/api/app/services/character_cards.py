@@ -82,6 +82,8 @@ def _snapshot_to_response(snapshot: ProjectCharacterSnapshot) -> dict[str, Any]:
 
 
 def _payload_to_card_fields(payload: CharacterCardCreate | CharacterCardUpdate) -> dict[str, Any]:
+    # 角色卡库只维护跨项目稳定的人物资产。旧版剧情字段继续保留在数据库中用于历史兼容，
+    # 但新建和编辑角色卡时不再写入，避免把具体项目剧情沉淀到可复用资产里。
     return {
         "name": payload.name,
         "gender": payload.gender,
@@ -90,14 +92,8 @@ def _payload_to_card_fields(payload: CharacterCardCreate | CharacterCardUpdate) 
         "background": payload.background,
         "personality": payload.personality,
         "goal": payload.goal,
-        "motivation": payload.motivation,
-        "secret": payload.secret,
-        "conflict_points": payload.conflict_points,
-        "relationship_notes": payload.relationship_notes,
         "speech_style": payload.speech_style,
         "catchphrases": payload.catchphrases,
-        "emotional_arc": payload.emotional_arc,
-        "story_function": payload.story_function,
         "visual_description": payload.visual_description,
         "image_keywords": payload.image_keywords,
         "reference_image_url": payload.reference_image_url,
@@ -150,28 +146,24 @@ def _turnaround_prompt(card: CharacterCard, override_prompt: str | None = None) 
         "输出应适合作为短剧人物视觉参考，不模仿任何特定现实人物。",
         f"角色名：{card.name}",
         f"性别：{card.gender}",
-        f"角色类型：{card.role_type}",
         f"身份摘要：{card.identity}",
-        f"人物目标：{card.goal}",
     ]
     optional_fields = [
-        ("人物背景", card.background),
-        ("性格", card.personality),
-        ("深层动机", card.motivation),
-        ("人物秘密", card.secret),
-        ("冲突点", card.conflict_points),
-        ("人物关系", card.relationship_notes),
-        ("说话方式", card.speech_style),
-        ("常用表达", card.catchphrases),
-        ("情感弧线", card.emotional_arc),
-        ("剧情功能", card.story_function),
         ("视觉描述", card.visual_description),
         ("形象关键词", card.image_keywords),
-        ("用户三视图提示词", override_prompt or card.turnaround_prompt),
+        ("人物原型", card.role_type),
+        ("性格", card.personality),
+        ("核心欲望 / 人物执念", card.goal),
+        # 背景和口吻只作为气质补充，放在视觉字段之后，避免稀释外观约束。
+        ("人物背景", card.background),
+        ("说话方式", card.speech_style),
+        ("常用表达", card.catchphrases),
+        ("用户三视图补充", override_prompt or card.turnaround_prompt),
     ]
     parts.extend(f"{label}：{value}" for label, value in optional_fields if value)
     if card.reference_image_url:
-        parts.append(f"参考图：{card.reference_image_url}")
+        # 参考图二进制由 image 字段传入模型；prompt 中只说明用途，不暴露本地文件系统路径。
+        parts.append("参考图说明：参考图用于服装、脸部风格或整体氛围参考。")
     return "\n".join(parts)
 
 

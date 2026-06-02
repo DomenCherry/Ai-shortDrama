@@ -15,6 +15,32 @@ export type ModelConfigPayload = {
   enabled?: boolean;
 };
 
+export type ModelConfig = {
+  id: string;
+  config_type: "text" | "image";
+  provider_mode: "preset" | "custom";
+  provider_preset?: string;
+  provider_name: string;
+  api_base_url: string;
+  api_key_masked: string;
+  model_name: string;
+  image_size?: string;
+  endpoint_path?: string;
+  supports_reference_image: boolean;
+  remark?: string;
+  enabled: boolean;
+  last_test_status: string;
+  last_tested_at?: string;
+  last_test_error?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ModelConfigUpdatePayload = Omit<ModelConfigPayload, "config_type" | "enabled" | "api_key"> & {
+  api_key?: string;
+  enabled?: boolean;
+};
+
 export type ProjectPayload = {
   title?: string;
   idea: string;
@@ -125,10 +151,38 @@ function normalizeNetworkError(err: unknown) {
   return rawMessage || "请求后端服务失败，请稍后重试。";
 }
 
+export function listModelConfigs(configType?: "text" | "image") {
+  const query = configType ? `?config_type=${configType}` : "";
+  return request<ModelConfig[]>(`/api/model-configs${query}`);
+}
+
+export function getModelConfig(configId: string) {
+  return request<ModelConfig>(`/api/model-configs/${configId}`);
+}
+
 export function createModelConfig(payload: ModelConfigPayload) {
-  return request("/api/model-configs", {
+  return request<ModelConfig>("/api/model-configs", {
     method: "POST",
     body: JSON.stringify(payload)
+  });
+}
+
+export function updateModelConfig(configId: string, payload: ModelConfigUpdatePayload) {
+  return request<ModelConfig>(`/api/model-configs/${configId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteModelConfig(configId: string) {
+  return request<{ ok: boolean }>(`/api/model-configs/${configId}`, {
+    method: "DELETE"
+  });
+}
+
+export function enableModelConfig(configId: string) {
+  return request<ModelConfig>(`/api/model-configs/${configId}/enable`, {
+    method: "POST"
   });
 }
 

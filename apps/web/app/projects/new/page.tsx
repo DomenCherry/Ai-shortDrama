@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createProject } from "@/lib/api";
 
 type ProjectForm = {
@@ -28,6 +30,7 @@ const initialForm: ProjectForm = {
 };
 
 export default function NewProjectPage() {
+  const router = useRouter();
   const [form, setForm] = useState<ProjectForm>(initialForm);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
@@ -65,8 +68,9 @@ export default function NewProjectPage() {
         style: form.style || undefined,
         remark: form.remark || undefined
       });
-      setStatus("项目创建成功，后续将进入项目工作台。");
+      setStatus("项目创建成功，正在返回项目管理。");
       setForm(initialForm);
+      router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "项目创建失败");
     } finally {
@@ -83,6 +87,9 @@ export default function NewProjectPage() {
             先确定创意和项目体量。单集时长不能超过 2 分钟，总时长不能超过 240 分钟。
           </p>
         </div>
+        <Link className="button secondary" href="/">
+          返回项目管理
+        </Link>
       </header>
 
       <form className="panel stack" onSubmit={submitProject}>
@@ -175,6 +182,9 @@ export default function NewProjectPage() {
         {status ? <div className="success">{status}</div> : null}
 
         <div className="actions">
+          <Link className="button secondary" href="/">
+            取消
+          </Link>
           <button className="button" type="submit" disabled={isSubmitting || Boolean(validationError)}>
             {isSubmitting ? "创建中..." : "创建项目"}
           </button>
@@ -211,4 +221,3 @@ function validateProject(
 function formatNumber(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
-

@@ -14,8 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <aside className="sidebar">
             <div className="brand">AI 短剧工作台</div>
             <nav className="nav">
-              <Link href="/">项目</Link>
-              <Link href="/projects/new">创建项目</Link>
+              <Link href="/">项目管理</Link>
               <Link href="/character-cards">角色卡库</Link>
               <Link href="/settings">模型配置</Link>
             </nav>

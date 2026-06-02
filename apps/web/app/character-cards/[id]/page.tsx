@@ -23,6 +23,7 @@ import {
   emptyCharacterCardForm,
   formToPayload,
   statusLabel,
+  TurnaroundPromptField,
   validateCharacterCard
 } from "../_components/CharacterCardForm";
 
@@ -203,7 +204,7 @@ export default function CharacterCardDetailPage() {
       return;
     }
     if (!form.name.trim() || !form.gender || !form.identity.trim() || !form.goal.trim()) {
-      setError("请先填写角色名、性别、身份摘要和人物目标后再生成三视图。");
+      setError("请先填写角色名、性别、身份摘要和核心欲望 / 人物执念后再生成三视图。");
       return;
     }
     if (!form.visual_description.trim() && !form.image_keywords.trim()) {
@@ -340,8 +341,9 @@ export default function CharacterCardDetailPage() {
           <section className="form-section stack">
             <h3>人物三视图</h3>
             <p className="field-hint">
-              系统会合并角色名、性别、身份、目标、背景、口吻、视觉描述、形象关键词、三视图提示词和参考图信息调用图片生成接口。
+              系统会合并角色名、性别、人物原型、身份、核心欲望、背景、口吻、视觉描述、形象关键词、三视图提示词和参考图信息调用图片生成接口。
             </p>
+            <TurnaroundPromptField form={form} onChange={updateField} disabled={isArchived} />
             <div className="turnaround-preview">
               {card.turnaround_image_url ? (
                 <img src={resolveAssetUrl(card.turnaround_image_url)} alt="人物三视图预览" />

@@ -31,6 +31,8 @@ class ModelApiConfig(Base):
     last_test_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # 模型配置采用软删除，保留测试日志用于后续排查接口失败原因。
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class ModelApiTestLog(Base):

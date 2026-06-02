@@ -44,6 +44,40 @@ class ModelApiConfigCreate(BaseModel):
         return value
 
 
+class ModelApiConfigUpdate(BaseModel):
+    provider_mode: ProviderMode = "custom"
+    provider_preset: Optional[str] = None
+    provider_name: Optional[str] = None
+    api_base_url: Optional[str] = None
+    api_key: Optional[str] = None
+    model_name: str = Field(min_length=1)
+    image_size: Optional[str] = None
+    endpoint_path: Optional[str] = None
+    supports_reference_image: bool = False
+    remark: Optional[str] = None
+    enabled: Optional[bool] = None
+
+    @field_validator(
+        "provider_preset",
+        "provider_name",
+        "api_base_url",
+        "api_key",
+        "model_name",
+        "image_size",
+        "endpoint_path",
+        "remark",
+        mode="before",
+    )
+    @classmethod
+    def normalize_config_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
 class ModelApiConfigResponse(BaseModel):
     id: str
     config_type: ConfigType
