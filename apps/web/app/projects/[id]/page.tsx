@@ -738,53 +738,53 @@ export default function ProjectWorkbenchPage() {
       {activeStage === "episodes" ? (
         <section className="panel stack">
           <SectionTitle title="分集大纲" status={episodeOutlines.find((outline) => outline.episode_no === selectedEpisodeNo)?.status ?? episodeForm.status} />
-          <EpisodePicker episodeCount={project.episode_count} value={selectedEpisodeNo} onChange={setSelectedEpisodeNo} />
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>集数</th>
-                  <th>标题</th>
-                  <th>梗概</th>
-                  <th>状态</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="episode-workspace">
+            <aside className="episode-index" aria-label="分集列表">
+              <EpisodePicker episodeCount={project.episode_count} value={selectedEpisodeNo} onChange={setSelectedEpisodeNo} />
+              <div className="episode-index-list">
                 {episodeRows.map((row) => (
-                  <tr key={row.episodeNo}>
-                    <td>第 {row.episodeNo} 集</td>
-                    <td>{row.outline?.title || "未填写"}</td>
-                    <td>{row.outline?.synopsis || "未填写"}</td>
-                    <td><ArtifactStatusBadge status={row.outline?.status ?? "draft"} /></td>
-                    <td>
-                      <button className="button secondary" type="button" onClick={() => setSelectedEpisodeNo(row.episodeNo)}>
-                        编辑
-                      </button>
-                    </td>
-                  </tr>
+                  <button
+                    className={`episode-index-item ${selectedEpisodeNo === row.episodeNo ? "active" : ""}`}
+                    type="button"
+                    key={row.episodeNo}
+                    onClick={() => setSelectedEpisodeNo(row.episodeNo)}
+                    aria-current={selectedEpisodeNo === row.episodeNo ? "true" : undefined}
+                  >
+                    <span className="episode-index-main">
+                      <strong>第 {row.episodeNo} 集</strong>
+                      <span>{row.outline?.title || "未填写标题"}</span>
+                    </span>
+                    <span className="episode-index-meta">
+                      <ArtifactStatusBadge status={row.outline?.status ?? "draft"} />
+                    </span>
+                    <span className="episode-index-summary">{row.outline?.synopsis || "尚未填写本集梗概"}</span>
+                  </button>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </aside>
+
+            <form className="episode-editor stack" onSubmit={saveEpisodeOutline}>
+              <div className="episode-editor-heading">
+                <h3>编辑第 {selectedEpisodeNo} 集</h3>
+                <ArtifactStatusBadge status={episodeOutlines.find((outline) => outline.episode_no === selectedEpisodeNo)?.status ?? episodeForm.status} />
+              </div>
+              <div className="grid-2">
+                <TextInput label="标题" value={episodeForm.title} onChange={(value) => setEpisodeFormValue("title", value, setEpisodeForm)} />
+                <NumberInput label="预计时长（分钟）" min="0.1" step="0.1" value={episodeForm.duration_minutes} onChange={(value) => setEpisodeFormValue("duration_minutes", value, setEpisodeForm)} />
+                <TextArea label="本集梗概" value={episodeForm.synopsis} onChange={(value) => setEpisodeFormValue("synopsis", value, setEpisodeForm)} />
+                <TextArea label="开场钩子" value={episodeForm.hook} onChange={(value) => setEpisodeFormValue("hook", value, setEpisodeForm)} />
+                <TextArea label="本集冲突" value={episodeForm.conflict} onChange={(value) => setEpisodeFormValue("conflict", value, setEpisodeForm)} />
+                <TextArea label="反转" value={episodeForm.reversal} onChange={(value) => setEpisodeFormValue("reversal", value, setEpisodeForm)} />
+                <TextArea label="结尾悬念" value={episodeForm.cliffhanger} onChange={(value) => setEpisodeFormValue("cliffhanger", value, setEpisodeForm)} />
+              </div>
+              <StatusSelect value={episodeForm.status} onChange={(value) => setEpisodeFormValue("status", value, setEpisodeForm)} />
+              <div className="actions">
+                <button className="button" type="submit" disabled={isSaving}>
+                  {isSaving ? "保存中..." : "保存分集大纲"}
+                </button>
+              </div>
+            </form>
           </div>
-          <form className="stack" onSubmit={saveEpisodeOutline}>
-            <h3>编辑第 {selectedEpisodeNo} 集</h3>
-            <div className="grid-2">
-              <TextInput label="标题" value={episodeForm.title} onChange={(value) => setEpisodeFormValue("title", value, setEpisodeForm)} />
-              <NumberInput label="预计时长（分钟）" min="0.1" step="0.1" value={episodeForm.duration_minutes} onChange={(value) => setEpisodeFormValue("duration_minutes", value, setEpisodeForm)} />
-              <TextArea label="本集梗概" value={episodeForm.synopsis} onChange={(value) => setEpisodeFormValue("synopsis", value, setEpisodeForm)} />
-              <TextArea label="开场钩子" value={episodeForm.hook} onChange={(value) => setEpisodeFormValue("hook", value, setEpisodeForm)} />
-              <TextArea label="本集冲突" value={episodeForm.conflict} onChange={(value) => setEpisodeFormValue("conflict", value, setEpisodeForm)} />
-              <TextArea label="反转" value={episodeForm.reversal} onChange={(value) => setEpisodeFormValue("reversal", value, setEpisodeForm)} />
-              <TextArea label="结尾悬念" value={episodeForm.cliffhanger} onChange={(value) => setEpisodeFormValue("cliffhanger", value, setEpisodeForm)} />
-            </div>
-            <StatusSelect value={episodeForm.status} onChange={(value) => setEpisodeFormValue("status", value, setEpisodeForm)} />
-            <div className="actions">
-              <button className="button" type="submit" disabled={isSaving}>
-                {isSaving ? "保存中..." : "保存分集大纲"}
-              </button>
-            </div>
-          </form>
         </section>
       ) : null}
 

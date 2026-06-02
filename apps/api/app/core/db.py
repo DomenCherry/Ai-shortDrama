@@ -30,6 +30,15 @@ def initialize_database() -> None:
         ModelApiTestLog,
         Project,
         ProjectCharacterSnapshot,
+        ProjectCopywriting,
+        ProjectEpisodeContent,
+        ProjectEpisodeOutline,
+        ProjectEpisodeScript,
+        ProjectStoryboardShot,
+        ProjectStoryOutline,
+        ProjectWorldSnapshot,
+        WorldBook,
+        WorldBookEntry,
     )
 
     Base.metadata.create_all(bind=get_engine())
