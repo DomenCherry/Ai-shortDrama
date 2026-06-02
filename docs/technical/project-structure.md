@@ -159,3 +159,26 @@ docs/technical/frontend-page-spec-template.md
 - 验收标准。
 
 页面 spec 只描述前端行为和验收，不替代 PRD、功能详细设计或后端接口设计。
+
+## 8. 功能实现流程
+
+新增或调整功能时，统一遵守：
+
+```text
+docs/technical/implementation-workflow.md
+```
+
+标准推进顺序：
+
+```text
+确认需求层级
+ -> 更新功能 PRD
+ -> 更新功能说明 Spec
+ -> 更新前端页面 Spec
+ -> 明确后端、前端、数据库实现边界
+ -> 实现代码
+ -> 同步文档
+ -> 运行验证
+```
+
+如果只是小范围 bug fix 或文案样式调整，可以简化流程；但只要影响字段含义、API 行为、数据库结构、AI 生成上下文或页面流程，就必须补齐对应文档。

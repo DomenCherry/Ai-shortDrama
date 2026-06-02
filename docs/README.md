@@ -28,6 +28,7 @@ docs
     ├── debugging.md
     ├── frontend-page-spec-template.md
     ├── frontend-style-guide.md
+    ├── implementation-workflow.md
     ├── project-structure.md
     └── skills-strategy.md
 ```
@@ -103,6 +104,8 @@ docs
     └── technical-design
 ```
 
+新增或调整功能时，统一遵守 [功能实现流程规范](./technical/implementation-workflow.md)，按“PRD -> 功能说明 Spec -> 前端页面 Spec -> 代码实现 -> 验证”的顺序推进。
+
 ## 技术文档
 
 - [技术架构](./technical/architecture.md)
@@ -110,5 +113,6 @@ docs
 - [本地调试说明](./technical/debugging.md)
 - [前端页面 Spec 模板](./technical/frontend-page-spec-template.md)
 - [前端风格规范](./technical/frontend-style-guide.md)
+- [功能实现流程规范](./technical/implementation-workflow.md)
 - [项目结构约定](./technical/project-structure.md)
 - [Skill 分层策略](./technical/skills-strategy.md)
