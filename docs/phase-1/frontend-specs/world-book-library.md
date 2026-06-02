@@ -5,7 +5,7 @@
 - 页面组名称：世界观库
 - 所属阶段：第一期
 - 目标用户：个人短剧创作者
-- 关联功能设计：[世界观库](../features/world-book-library.md)
+- 关联模块 PRD：[世界观库](../module-prds/world-book-library.md)
 - 页面路径：
   - 世界观列表页：`/world-books`
   - 新建世界观页：`/world-books/new`

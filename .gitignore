@@ -28,5 +28,8 @@ workspace/assets/*
 .vscode/
 .idea/
 
+# AI agent runtime artifacts
+.agent/
+
 # Local-only AI coding skills
 .local-skills/

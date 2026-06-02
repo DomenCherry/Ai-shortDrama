@@ -14,10 +14,14 @@ import {
   getProjectEpisodeContent,
   getProjectEpisodeScript,
   getProjectStoryOutline,
+  listCharacterCards,
   listProjectCharacterSnapshots,
   listProjectEpisodeOutlines,
   listProjectStoryboardShots,
   listProjectWorldSnapshots,
+  listWorldBooks,
+  loadCharacterCardToProject,
+  loadWorldBookToProject,
   ProjectArtifactStatus,
   ProjectCharacterSnapshot,
   ProjectCopywriting,
@@ -34,7 +38,9 @@ import {
   updateProjectEpisodeOutline,
   updateProjectEpisodeScript,
   updateProjectStoryboardShot,
-  updateProjectStoryOutline
+  updateProjectStoryOutline,
+  WorldBook,
+  CharacterCard
 } from "@/lib/api";
 
 type Stage = "settings" | "assets" | "story" | "episodes" | "content" | "script" | "storyboard";
@@ -150,9 +156,18 @@ export default function ProjectWorkbenchPage() {
   const [removingSnapshotId, setRemovingSnapshotId] = useState("");
   const [removingShotId, setRemovingShotId] = useState("");
 
+  const [showWorldPicker, setShowWorldPicker] = useState(false);
+  const [showCharacterPicker, setShowCharacterPicker] = useState(false);
+  const [availableWorlds, setAvailableWorlds] = useState<WorldBook[]>([]);
+  const [availableCharacters, setAvailableCharacters] = useState<CharacterCard[]>([]);
+  const [isLoadingPicker, setIsLoadingPicker] = useState(false);
+  const [loadingAssetId, setLoadingAssetId] = useState("");
+
   const episodeCount = Number(projectForm.episode_count);
   const episodeDuration = Number(projectForm.episode_duration);
   const totalDuration = useMemo(() => episodeCount * episodeDuration, [episodeCount, episodeDuration]);
+  const loadedWorldIds = useMemo(() => new Set(worldSnapshots.map((s) => s.source_world_book_id)), [worldSnapshots]);
+  const loadedCharacterIds = useMemo(() => new Set(characterSnapshots.map((s) => s.source_character_card_id)), [characterSnapshots]);
   const validationError = validateProject(projectForm, episodeCount, episodeDuration, totalDuration);
   const durationChanged =
     Boolean(project) &&
@@ -490,6 +505,66 @@ export default function ProjectWorkbenchPage() {
     }
   };
 
+  const openWorldPicker = async () => {
+    setShowWorldPicker(true);
+    setIsLoadingPicker(true);
+    try {
+      const worlds = await listWorldBooks({ status: "active" });
+      setAvailableWorlds(worlds);
+    } catch {
+      setAvailableWorlds([]);
+    } finally {
+      setIsLoadingPicker(false);
+    }
+  };
+
+  const openCharacterPicker = async () => {
+    setShowCharacterPicker(true);
+    setIsLoadingPicker(true);
+    try {
+      const characters = await listCharacterCards({ status: "active" });
+      setAvailableCharacters(characters);
+    } catch {
+      setAvailableCharacters([]);
+    } finally {
+      setIsLoadingPicker(false);
+    }
+  };
+
+  const handleLoadWorld = async (worldBookId: string) => {
+    setLoadingAssetId(worldBookId);
+    setError("");
+    setStatus("");
+    try {
+      await loadWorldBookToProject(projectId, worldBookId);
+      setStatus("世界观已加载到项目，下游创作内容已标记为需要检查。");
+      await refreshAssets();
+      void refreshStoryAndEpisodes();
+      void refreshEpisodeArtifacts(selectedEpisodeNo);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "世界观加载失败");
+    } finally {
+      setLoadingAssetId("");
+    }
+  };
+
+  const handleLoadCharacter = async (characterCardId: string) => {
+    setLoadingAssetId(characterCardId);
+    setError("");
+    setStatus("");
+    try {
+      await loadCharacterCardToProject(projectId, characterCardId);
+      setStatus("角色已加载到项目，下游创作内容已标记为需要检查。");
+      await refreshAssets();
+      void refreshStoryAndEpisodes();
+      void refreshEpisodeArtifacts(selectedEpisodeNo);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "角色加载失败");
+    } finally {
+      setLoadingAssetId("");
+    }
+  };
+
   const editShot = (shot: ProjectStoryboardShot) => {
     setEditingShotId(shot.id);
     setShotForm(shotToForm(shot));
@@ -650,9 +725,11 @@ export default function ProjectWorkbenchPage() {
           <AssetSection
             title="项目世界观"
             linkHref="/world-books"
-            linkLabel="去世界观库"
+            linkLabel="前往世界观库"
             isLoading={isLoadingAssets}
-            emptyText="尚未加载世界观。可在世界观库中选择可用世界观并加载到当前项目。"
+            emptyText="尚未加载世界观。点击下方按钮从世界观库中选择并加载。"
+            onPick={openWorldPicker}
+            pickLabel="加载世界观"
           >
             {worldSnapshots.map((snapshot) => (
               <article className="asset-card" key={snapshot.id}>
@@ -679,12 +756,70 @@ export default function ProjectWorkbenchPage() {
             ))}
           </AssetSection>
 
+          {showWorldPicker ? (
+            <div className="panel stack picker-panel">
+              <div className="section-heading">
+                <h3>选择世界观</h3>
+                <button className="button secondary" type="button" onClick={() => setShowWorldPicker(false)}>
+                  关闭
+                </button>
+              </div>
+              {isLoadingPicker ? (
+                <div className="empty-state">正在加载可用世界观...</div>
+              ) : availableWorlds.length === 0 ? (
+                <div className="empty-state">
+                  没有可用的世界观。
+                  <Link href="/world-books/new" className="button secondary" style={{ marginTop: "0.5rem", display: "inline-block" }}>
+                    创建世界观
+                  </Link>
+                </div>
+              ) : (
+                <div className="asset-list">
+                  {availableWorlds.map((wb) => {
+                    const isLoaded = loadedWorldIds.has(wb.id);
+                    return (
+                      <article className={`asset-card ${isLoaded ? "asset-card-disabled" : ""}`} key={wb.id}>
+                        <div className="asset-card-main">
+                          <div className="asset-card-title">
+                            <strong>{wb.name}</strong>
+                            {isLoaded ? (
+                              <span className="status-badge status-active">已加载</span>
+                            ) : (
+                              <span className="status-badge status-draft">可用</span>
+                            )}
+                          </div>
+                          <div className="hint">{wb.genre} · v{wb.version}</div>
+                          <p>{wb.summary || wb.world_rules || "无简介"}</p>
+                        </div>
+                        <div className="asset-card-actions">
+                          <button
+                            className="button"
+                            type="button"
+                            disabled={isLoaded || loadingAssetId === wb.id}
+                            onClick={() => void handleLoadWorld(wb.id)}
+                          >
+                            {loadingAssetId === wb.id ? "加载中..." : isLoaded ? "已加载" : "加载到项目"}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="hint" style={{ textAlign: "center" }}>
+                <Link href="/world-books">前往世界观库管理</Link>
+              </div>
+            </div>
+          ) : null}
+
           <AssetSection
             title="项目角色"
             linkHref="/character-cards"
-            linkLabel="去角色卡库"
+            linkLabel="前往角色卡库"
             isLoading={isLoadingAssets}
-            emptyText="尚未加载角色。可在角色卡库中选择可用角色并加载到当前项目。"
+            emptyText="尚未加载角色。点击下方按钮从角色卡库中选择并加载。"
+            onPick={openCharacterPicker}
+            pickLabel="加载角色"
           >
             {characterSnapshots.map((snapshot) => (
               <article className="asset-card" key={snapshot.id}>
@@ -712,6 +847,62 @@ export default function ProjectWorkbenchPage() {
               </article>
             ))}
           </AssetSection>
+
+          {showCharacterPicker ? (
+            <div className="panel stack picker-panel">
+              <div className="section-heading">
+                <h3>选择角色卡</h3>
+                <button className="button secondary" type="button" onClick={() => setShowCharacterPicker(false)}>
+                  关闭
+                </button>
+              </div>
+              {isLoadingPicker ? (
+                <div className="empty-state">正在加载可用角色卡...</div>
+              ) : availableCharacters.length === 0 ? (
+                <div className="empty-state">
+                  没有可用的角色卡。
+                  <Link href="/character-cards/new" className="button secondary" style={{ marginTop: "0.5rem", display: "inline-block" }}>
+                    创建角色卡
+                  </Link>
+                </div>
+              ) : (
+                <div className="asset-list">
+                  {availableCharacters.map((cc) => {
+                    const isLoaded = loadedCharacterIds.has(cc.id);
+                    return (
+                      <article className={`asset-card ${isLoaded ? "asset-card-disabled" : ""}`} key={cc.id}>
+                        <div className="asset-card-main">
+                          <div className="asset-card-title">
+                            <strong>{cc.name}</strong>
+                            {isLoaded ? (
+                              <span className="status-badge status-active">已加载</span>
+                            ) : (
+                              <span className="status-badge status-draft">可用</span>
+                            )}
+                          </div>
+                          <div className="hint">{cc.gender} · {cc.role_type} · v{cc.version}</div>
+                          <p>{cc.identity || cc.background || "无简介"}</p>
+                        </div>
+                        <div className="asset-card-actions">
+                          <button
+                            className="button"
+                            type="button"
+                            disabled={isLoaded || loadingAssetId === cc.id}
+                            onClick={() => void handleLoadCharacter(cc.id)}
+                          >
+                            {loadingAssetId === cc.id ? "加载中..." : isLoaded ? "已加载" : "加载到项目"}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="hint" style={{ textAlign: "center" }}>
+                <Link href="/character-cards">前往角色卡库管理</Link>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -935,6 +1126,8 @@ function AssetSection({
   linkLabel,
   isLoading,
   emptyText,
+  onPick,
+  pickLabel,
   children
 }: {
   title: string;
@@ -942,6 +1135,8 @@ function AssetSection({
   linkLabel: string;
   isLoading: boolean;
   emptyText: string;
+  onPick?: () => void;
+  pickLabel?: string;
   children: ReactNode;
 }) {
   const childArray = Array.isArray(children) ? children : [children];
@@ -949,9 +1144,16 @@ function AssetSection({
     <section className="panel stack">
       <div className="section-heading">
         <h2>{title}</h2>
-        <Link className="button secondary" href={linkHref}>
-          {linkLabel}
-        </Link>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          {onPick && pickLabel ? (
+            <button className="button" type="button" onClick={onPick}>
+              {pickLabel}
+            </button>
+          ) : null}
+          <Link className="button secondary" href={linkHref}>
+            {linkLabel}
+          </Link>
+        </div>
       </div>
       {isLoading ? (
         <div className="empty-state">正在加载项目资产...</div>

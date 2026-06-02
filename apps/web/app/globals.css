@@ -470,6 +470,15 @@ select {
   justify-content: flex-end;
 }
 
+.asset-card-disabled {
+  opacity: 0.55;
+}
+
+.picker-panel {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
 .form-page {
   max-width: 1080px;
 }

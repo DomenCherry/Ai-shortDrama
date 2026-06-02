@@ -5,8 +5,7 @@
 - 页面组名称：角色卡库
 - 所属阶段：第一期
 - 目标用户：个人短剧创作者
-- 关联 PRD：[角色卡库 PRD](../prds/character-card-library-prd.md)
-- 关联功能设计：[角色卡库](../features/character-card-library.md)
+- 关联模块 PRD：[角色卡库](../module-prds/character-card-library.md)
 - 页面路径：
   - 角色卡列表页：`/character-cards`
   - 新建角色卡页：`/character-cards/new`

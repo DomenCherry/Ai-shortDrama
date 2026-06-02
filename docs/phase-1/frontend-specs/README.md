@@ -36,7 +36,11 @@ docs/phase-1/frontend-specs/<page-name>.md
 
 ## 已有页面 Spec
 
-- [角色卡库页面组](./character-card-library.md)
+- [项目管理](./project-management.md)
+- [项目工作台](./project-workbench.md)
+- [世界观库](./world-book-library.md)
+- [角色卡库](./character-card-library.md)
+- [模型 API 配置](./model-api-settings.md)
 
 ## 模板
 
