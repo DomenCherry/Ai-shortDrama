@@ -7,6 +7,9 @@ ConfigType = Literal["text", "image"]
 ProviderMode = Literal["preset", "custom"]
 CharacterGender = Literal["男", "女"]
 CharacterCardStatus = Literal["draft", "active", "archived"]
+WorldBookStatus = Literal["draft", "active", "archived"]
+WorldEntryStatus = Literal["active", "disabled"]
+WorldEntryType = Literal["世界规则", "地点", "组织", "阶层关系", "历史事件", "特殊物品", "禁忌或限制", "风格约束", "其他"]
 
 
 class ModelApiConfigCreate(BaseModel):
@@ -284,5 +287,112 @@ class ProjectCharacterSnapshotResponse(BaseModel):
     visual_description: Optional[str]
     reference_image_url: Optional[str]
     reference_local_path: Optional[str]
+    loaded_at: str
+    updated_at: str
+
+
+class WorldBookBase(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    genre: str = Field(min_length=1, max_length=120)
+    era_background: Optional[str] = None
+    world_rules: str = Field(min_length=1)
+    organizations: Optional[str] = None
+    locations: Optional[str] = None
+    social_structure: Optional[str] = None
+    taboo_or_constraints: Optional[str] = None
+    tone_style: Optional[str] = None
+    summary: Optional[str] = None
+    status: WorldBookStatus = "draft"
+
+    @field_validator(
+        "name",
+        "genre",
+        "era_background",
+        "world_rules",
+        "organizations",
+        "locations",
+        "social_structure",
+        "taboo_or_constraints",
+        "tone_style",
+        "summary",
+        mode="before",
+    )
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class WorldBookCreate(WorldBookBase):
+    pass
+
+
+class WorldBookUpdate(WorldBookBase):
+    pass
+
+
+class WorldBookResponse(WorldBookBase):
+    id: str
+    version: int
+    entry_count: int = 0
+    active_entry_count: int = 0
+    created_at: str
+    updated_at: str
+
+
+class WorldEntryBase(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    entry_type: WorldEntryType = "世界规则"
+    keywords: Optional[str] = None
+    content: str = Field(min_length=1)
+    applicable_scope: Optional[str] = "全局"
+    priority: int = 0
+    status: WorldEntryStatus = "active"
+
+    @field_validator("title", "keywords", "content", "applicable_scope", mode="before")
+    @classmethod
+    def normalize_entry_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class WorldEntryCreate(WorldEntryBase):
+    pass
+
+
+class WorldEntryUpdate(WorldEntryBase):
+    pass
+
+
+class WorldEntryResponse(WorldEntryBase):
+    id: str
+    world_book_id: str
+    created_at: str
+    updated_at: str
+
+
+class ProjectWorldSnapshotCreate(BaseModel):
+    source_world_book_id: str = Field(min_length=1)
+    load_mode: Literal["new", "replace"] = "new"
+    replace_snapshot_id: Optional[str] = None
+
+
+class ProjectWorldSnapshotResponse(BaseModel):
+    id: str
+    project_id: str
+    source_world_book_id: str
+    source_version: int
+    name: str
+    genre: str
+    snapshot_content: str
+    entry_snapshot_content: str
     loaded_at: str
     updated_at: str

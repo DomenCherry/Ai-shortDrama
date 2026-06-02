@@ -215,6 +215,10 @@ select {
   grid-template-columns: minmax(220px, 1.3fr) repeat(3, minmax(140px, 0.7fr)) auto;
 }
 
+.filter-bar-compact {
+  grid-template-columns: minmax(220px, 1.3fr) repeat(2, minmax(140px, 0.7fr)) auto;
+}
+
 .filter-actions {
   display: flex;
   justify-content: flex-end;
@@ -262,6 +266,10 @@ select {
   gap: 10px;
   max-height: 760px;
   overflow: auto;
+}
+
+.world-entry-list {
+  max-height: 560px;
 }
 
 .asset-card {
@@ -400,6 +408,7 @@ select {
   }
 
   .filter-bar,
+  .filter-bar-compact,
   .detail-layout {
     grid-template-columns: 1fr;
   }

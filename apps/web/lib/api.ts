@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
 export type ModelConfigPayload = {
   config_type: "text" | "image";
@@ -117,6 +117,59 @@ export type CharacterTurnaround = {
   status: "none" | "generated" | "confirmed" | "failed";
   version: number;
   confirmed_at?: string;
+  updated_at: string;
+};
+
+export type WorldBookStatus = "draft" | "active" | "archived";
+export type WorldEntryStatus = "active" | "disabled";
+export type WorldEntryType =
+  | "世界规则"
+  | "地点"
+  | "组织"
+  | "阶层关系"
+  | "历史事件"
+  | "特殊物品"
+  | "禁忌或限制"
+  | "风格约束"
+  | "其他";
+
+export type WorldBookPayload = {
+  name: string;
+  genre: string;
+  era_background?: string;
+  world_rules: string;
+  organizations?: string;
+  locations?: string;
+  social_structure?: string;
+  taboo_or_constraints?: string;
+  tone_style?: string;
+  summary?: string;
+  status: WorldBookStatus;
+};
+
+export type WorldBook = WorldBookPayload & {
+  id: string;
+  version: number;
+  entry_count: number;
+  active_entry_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WorldEntryPayload = {
+  title: string;
+  entry_type: WorldEntryType;
+  keywords?: string;
+  content: string;
+  applicable_scope?: string;
+  priority: number;
+  status: WorldEntryStatus;
+};
+
+export type WorldEntry = WorldEntryPayload & {
+  id: string;
+  world_book_id: string;
+  created_at: string;
   updated_at: string;
 };
 
@@ -279,6 +332,85 @@ export function confirmCharacterTurnaround(cardId: string) {
 export function confirmCharacterTurnaroundByVersion(cardId: string, version: number) {
   return request<CharacterTurnaround>(`/api/character-cards/${cardId}/turnaround-images/${version}/confirm`, {
     method: "POST"
+  });
+}
+
+export function listWorldBooks(filters: { search?: string; genre?: string; status?: string } = {}) {
+  const params = new URLSearchParams();
+  if (filters.search) params.set("search", filters.search);
+  if (filters.genre) params.set("genre", filters.genre);
+  if (filters.status) params.set("status", filters.status);
+  const query = params.toString();
+  return request<WorldBook[]>(`/api/world-books${query ? `?${query}` : ""}`);
+}
+
+export function createWorldBook(payload: WorldBookPayload) {
+  return request<WorldBook>("/api/world-books", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function getWorldBook(worldBookId: string) {
+  return request<WorldBook>(`/api/world-books/${worldBookId}`);
+}
+
+export function updateWorldBook(worldBookId: string, payload: WorldBookPayload) {
+  return request<WorldBook>(`/api/world-books/${worldBookId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function archiveWorldBook(worldBookId: string) {
+  return request<WorldBook>(`/api/world-books/${worldBookId}/archive`, {
+    method: "POST"
+  });
+}
+
+export function activateWorldBook(worldBookId: string) {
+  return request<WorldBook>(`/api/world-books/${worldBookId}/activate`, {
+    method: "POST"
+  });
+}
+
+export function listWorldEntries(worldBookId: string) {
+  return request<WorldEntry[]>(`/api/world-books/${worldBookId}/entries`);
+}
+
+export function createWorldEntry(worldBookId: string, payload: WorldEntryPayload) {
+  return request<WorldEntry>(`/api/world-books/${worldBookId}/entries`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateWorldEntry(worldBookId: string, entryId: string, payload: WorldEntryPayload) {
+  return request<WorldEntry>(`/api/world-books/${worldBookId}/entries/${entryId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function disableWorldEntry(worldBookId: string, entryId: string) {
+  return request<WorldEntry>(`/api/world-books/${worldBookId}/entries/${entryId}/disable`, {
+    method: "POST"
+  });
+}
+
+export function enableWorldEntry(worldBookId: string, entryId: string) {
+  return request<WorldEntry>(`/api/world-books/${worldBookId}/entries/${entryId}/enable`, {
+    method: "POST"
+  });
+}
+
+export function loadWorldBookToProject(projectId: string, sourceWorldBookId: string) {
+  return request(`/api/projects/${projectId}/world-snapshots`, {
+    method: "POST",
+    body: JSON.stringify({
+      source_world_book_id: sourceWorldBookId,
+      load_mode: "new"
+    })
   });
 }
 

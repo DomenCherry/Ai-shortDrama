@@ -136,3 +136,56 @@ class ProjectCharacterSnapshot(Base):
     reference_local_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     loaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class WorldBook(Base):
+    __tablename__ = "world_books"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    genre: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    era_background: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    world_rules: Mapped[str] = mapped_column(Text, nullable=False)
+    organizations: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    locations: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    social_structure: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    taboo_or_constraints: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    tone_style: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class WorldEntry(Base):
+    __tablename__ = "world_entries"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    world_book_id: Mapped[str] = mapped_column(String(64), ForeignKey("world_books.id"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+    entry_type: Mapped[str] = mapped_column(String(40), nullable=False, index=True)
+    keywords: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    applicable_scope: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="active", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectWorldSnapshot(Base):
+    __tablename__ = "project_world_snapshots"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    source_world_book_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("world_books.id"), nullable=False, index=True
+    )
+    source_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    genre: Mapped[str] = mapped_column(String(120), nullable=False)
+    snapshot_content: Mapped[str] = mapped_column(Text, nullable=False)
+    entry_snapshot_content: Mapped[str] = mapped_column(Text, nullable=False)
+    loaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
