@@ -231,6 +231,74 @@ select {
   padding: 14px;
 }
 
+.metric-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+}
+
+.metric-item {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+}
+
+.stage-tabs {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+}
+
+.stage-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #343a40;
+  cursor: pointer;
+  padding: 9px 12px;
+}
+
+.stage-tab:hover,
+.stage-tab.active {
+  background: #eef3f1;
+  border-color: #c7ddd6;
+  color: var(--brand-strong);
+}
+
+.compact-field {
+  max-width: 280px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  border-collapse: collapse;
+  min-width: 760px;
+  width: 100%;
+}
+
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  color: #343a40;
+  font-size: 13px;
+}
+
 .section-heading {
   align-items: center;
   display: flex;
@@ -347,6 +415,11 @@ select {
   color: #734d32;
 }
 
+.status-review {
+  background: #fff1d6;
+  color: var(--warning);
+}
+
 .warning-text {
   color: var(--warning);
   font-size: 13px;
@@ -409,6 +482,7 @@ select {
 
   .filter-bar,
   .filter-bar-compact,
+  .metric-grid,
   .detail-layout {
     grid-template-columns: 1fr;
   }

@@ -57,7 +57,7 @@ export default function NewProjectPage() {
 
     setIsSubmitting(true);
     try {
-      await createProject({
+      const project = await createProject({
         title: form.title || undefined,
         idea: form.idea,
         target_platform: form.target_platform,
@@ -68,9 +68,9 @@ export default function NewProjectPage() {
         style: form.style || undefined,
         remark: form.remark || undefined
       });
-      setStatus("项目创建成功，正在返回项目管理。");
+      setStatus("项目创建成功，正在进入项目工作台。");
       setForm(initialForm);
-      router.push("/");
+      router.push(`/projects/${project.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "项目创建失败");
     } finally {

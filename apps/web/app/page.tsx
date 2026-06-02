@@ -85,8 +85,9 @@ export default function ProjectManagementPage() {
                   <p className="hint">更新时间：{new Date(project.updated_at).toLocaleString()}</p>
                 </div>
                 <div className="asset-card-actions">
-                  {/* 项目工作台尚未落地，先保留不可跳转的状态文案，避免给用户一个空路由。 */}
-                  <span className="hint">项目工作台待接入</span>
+                  <Link className="button secondary" href={`/projects/${project.id}`}>
+                    进入工作台
+                  </Link>
                 </div>
               </article>
             ))}

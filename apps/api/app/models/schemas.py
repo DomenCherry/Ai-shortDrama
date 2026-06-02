@@ -10,6 +10,7 @@ CharacterCardStatus = Literal["draft", "active", "archived"]
 WorldBookStatus = Literal["draft", "active", "archived"]
 WorldEntryStatus = Literal["active", "disabled"]
 WorldEntryType = Literal["世界规则", "地点", "组织", "阶层关系", "历史事件", "特殊物品", "禁忌或限制", "风格约束", "其他"]
+ProjectArtifactStatus = Literal["draft", "confirmed", "needs_review"]
 
 
 class ModelApiConfigCreate(BaseModel):
@@ -112,7 +113,7 @@ class ModelApiTestResponse(BaseModel):
 
 class ProjectCreate(BaseModel):
     title: Optional[str] = None
-    idea: str = Field(min_length=1)
+    idea: str
     target_platform: Optional[str] = "抖音"
     genre: Optional[str] = None
     episode_count: int = 20
@@ -120,6 +121,13 @@ class ProjectCreate(BaseModel):
     target_audience: Optional[str] = None
     style: Optional[str] = None
     remark: Optional[str] = None
+
+    @field_validator("idea", mode="before")
+    @classmethod
+    def validate_idea(cls, value: Optional[str]) -> str:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("请先输入短剧创意描述")
+        return value.strip()
 
     @field_validator("episode_count")
     @classmethod
@@ -136,6 +144,10 @@ class ProjectCreate(BaseModel):
         if value > 2:
             raise ValueError("单集时长不能超过 2 分钟")
         return value
+
+
+class ProjectUpdate(ProjectCreate):
+    pass
 
 
 class ProjectResponse(BaseModel):
@@ -395,4 +407,186 @@ class ProjectWorldSnapshotResponse(BaseModel):
     snapshot_content: str
     entry_snapshot_content: str
     loaded_at: str
+    updated_at: str
+
+
+class ProjectArtifactBase(BaseModel):
+    status: ProjectArtifactStatus = "draft"
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def validate_status(cls, value: Optional[str]) -> str:
+        if not isinstance(value, str) or not value.strip():
+            return "draft"
+        status = value.strip()
+        if status not in {"draft", "confirmed", "needs_review"}:
+            raise ValueError("状态只能是 draft、confirmed 或 needs_review")
+        return status
+
+
+class ProjectStoryOutlinePayload(ProjectArtifactBase):
+    logline: Optional[str] = None
+    core_conflict: Optional[str] = None
+    main_goal: Optional[str] = None
+    character_arcs: Optional[str] = None
+    ending_direction: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator("logline", "core_conflict", "main_goal", "character_arcs", "ending_direction", "notes", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class ProjectStoryOutlineResponse(ProjectStoryOutlinePayload):
+    id: str
+    project_id: str
+    created_at: str
+    updated_at: str
+
+
+class ProjectEpisodeOutlinePayload(ProjectArtifactBase):
+    title: Optional[str] = None
+    synopsis: Optional[str] = None
+    hook: Optional[str] = None
+    conflict: Optional[str] = None
+    reversal: Optional[str] = None
+    cliffhanger: Optional[str] = None
+    duration_minutes: Optional[float] = None
+
+    @field_validator("title", "synopsis", "hook", "conflict", "reversal", "cliffhanger", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+    @field_validator("duration_minutes")
+    @classmethod
+    def validate_duration_minutes(cls, value: Optional[float]) -> Optional[float]:
+        if value is not None and value <= 0:
+            raise ValueError("预计时长必须大于 0 分钟")
+        return value
+
+
+class ProjectEpisodeOutlineResponse(ProjectEpisodeOutlinePayload):
+    id: str
+    project_id: str
+    episode_no: int
+    created_at: str
+    updated_at: str
+
+
+class ProjectEpisodeContentPayload(ProjectArtifactBase):
+    detailed_content: Optional[str] = None
+    key_beats: Optional[str] = None
+
+    @field_validator("detailed_content", "key_beats", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class ProjectEpisodeContentResponse(ProjectEpisodeContentPayload):
+    id: str
+    project_id: str
+    episode_no: int
+    created_at: str
+    updated_at: str
+
+
+class ProjectEpisodeScriptPayload(ProjectArtifactBase):
+    scene_text: Optional[str] = None
+    dialogue: Optional[str] = None
+    action_notes: Optional[str] = None
+    voiceover: Optional[str] = None
+
+    @field_validator("scene_text", "dialogue", "action_notes", "voiceover", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class ProjectEpisodeScriptResponse(ProjectEpisodeScriptPayload):
+    id: str
+    project_id: str
+    episode_no: int
+    created_at: str
+    updated_at: str
+
+
+class ProjectStoryboardShotPayload(ProjectArtifactBase):
+    shot_no: int = Field(ge=1)
+    scene: Optional[str] = None
+    visual_prompt: Optional[str] = None
+    camera: Optional[str] = None
+    duration_seconds: Optional[float] = None
+    dialogue_or_voiceover: Optional[str] = None
+
+    @field_validator("scene", "visual_prompt", "camera", "dialogue_or_voiceover", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+    @field_validator("duration_seconds")
+    @classmethod
+    def validate_duration_seconds(cls, value: Optional[float]) -> Optional[float]:
+        if value is not None and value <= 0:
+            raise ValueError("镜头时长必须大于 0 秒")
+        return value
+
+
+class ProjectStoryboardShotResponse(ProjectStoryboardShotPayload):
+    id: str
+    project_id: str
+    episode_no: int
+    created_at: str
+    updated_at: str
+
+
+class ProjectCopywritingPayload(ProjectArtifactBase):
+    subtitles: Optional[str] = None
+    platform_title: Optional[str] = None
+    platform_description: Optional[str] = None
+    publish_copy: Optional[str] = None
+
+    @field_validator("subtitles", "platform_title", "platform_description", "publish_copy", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class ProjectCopywritingResponse(ProjectCopywritingPayload):
+    id: str
+    project_id: str
+    episode_no: int
+    created_at: str
     updated_at: str

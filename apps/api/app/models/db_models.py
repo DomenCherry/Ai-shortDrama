@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -188,4 +188,110 @@ class ProjectWorldSnapshot(Base):
     snapshot_content: Mapped[str] = mapped_column(Text, nullable=False)
     entry_snapshot_content: Mapped[str] = mapped_column(Text, nullable=False)
     loaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectStoryOutline(Base):
+    __tablename__ = "project_story_outlines"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, unique=True, index=True)
+    logline: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    core_conflict: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    main_goal: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    character_arcs: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ending_direction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectEpisodeOutline(Base):
+    __tablename__ = "project_episode_outlines"
+    __table_args__ = (
+        UniqueConstraint("project_id", "episode_no", name="uq_project_episode_outlines_project_episode"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    title: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    synopsis: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    hook: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    conflict: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reversal: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    cliffhanger: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    duration_minutes: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectEpisodeContent(Base):
+    __tablename__ = "project_episode_contents"
+    __table_args__ = (
+        UniqueConstraint("project_id", "episode_no", name="uq_project_episode_contents_project_episode"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    detailed_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    key_beats: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectEpisodeScript(Base):
+    __tablename__ = "project_episode_scripts"
+    __table_args__ = (
+        UniqueConstraint("project_id", "episode_no", name="uq_project_episode_scripts_project_episode"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    scene_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    dialogue: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    action_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    voiceover: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectStoryboardShot(Base):
+    __tablename__ = "project_storyboard_shots"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    shot_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    scene: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    visual_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    camera: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    duration_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    dialogue_or_voiceover: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectCopywriting(Base):
+    __tablename__ = "project_copywriting"
+    __table_args__ = (
+        UniqueConstraint("project_id", "episode_no", name="uq_project_copywriting_project_episode"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    subtitles: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    platform_title: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    platform_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    publish_copy: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -62,6 +62,121 @@ export type ProjectSummary = ProjectPayload & {
   updated_at: string;
 };
 
+export type ProjectWorldSnapshot = {
+  id: string;
+  project_id: string;
+  source_world_book_id: string;
+  source_version: number;
+  name: string;
+  genre: string;
+  snapshot_content: string;
+  entry_snapshot_content: string;
+  loaded_at: string;
+  updated_at: string;
+};
+
+export type ProjectArtifactStatus = "draft" | "confirmed" | "needs_review";
+
+export type ProjectStoryOutlinePayload = {
+  logline?: string;
+  core_conflict?: string;
+  main_goal?: string;
+  character_arcs?: string;
+  ending_direction?: string;
+  notes?: string;
+  status: ProjectArtifactStatus;
+};
+
+export type ProjectStoryOutline = ProjectStoryOutlinePayload & {
+  id: string;
+  project_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectEpisodeOutlinePayload = {
+  title?: string;
+  synopsis?: string;
+  hook?: string;
+  conflict?: string;
+  reversal?: string;
+  cliffhanger?: string;
+  duration_minutes?: number;
+  status: ProjectArtifactStatus;
+};
+
+export type ProjectEpisodeOutline = ProjectEpisodeOutlinePayload & {
+  id: string;
+  project_id: string;
+  episode_no: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectEpisodeContentPayload = {
+  detailed_content?: string;
+  key_beats?: string;
+  status: ProjectArtifactStatus;
+};
+
+export type ProjectEpisodeContent = ProjectEpisodeContentPayload & {
+  id: string;
+  project_id: string;
+  episode_no: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectEpisodeScriptPayload = {
+  scene_text?: string;
+  dialogue?: string;
+  action_notes?: string;
+  voiceover?: string;
+  status: ProjectArtifactStatus;
+};
+
+export type ProjectEpisodeScript = ProjectEpisodeScriptPayload & {
+  id: string;
+  project_id: string;
+  episode_no: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectStoryboardShotPayload = {
+  shot_no: number;
+  scene?: string;
+  visual_prompt?: string;
+  camera?: string;
+  duration_seconds?: number;
+  dialogue_or_voiceover?: string;
+  status: ProjectArtifactStatus;
+};
+
+export type ProjectStoryboardShot = ProjectStoryboardShotPayload & {
+  id: string;
+  project_id: string;
+  episode_no: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectCopywritingPayload = {
+  subtitles?: string;
+  platform_title?: string;
+  platform_description?: string;
+  publish_copy?: string;
+  status: ProjectArtifactStatus;
+};
+
+export type ProjectCopywriting = ProjectCopywritingPayload & {
+  id: string;
+  project_id: string;
+  episode_no: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type CharacterCardStatus = "draft" | "active" | "archived";
 export type CharacterGender = "男" | "女";
 
@@ -117,6 +232,22 @@ export type CharacterTurnaround = {
   status: "none" | "generated" | "confirmed" | "failed";
   version: number;
   confirmed_at?: string;
+  updated_at: string;
+};
+
+export type ProjectCharacterSnapshot = {
+  id: string;
+  project_id: string;
+  source_character_card_id: string;
+  source_version: number;
+  name: string;
+  gender: CharacterGender;
+  role_type: string;
+  snapshot_content: string;
+  visual_description?: string;
+  reference_image_url?: string;
+  reference_local_path?: string;
+  loaded_at: string;
   updated_at: string;
 };
 
@@ -190,10 +321,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    throw new Error(body?.detail ?? `Request failed: ${response.status}`);
+    throw new Error(normalizeHttpError(response.status, body?.detail));
   }
 
   return response.json() as Promise<T>;
+}
+
+function normalizeHttpError(status: number, detail: unknown) {
+  if (typeof detail === "string" && detail !== "Not Found") {
+    return detail;
+  }
+  if (status === 404) {
+    return "请求的接口或资源不存在，请确认后端服务已更新并已重启。";
+  }
+  return `Request failed: ${status}`;
 }
 
 function normalizeNetworkError(err: unknown) {
@@ -246,7 +387,7 @@ export function testModelConfig(configId: string) {
 }
 
 export function createProject(payload: ProjectPayload) {
-  return request("/api/projects", {
+  return request<ProjectSummary>("/api/projects", {
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -254,6 +395,121 @@ export function createProject(payload: ProjectPayload) {
 
 export function listProjects() {
   return request<ProjectSummary[]>("/api/projects");
+}
+
+export function getProject(projectId: string) {
+  return request<ProjectSummary>(`/api/projects/${projectId}`);
+}
+
+export function updateProject(projectId: string, payload: ProjectPayload) {
+  return request<ProjectSummary>(`/api/projects/${projectId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function listProjectWorldSnapshots(projectId: string) {
+  return request<ProjectWorldSnapshot[]>(`/api/projects/${projectId}/world-snapshots`);
+}
+
+export function deleteProjectWorldSnapshot(projectId: string, snapshotId: string) {
+  return request<{ ok: boolean }>(`/api/projects/${projectId}/world-snapshots/${snapshotId}`, {
+    method: "DELETE"
+  });
+}
+
+export function listProjectCharacterSnapshots(projectId: string) {
+  return request<ProjectCharacterSnapshot[]>(`/api/projects/${projectId}/character-snapshots`);
+}
+
+export function deleteProjectCharacterSnapshot(projectId: string, snapshotId: string) {
+  return request<{ ok: boolean }>(`/api/projects/${projectId}/character-snapshots/${snapshotId}`, {
+    method: "DELETE"
+  });
+}
+
+export function getProjectStoryOutline(projectId: string) {
+  return request<ProjectStoryOutline | null>(`/api/projects/${projectId}/story-outline`);
+}
+
+export function updateProjectStoryOutline(projectId: string, payload: ProjectStoryOutlinePayload) {
+  return request<ProjectStoryOutline>(`/api/projects/${projectId}/story-outline`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function listProjectEpisodeOutlines(projectId: string) {
+  return request<ProjectEpisodeOutline[]>(`/api/projects/${projectId}/episode-outlines`);
+}
+
+export function updateProjectEpisodeOutline(projectId: string, episodeNo: number, payload: ProjectEpisodeOutlinePayload) {
+  return request<ProjectEpisodeOutline>(`/api/projects/${projectId}/episode-outlines/${episodeNo}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function getProjectEpisodeContent(projectId: string, episodeNo: number) {
+  return request<ProjectEpisodeContent | null>(`/api/projects/${projectId}/episode-contents/${episodeNo}`);
+}
+
+export function updateProjectEpisodeContent(projectId: string, episodeNo: number, payload: ProjectEpisodeContentPayload) {
+  return request<ProjectEpisodeContent>(`/api/projects/${projectId}/episode-contents/${episodeNo}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function getProjectEpisodeScript(projectId: string, episodeNo: number) {
+  return request<ProjectEpisodeScript | null>(`/api/projects/${projectId}/episode-scripts/${episodeNo}`);
+}
+
+export function updateProjectEpisodeScript(projectId: string, episodeNo: number, payload: ProjectEpisodeScriptPayload) {
+  return request<ProjectEpisodeScript>(`/api/projects/${projectId}/episode-scripts/${episodeNo}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function listProjectStoryboardShots(projectId: string, episodeNo: number) {
+  return request<ProjectStoryboardShot[]>(`/api/projects/${projectId}/storyboard-shots/${episodeNo}`);
+}
+
+export function createProjectStoryboardShot(projectId: string, episodeNo: number, payload: ProjectStoryboardShotPayload) {
+  return request<ProjectStoryboardShot>(`/api/projects/${projectId}/storyboard-shots/${episodeNo}`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateProjectStoryboardShot(
+  projectId: string,
+  episodeNo: number,
+  shotId: string,
+  payload: ProjectStoryboardShotPayload
+) {
+  return request<ProjectStoryboardShot>(`/api/projects/${projectId}/storyboard-shots/${episodeNo}/${shotId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteProjectStoryboardShot(projectId: string, episodeNo: number, shotId: string) {
+  return request<{ ok: boolean }>(`/api/projects/${projectId}/storyboard-shots/${episodeNo}/${shotId}`, {
+    method: "DELETE"
+  });
+}
+
+export function getProjectCopywriting(projectId: string, episodeNo: number) {
+  return request<ProjectCopywriting | null>(`/api/projects/${projectId}/copywriting/${episodeNo}`);
+}
+
+export function updateProjectCopywriting(projectId: string, episodeNo: number, payload: ProjectCopywritingPayload) {
+  return request<ProjectCopywriting>(`/api/projects/${projectId}/copywriting/${episodeNo}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
 }
 
 export function listCharacterCards(filters: { search?: string; gender?: CharacterGender; role_type?: string; status?: string } = {}) {
