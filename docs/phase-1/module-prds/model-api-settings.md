@@ -519,4 +519,5 @@ API Key 展示规则：
 ## 12. 关联文档
 
 - 前端规格（Layer 3）：[model-api-settings.md](../frontend-specs/model-api-settings.md)
+- 后端接口 Spec：[model-api-settings.md](../backend-specs/model-api-settings.md)
 - 项目 PRD（Layer 1）：[prd.md](../prd.md)

@@ -20,6 +20,7 @@ from app.models.schemas import (
     CharacterTurnaroundGenerate,
     ProjectCharacterSnapshotCreate,
 )
+from app.services.projects import _mark_project_downstream_for_review
 from app.services import model_configs
 
 
@@ -341,12 +342,12 @@ def load_character_card_to_project(project_id: str, payload: ProjectCharacterSna
             existing_snapshot = session.scalar(
                 select(ProjectCharacterSnapshot).where(
                     ProjectCharacterSnapshot.project_id == project_id,
-                    ProjectCharacterSnapshot.name == card.name,
+                    ProjectCharacterSnapshot.source_character_card_id == card.id,
                 )
             )
-            # 同名角色需要用户明确选择替换，避免加载时静默覆盖或制造难以区分的项目角色。
+            # 同一来源角色卡不能重复加载，避免一个项目里出现两个来源完全相同的角色快照。
             if existing_snapshot:
-                raise ValueError("角色名与项目中已有角色重复，请选择替换已有角色或修改角色名")
+                raise ValueError("该角色卡已加载到项目，不能重复加载")
 
             # 加载角色卡时复制为项目内快照，保证项目后续创作上下文稳定。
             snapshot = ProjectCharacterSnapshot(
@@ -367,6 +368,7 @@ def load_character_card_to_project(project_id: str, payload: ProjectCharacterSna
             session.add(snapshot)
 
         session.flush()
+        _mark_project_downstream_for_review(session, project_id)
         return _snapshot_to_response(snapshot)
 
 

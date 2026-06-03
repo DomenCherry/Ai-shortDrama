@@ -155,6 +155,8 @@
 
 ## 5. 交互流程
 
+接口合同、软删除策略、测试日志保留、API Key 安全和生成任务前置校验以后端接口 Spec 为准：[模型 API 配置后端 Spec](../backend-specs/model-api-settings.md)。
+
 ### 5.1 保存文本模型配置
 
 ```text
@@ -241,9 +243,9 @@
 
 删除规则：
 
-- 删除配置不物理删除数据库记录，避免破坏测试日志外键引用。
-- 已删除配置不在配置列表展示，不允许编辑、测试或设为启用。
-- 删除当前启用的唯一配置是允许的；删除后该类型没有启用配置，生成任务应引导用户重新配置模型。
+- 删除配置后应从列表移除，历史测试记录保留。
+- 删除当前启用的唯一配置后，该类型生成能力不可用，页面应引导用户重新配置模型。
+- 具体软删除、日志保留和启用状态处理以后端接口 Spec 为准。
 
 ### 5.9 启用/停用配置
 
@@ -257,3 +259,4 @@
 ## 6. 关联文档
 
 - 模块 PRD：[module-prds/model-api-settings.md](../module-prds/model-api-settings.md)
+- 后端接口 Spec：[backend-specs/model-api-settings.md](../backend-specs/model-api-settings.md)

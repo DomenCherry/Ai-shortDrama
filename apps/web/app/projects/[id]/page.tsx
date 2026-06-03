@@ -33,12 +33,14 @@ import {
   ProjectSummary,
   ProjectWorldSnapshot,
   updateProject,
+  updateProjectCharacterSnapshot,
   updateProjectCopywriting,
   updateProjectEpisodeContent,
   updateProjectEpisodeOutline,
   updateProjectEpisodeScript,
   updateProjectStoryboardShot,
   updateProjectStoryOutline,
+  updateProjectWorldSnapshot,
   WorldBook,
   CharacterCard
 } from "@/lib/api";
@@ -55,6 +57,23 @@ type ProjectForm = {
   target_audience: string;
   style: string;
   remark: string;
+};
+
+type WorldSnapshotForm = {
+  name: string;
+  genre: string;
+  snapshot_content: string;
+  entry_snapshot_content: string;
+};
+
+type CharacterSnapshotForm = {
+  name: string;
+  gender: "男" | "女";
+  role_type: string;
+  snapshot_content: string;
+  visual_description: string;
+  reference_image_url: string;
+  reference_local_path: string;
 };
 
 type StoryOutlineForm = {
@@ -144,6 +163,10 @@ export default function ProjectWorkbenchPage() {
   const [shotForm, setShotForm] = useState<ShotForm>(emptyShotForm);
   const [editingShotId, setEditingShotId] = useState("");
   const [copyForm, setCopyForm] = useState<CopywritingForm>(emptyCopyForm);
+  const [worldSnapshotForm, setWorldSnapshotForm] = useState<WorldSnapshotForm>(emptyWorldSnapshotForm);
+  const [editingWorldSnapshotId, setEditingWorldSnapshotId] = useState("");
+  const [characterSnapshotForm, setCharacterSnapshotForm] = useState<CharacterSnapshotForm>(emptyCharacterSnapshotForm);
+  const [editingCharacterSnapshotId, setEditingCharacterSnapshotId] = useState("");
 
   const [error, setError] = useState("");
   const [assetError, setAssetError] = useState("");
@@ -153,6 +176,7 @@ export default function ProjectWorkbenchPage() {
   const [isLoadingAssets, setIsLoadingAssets] = useState(false);
   const [isLoadingEpisodeArtifacts, setIsLoadingEpisodeArtifacts] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [savingSnapshotId, setSavingSnapshotId] = useState("");
   const [removingSnapshotId, setRemovingSnapshotId] = useState("");
   const [removingShotId, setRemovingShotId] = useState("");
 
@@ -465,6 +489,115 @@ export default function ProjectWorkbenchPage() {
     }
   };
 
+  const startEditingWorldSnapshot = (snapshot: ProjectWorldSnapshot) => {
+    setError("");
+    setStatus("");
+    setEditingCharacterSnapshotId("");
+    setEditingWorldSnapshotId(snapshot.id);
+    setWorldSnapshotForm(worldSnapshotToForm(snapshot));
+  };
+
+  const startEditingCharacterSnapshot = (snapshot: ProjectCharacterSnapshot) => {
+    setError("");
+    setStatus("");
+    setEditingWorldSnapshotId("");
+    setEditingCharacterSnapshotId(snapshot.id);
+    setCharacterSnapshotForm(characterSnapshotToForm(snapshot));
+  };
+
+  const cancelWorldSnapshotEdit = () => {
+    setEditingWorldSnapshotId("");
+    setWorldSnapshotForm(emptyWorldSnapshotForm);
+  };
+
+  const cancelCharacterSnapshotEdit = () => {
+    setEditingCharacterSnapshotId("");
+    setCharacterSnapshotForm(emptyCharacterSnapshotForm);
+  };
+
+  const saveWorldSnapshot = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingWorldSnapshotId) return;
+    setError("");
+    setStatus("");
+    if (!worldSnapshotForm.name.trim()) {
+      setError("项目世界观名称不能为空");
+      return;
+    }
+    if (!worldSnapshotForm.genre.trim()) {
+      setError("项目世界观题材不能为空");
+      return;
+    }
+    if (!worldSnapshotForm.snapshot_content.trim()) {
+      setError("项目世界观基础设定不能为空");
+      return;
+    }
+    if (!worldSnapshotForm.entry_snapshot_content.trim()) {
+      setError("项目世界观条目快照不能为空");
+      return;
+    }
+
+    setSavingSnapshotId(editingWorldSnapshotId);
+    try {
+      const saved = await updateProjectWorldSnapshot(projectId, editingWorldSnapshotId, {
+        name: worldSnapshotForm.name,
+        genre: worldSnapshotForm.genre,
+        snapshot_content: worldSnapshotForm.snapshot_content,
+        entry_snapshot_content: worldSnapshotForm.entry_snapshot_content
+      });
+      setWorldSnapshots((current) => replaceWorldSnapshot(current, saved));
+      cancelWorldSnapshotEdit();
+      setStatus("项目世界观已保存，下游创作内容已标记为需要检查。");
+      void refreshStoryAndEpisodes();
+      void refreshEpisodeArtifacts(selectedEpisodeNo);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "项目世界观保存失败");
+    } finally {
+      setSavingSnapshotId("");
+    }
+  };
+
+  const saveCharacterSnapshot = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingCharacterSnapshotId) return;
+    setError("");
+    setStatus("");
+    if (!characterSnapshotForm.name.trim()) {
+      setError("项目角色名不能为空");
+      return;
+    }
+    if (!characterSnapshotForm.role_type.trim()) {
+      setError("项目角色人物原型不能为空");
+      return;
+    }
+    if (!characterSnapshotForm.snapshot_content.trim()) {
+      setError("项目角色设定快照不能为空");
+      return;
+    }
+
+    setSavingSnapshotId(editingCharacterSnapshotId);
+    try {
+      const saved = await updateProjectCharacterSnapshot(projectId, editingCharacterSnapshotId, {
+        name: characterSnapshotForm.name,
+        gender: characterSnapshotForm.gender,
+        role_type: characterSnapshotForm.role_type,
+        snapshot_content: characterSnapshotForm.snapshot_content,
+        visual_description: toOptional(characterSnapshotForm.visual_description),
+        reference_image_url: toOptional(characterSnapshotForm.reference_image_url),
+        reference_local_path: toOptional(characterSnapshotForm.reference_local_path)
+      });
+      setCharacterSnapshots((current) => replaceCharacterSnapshot(current, saved));
+      cancelCharacterSnapshotEdit();
+      setStatus("项目角色已保存，下游创作内容已标记为需要检查。");
+      void refreshStoryAndEpisodes();
+      void refreshEpisodeArtifacts(selectedEpisodeNo);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "项目角色保存失败");
+    } finally {
+      setSavingSnapshotId("");
+    }
+  };
+
   const removeWorldSnapshot = async (snapshot: ProjectWorldSnapshot) => {
     if (!window.confirm(`确定从项目中移除世界观“${snapshot.name}”吗？资产库原始世界观不会被删除。`)) {
       return;
@@ -475,6 +608,9 @@ export default function ProjectWorkbenchPage() {
     try {
       await deleteProjectWorldSnapshot(projectId, snapshot.id);
       setWorldSnapshots((current) => current.filter((item) => item.id !== snapshot.id));
+      if (editingWorldSnapshotId === snapshot.id) {
+        cancelWorldSnapshotEdit();
+      }
       setStatus("世界观已从项目中移除，下游创作内容已标记为需要检查。");
       void refreshStoryAndEpisodes();
       void refreshEpisodeArtifacts(selectedEpisodeNo);
@@ -495,6 +631,9 @@ export default function ProjectWorkbenchPage() {
     try {
       await deleteProjectCharacterSnapshot(projectId, snapshot.id);
       setCharacterSnapshots((current) => current.filter((item) => item.id !== snapshot.id));
+      if (editingCharacterSnapshotId === snapshot.id) {
+        cancelCharacterSnapshotEdit();
+      }
       setStatus("角色已从项目中移除，下游创作内容已标记为需要检查。");
       void refreshStoryAndEpisodes();
       void refreshEpisodeArtifacts(selectedEpisodeNo);
@@ -532,6 +671,10 @@ export default function ProjectWorkbenchPage() {
   };
 
   const handleLoadWorld = async (worldBookId: string) => {
+    if (worldSnapshots.length > 0) {
+      setError("该项目已加载世界观，每个项目只能加载一个世界观。请先移除当前项目世界观。");
+      return;
+    }
     setLoadingAssetId(worldBookId);
     setError("");
     setStatus("");
@@ -730,6 +873,7 @@ export default function ProjectWorkbenchPage() {
             emptyText="尚未加载世界观。点击下方按钮从世界观库中选择并加载。"
             onPick={openWorldPicker}
             pickLabel="加载世界观"
+            pickDisabled={worldSnapshots.length > 0}
           >
             {worldSnapshots.map((snapshot) => (
               <article className="asset-card" key={snapshot.id}>
@@ -743,6 +887,9 @@ export default function ProjectWorkbenchPage() {
                   <p className="hint">加载时间：{new Date(snapshot.loaded_at).toLocaleString()}</p>
                 </div>
                 <div className="asset-card-actions">
+                  <button className="button secondary" type="button" onClick={() => startEditingWorldSnapshot(snapshot)}>
+                    编辑项目世界观
+                  </button>
                   <button
                     className="button danger"
                     type="button"
@@ -752,6 +899,25 @@ export default function ProjectWorkbenchPage() {
                     {removingSnapshotId === snapshot.id ? "移除中..." : "从项目移除"}
                   </button>
                 </div>
+                {editingWorldSnapshotId === snapshot.id ? (
+                  <form className="form-section stack" onSubmit={saveWorldSnapshot}>
+                    <div className="warning-text">此处只修改当前项目世界观，不会修改世界观库原始内容。</div>
+                    <div className="grid-2">
+                      <TextInput label="项目世界观名称" value={worldSnapshotForm.name} onChange={(value) => setWorldSnapshotFormValue("name", value, setWorldSnapshotForm)} />
+                      <TextInput label="题材类型" value={worldSnapshotForm.genre} onChange={(value) => setWorldSnapshotFormValue("genre", value, setWorldSnapshotForm)} />
+                      <TextArea label="基础设定快照" value={worldSnapshotForm.snapshot_content} onChange={(value) => setWorldSnapshotFormValue("snapshot_content", value, setWorldSnapshotForm)} />
+                      <TextArea label="条目快照" value={worldSnapshotForm.entry_snapshot_content} onChange={(value) => setWorldSnapshotFormValue("entry_snapshot_content", value, setWorldSnapshotForm)} />
+                    </div>
+                    <div className="actions">
+                      <button className="button secondary" type="button" onClick={cancelWorldSnapshotEdit} disabled={savingSnapshotId === snapshot.id}>
+                        取消
+                      </button>
+                      <button className="button" type="submit" disabled={savingSnapshotId === snapshot.id}>
+                        {savingSnapshotId === snapshot.id ? "保存中..." : "保存项目世界观"}
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
               </article>
             ))}
           </AssetSection>
@@ -775,17 +941,20 @@ export default function ProjectWorkbenchPage() {
                 </div>
               ) : (
                 <div className="asset-list">
+                  {worldSnapshots.length > 0 ? <div className="warning-text">当前项目已加载世界观，每个项目只能加载一个世界观。</div> : null}
                   {availableWorlds.map((wb) => {
+                    const hasProjectWorld = worldSnapshots.length > 0;
                     const isLoaded = loadedWorldIds.has(wb.id);
+                    const isDisabled = hasProjectWorld || isLoaded;
                     return (
-                      <article className={`asset-card ${isLoaded ? "asset-card-disabled" : ""}`} key={wb.id}>
+                      <article className={`asset-card ${isDisabled ? "asset-card-disabled" : ""}`} key={wb.id}>
                         <div className="asset-card-main">
                           <div className="asset-card-title">
                             <strong>{wb.name}</strong>
-                            {isLoaded ? (
-                              <span className="status-badge status-active">已加载</span>
+                            {hasProjectWorld ? (
+                              <span className="status-badge status-active">{isLoaded ? "已加载" : "不可加载"}</span>
                             ) : (
-                              <span className="status-badge status-draft">可用</span>
+                              <span className="status-badge status-draft">{isLoaded ? "已加载" : "可用"}</span>
                             )}
                           </div>
                           <div className="hint">{wb.genre} · v{wb.version}</div>
@@ -795,10 +964,10 @@ export default function ProjectWorkbenchPage() {
                           <button
                             className="button"
                             type="button"
-                            disabled={isLoaded || loadingAssetId === wb.id}
+                            disabled={isDisabled || loadingAssetId === wb.id}
                             onClick={() => void handleLoadWorld(wb.id)}
                           >
-                            {loadingAssetId === wb.id ? "加载中..." : isLoaded ? "已加载" : "加载到项目"}
+                            {loadingAssetId === wb.id ? "加载中..." : isDisabled ? "不可加载" : "加载到项目"}
                           </button>
                         </div>
                       </article>
@@ -835,6 +1004,9 @@ export default function ProjectWorkbenchPage() {
                   <p className="hint">加载时间：{new Date(snapshot.loaded_at).toLocaleString()}</p>
                 </div>
                 <div className="asset-card-actions">
+                  <button className="button secondary" type="button" onClick={() => startEditingCharacterSnapshot(snapshot)}>
+                    编辑项目角色
+                  </button>
                   <button
                     className="button danger"
                     type="button"
@@ -844,6 +1016,37 @@ export default function ProjectWorkbenchPage() {
                     {removingSnapshotId === snapshot.id ? "移除中..." : "从项目移除"}
                   </button>
                 </div>
+                {editingCharacterSnapshotId === snapshot.id ? (
+                  <form className="form-section stack" onSubmit={saveCharacterSnapshot}>
+                    <div className="warning-text">此处只修改当前项目角色，不会修改角色卡库原始内容。</div>
+                    <div className="grid-2">
+                      <TextInput label="项目角色名" value={characterSnapshotForm.name} onChange={(value) => setCharacterSnapshotFormValue("name", value, setCharacterSnapshotForm)} />
+                      <div className="field">
+                        <label>性别</label>
+                        <select
+                          value={characterSnapshotForm.gender}
+                          onChange={(event) => setCharacterSnapshotFormValue("gender", event.target.value as "男" | "女", setCharacterSnapshotForm)}
+                        >
+                          <option value="女">女</option>
+                          <option value="男">男</option>
+                        </select>
+                      </div>
+                      <TextInput label="人物原型 / 项目定位" value={characterSnapshotForm.role_type} onChange={(value) => setCharacterSnapshotFormValue("role_type", value, setCharacterSnapshotForm)} />
+                      <TextArea label="项目角色设定快照" value={characterSnapshotForm.snapshot_content} onChange={(value) => setCharacterSnapshotFormValue("snapshot_content", value, setCharacterSnapshotForm)} />
+                      <TextArea label="项目内视觉描述" value={characterSnapshotForm.visual_description} onChange={(value) => setCharacterSnapshotFormValue("visual_description", value, setCharacterSnapshotForm)} />
+                      <TextInput label="参考图 URL" value={characterSnapshotForm.reference_image_url} onChange={(value) => setCharacterSnapshotFormValue("reference_image_url", value, setCharacterSnapshotForm)} />
+                      <TextInput label="参考图本地路径" value={characterSnapshotForm.reference_local_path} onChange={(value) => setCharacterSnapshotFormValue("reference_local_path", value, setCharacterSnapshotForm)} />
+                    </div>
+                    <div className="actions">
+                      <button className="button secondary" type="button" onClick={cancelCharacterSnapshotEdit} disabled={savingSnapshotId === snapshot.id}>
+                        取消
+                      </button>
+                      <button className="button" type="submit" disabled={savingSnapshotId === snapshot.id}>
+                        {savingSnapshotId === snapshot.id ? "保存中..." : "保存项目角色"}
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
               </article>
             ))}
           </AssetSection>
@@ -1128,6 +1331,7 @@ function AssetSection({
   emptyText,
   onPick,
   pickLabel,
+  pickDisabled,
   children
 }: {
   title: string;
@@ -1137,6 +1341,7 @@ function AssetSection({
   emptyText: string;
   onPick?: () => void;
   pickLabel?: string;
+  pickDisabled?: boolean;
   children: ReactNode;
 }) {
   const childArray = Array.isArray(children) ? children : [children];
@@ -1146,7 +1351,7 @@ function AssetSection({
         <h2>{title}</h2>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           {onPick && pickLabel ? (
-            <button className="button" type="button" onClick={onPick}>
+            <button className="button" type="button" onClick={onPick} disabled={pickDisabled}>
               {pickLabel}
             </button>
           ) : null}
@@ -1247,6 +1452,23 @@ const emptyProjectForm: ProjectForm = {
   remark: ""
 };
 
+const emptyWorldSnapshotForm: WorldSnapshotForm = {
+  name: "",
+  genre: "",
+  snapshot_content: "",
+  entry_snapshot_content: ""
+};
+
+const emptyCharacterSnapshotForm: CharacterSnapshotForm = {
+  name: "",
+  gender: "女",
+  role_type: "",
+  snapshot_content: "",
+  visual_description: "",
+  reference_image_url: "",
+  reference_local_path: ""
+};
+
 const emptyStoryForm: StoryOutlineForm = {
   logline: "",
   core_conflict: "",
@@ -1311,6 +1533,27 @@ function projectToForm(project: ProjectSummary): ProjectForm {
     target_audience: project.target_audience || "",
     style: project.style || "",
     remark: project.remark || ""
+  };
+}
+
+function worldSnapshotToForm(snapshot: ProjectWorldSnapshot): WorldSnapshotForm {
+  return {
+    name: snapshot.name,
+    genre: snapshot.genre,
+    snapshot_content: snapshot.snapshot_content,
+    entry_snapshot_content: snapshot.entry_snapshot_content
+  };
+}
+
+function characterSnapshotToForm(snapshot: ProjectCharacterSnapshot): CharacterSnapshotForm {
+  return {
+    name: snapshot.name,
+    gender: snapshot.gender,
+    role_type: snapshot.role_type,
+    snapshot_content: snapshot.snapshot_content,
+    visual_description: snapshot.visual_description || "",
+    reference_image_url: snapshot.reference_image_url || "",
+    reference_local_path: snapshot.reference_local_path || ""
   };
 }
 
@@ -1408,6 +1651,16 @@ function replaceEpisodeOutline(current: ProjectEpisodeOutline[], next: ProjectEp
   return [...filtered, next].sort((a, b) => a.episode_no - b.episode_no);
 }
 
+function replaceWorldSnapshot(current: ProjectWorldSnapshot[], next: ProjectWorldSnapshot) {
+  const filtered = current.filter((snapshot) => snapshot.id !== next.id);
+  return [...filtered, next].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+}
+
+function replaceCharacterSnapshot(current: ProjectCharacterSnapshot[], next: ProjectCharacterSnapshot) {
+  const filtered = current.filter((snapshot) => snapshot.id !== next.id);
+  return [...filtered, next].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+}
+
 function replaceShot(current: ProjectStoryboardShot[], next: ProjectStoryboardShot) {
   const filtered = current.filter((shot) => shot.id !== next.id);
   return [...filtered, next].sort((a, b) => a.shot_no - b.shot_no);
@@ -1418,6 +1671,18 @@ function nextShotNo(shots: ProjectStoryboardShot[]) {
 }
 
 function setProjectFormValue(field: keyof ProjectForm, value: string, setter: Dispatch<SetStateAction<ProjectForm>>) {
+  setter((current) => ({ ...current, [field]: value }));
+}
+
+function setWorldSnapshotFormValue(field: keyof WorldSnapshotForm, value: string, setter: Dispatch<SetStateAction<WorldSnapshotForm>>) {
+  setter((current) => ({ ...current, [field]: value }));
+}
+
+function setCharacterSnapshotFormValue(
+  field: keyof CharacterSnapshotForm,
+  value: string | "男" | "女",
+  setter: Dispatch<SetStateAction<CharacterSnapshotForm>>
+) {
   setter((current) => ({ ...current, [field]: value }));
 }
 

@@ -2,7 +2,7 @@
 
 ## 文档层级
 
-当前文档按“项目整体 -> 阶段 PRD -> 功能详细设计”组织。
+当前文档按“项目整体 -> 阶段 PRD -> 模块 PRD -> 按需前后端 Spec -> 技术规范”组织。
 
 ```text
 docs
@@ -12,16 +12,12 @@ docs
 │   └── roadmap.md
 ├── phase-1
 │   ├── prd.md
-│   ├── prds
-│   │   └── character-card-library-prd.md
+│   ├── module-prds
+│   │   └── README.md
 │   ├── frontend-specs
 │   │   └── README.md
-│   └── features
-│       ├── character-card-library.md
-│       ├── creative-asset-library.md
-│       ├── model-api-settings.md
-│       ├── project-creation.md
-│       └── world-book-library.md
+│   └── backend-specs
+│       └── README.md
 └── technical
     ├── architecture.md
     ├── coding-standards.md
@@ -30,7 +26,8 @@ docs
     ├── frontend-style-guide.md
     ├── implementation-workflow.md
     ├── project-structure.md
-    └── skills-strategy.md
+    ├── skills-strategy.md
+    └── spec-splitting-review.md
 ```
 
 仓库级配套目录：
@@ -59,27 +56,23 @@ docs
 
 - [第一期 PRD](./phase-1/prd.md)
 
-## 第一阶段功能 PRD
+## 第一阶段模块 PRD
 
-功能 PRD 用于在进入详细设计和实现前，单独描述某个功能的产品目标、范围、流程、数据对象和验收标准。
+模块 PRD 用于在进入详细设计和实现前，单独描述某个功能的产品目标、范围、流程、数据对象和验收标准。
 
-- [角色卡库 PRD](./phase-1/prds/character-card-library-prd.md)
-
-## 第一阶段功能详细设计
-
-功能详细设计文档用于展开第一期 PRD 中的单个功能，方便后续直接进入实现。
-
-- [创作资产库](./phase-1/features/creative-asset-library.md)
-- [世界观库](./phase-1/features/world-book-library.md)
-- [角色卡库](./phase-1/features/character-card-library.md)
-- [项目创建与时长配置](./phase-1/features/project-creation.md)
-- [模型 API 配置与连通性测试](./phase-1/features/model-api-settings.md)
+- [第一期模块 PRD 索引](./phase-1/module-prds/README.md)
 
 ## 第一阶段前端页面 Spec
 
 前端页面 spec 用于在实现页面前明确页面目标、布局、交互、状态、API 依赖和验收标准。
 
 - [第一期前端页面 Spec 说明](./phase-1/frontend-specs/README.md)
+
+## 第一阶段后端接口 Spec
+
+后端接口 spec 用于在实现 FastAPI 路由、Pydantic schema、service 业务规则和数据库迁移前明确接口合同。
+
+- [第一期后端接口 Spec 说明](./phase-1/backend-specs/README.md)
 
 ## 后续文档建议
 
@@ -89,22 +82,14 @@ docs
 docs
 └── phase-n
     ├── prd.md
-    └── features
-        ├── feature-a.md
-        └── feature-b.md
+    ├── module-prds
+    ├── backend-specs
+    └── frontend-specs
 ```
 
-如果某个功能进入技术实现阶段，可以继续在对应阶段下增加：
+新增或调整功能时，统一遵守 [功能实现流程规范](./technical/implementation-workflow.md)，按“PRD -> 按需后端接口 Spec -> 按需前端页面 Spec -> 代码实现 -> 验证”的顺序推进。
 
-```text
-docs
-└── phase-n
-    ├── prd.md
-    ├── features
-    └── technical-design
-```
-
-新增或调整功能时，统一遵守 [功能实现流程规范](./technical/implementation-workflow.md)，按“PRD -> 功能说明 Spec -> 前端页面 Spec -> 代码实现 -> 验证”的顺序推进。
+前端 spec 和后端 spec 按影响范围拆分，不要求每个功能都机械创建两份：影响 API、数据库、service 规则、模型调用或安全边界时更新后端 spec；影响页面布局、表单、交互、状态或前端校验时更新前端 spec。
 
 ## 技术文档
 
@@ -116,3 +101,4 @@ docs
 - [功能实现流程规范](./technical/implementation-workflow.md)
 - [项目结构约定](./technical/project-structure.md)
 - [Skill 分层策略](./technical/skills-strategy.md)
+- [前后端 Spec 拆分审查](./technical/spec-splitting-review.md)

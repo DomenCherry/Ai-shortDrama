@@ -287,6 +287,44 @@ class ProjectCharacterSnapshotCreate(BaseModel):
     replace_snapshot_id: Optional[str] = None
 
 
+class ProjectCharacterSnapshotUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    gender: CharacterGender
+    role_type: str = Field(min_length=1, max_length=40)
+    snapshot_content: str = Field(min_length=1)
+    visual_description: Optional[str] = None
+    reference_image_url: Optional[str] = None
+    reference_local_path: Optional[str] = None
+
+    @field_validator(
+        "name",
+        "role_type",
+        "snapshot_content",
+        "visual_description",
+        "reference_image_url",
+        "reference_local_path",
+        mode="before",
+    )
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+    @field_validator("gender", mode="before")
+    @classmethod
+    def validate_gender(cls, value: Optional[str]) -> str:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError("性别不能为空")
+        gender = value.strip()
+        if gender not in {"男", "女"}:
+            raise ValueError("性别只能选择男或女")
+        return gender
+
+
 class ProjectCharacterSnapshotResponse(BaseModel):
     id: str
     project_id: str
@@ -395,6 +433,23 @@ class ProjectWorldSnapshotCreate(BaseModel):
     source_world_book_id: str = Field(min_length=1)
     load_mode: Literal["new", "replace"] = "new"
     replace_snapshot_id: Optional[str] = None
+
+
+class ProjectWorldSnapshotUpdate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    genre: str = Field(min_length=1, max_length=120)
+    snapshot_content: str = Field(min_length=1)
+    entry_snapshot_content: str = Field(min_length=1)
+
+    @field_validator("name", "genre", "snapshot_content", "entry_snapshot_content", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
 
 
 class ProjectWorldSnapshotResponse(BaseModel):

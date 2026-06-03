@@ -117,6 +117,7 @@ class ProjectCharacterSnapshot(Base):
     __tablename__ = "project_character_snapshots"
     __table_args__ = (
         CheckConstraint("gender in ('男', '女')", name="ck_project_character_snapshots_gender"),
+        UniqueConstraint("project_id", "source_character_card_id", name="uq_project_character_snapshots_project_source"),
     )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -176,6 +177,9 @@ class WorldEntry(Base):
 
 class ProjectWorldSnapshot(Base):
     __tablename__ = "project_world_snapshots"
+    __table_args__ = (
+        UniqueConstraint("project_id", name="uq_project_world_snapshots_project"),
+    )
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)

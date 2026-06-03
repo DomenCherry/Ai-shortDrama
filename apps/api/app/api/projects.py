@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.models.schemas import (
+    ProjectCharacterSnapshotUpdate,
     ProjectCopywritingPayload,
     ProjectCopywritingResponse,
     ProjectCharacterSnapshotResponse,
@@ -17,6 +18,7 @@ from app.models.schemas import (
     ProjectStoryOutlinePayload,
     ProjectStoryOutlineResponse,
     ProjectUpdate,
+    ProjectWorldSnapshotUpdate,
     ProjectWorldSnapshotResponse,
 )
 from app.services import projects
@@ -70,6 +72,15 @@ def delete_project_world_snapshot(project_id: str, snapshot_id: str) -> dict:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@router.put("/{project_id}/world-snapshots/{snapshot_id}", response_model=ProjectWorldSnapshotResponse)
+def update_project_world_snapshot(project_id: str, snapshot_id: str, payload: ProjectWorldSnapshotUpdate) -> dict:
+    try:
+        return projects.update_project_world_snapshot(project_id, snapshot_id, payload)
+    except ValueError as exc:
+        status_code = 404 if str(exc) in {"项目不存在", "项目世界观不存在"} else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+
 @router.get("/{project_id}/character-snapshots", response_model=list[ProjectCharacterSnapshotResponse])
 def list_project_character_snapshots(project_id: str) -> list[dict]:
     try:
@@ -84,6 +95,15 @@ def delete_project_character_snapshot(project_id: str, snapshot_id: str) -> dict
         return projects.delete_project_character_snapshot(project_id, snapshot_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.put("/{project_id}/character-snapshots/{snapshot_id}", response_model=ProjectCharacterSnapshotResponse)
+def update_project_character_snapshot(project_id: str, snapshot_id: str, payload: ProjectCharacterSnapshotUpdate) -> dict:
+    try:
+        return projects.update_project_character_snapshot(project_id, snapshot_id, payload)
+    except ValueError as exc:
+        status_code = 404 if str(exc) in {"项目不存在", "项目角色不存在"} else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
 @router.get("/{project_id}/story-outline", response_model=ProjectStoryOutlineResponse | None)

@@ -75,6 +75,13 @@ export type ProjectWorldSnapshot = {
   updated_at: string;
 };
 
+export type ProjectWorldSnapshotPayload = {
+  name: string;
+  genre: string;
+  snapshot_content: string;
+  entry_snapshot_content: string;
+};
+
 export type ProjectArtifactStatus = "draft" | "confirmed" | "needs_review";
 
 export type ProjectStoryOutlinePayload = {
@@ -251,6 +258,16 @@ export type ProjectCharacterSnapshot = {
   updated_at: string;
 };
 
+export type ProjectCharacterSnapshotPayload = {
+  name: string;
+  gender: CharacterGender;
+  role_type: string;
+  snapshot_content: string;
+  visual_description?: string;
+  reference_image_url?: string;
+  reference_local_path?: string;
+};
+
 export type WorldBookStatus = "draft" | "active" | "archived";
 export type WorldEntryStatus = "active" | "disabled";
 export type WorldEntryType =
@@ -418,6 +435,13 @@ export function deleteProjectWorldSnapshot(projectId: string, snapshotId: string
   });
 }
 
+export function updateProjectWorldSnapshot(projectId: string, snapshotId: string, payload: ProjectWorldSnapshotPayload) {
+  return request<ProjectWorldSnapshot>(`/api/projects/${projectId}/world-snapshots/${snapshotId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
 export function listProjectCharacterSnapshots(projectId: string) {
   return request<ProjectCharacterSnapshot[]>(`/api/projects/${projectId}/character-snapshots`);
 }
@@ -425,6 +449,13 @@ export function listProjectCharacterSnapshots(projectId: string) {
 export function deleteProjectCharacterSnapshot(projectId: string, snapshotId: string) {
   return request<{ ok: boolean }>(`/api/projects/${projectId}/character-snapshots/${snapshotId}`, {
     method: "DELETE"
+  });
+}
+
+export function updateProjectCharacterSnapshot(projectId: string, snapshotId: string, payload: ProjectCharacterSnapshotPayload) {
+  return request<ProjectCharacterSnapshot>(`/api/projects/${projectId}/character-snapshots/${snapshotId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
   });
 }
 

@@ -97,4 +97,4 @@
 8. **验收标准** — 可测试的验收条目。
 9. **实现决策**（可选）— 已做出的技术或产品决策。
 10. **后续扩展**（可选）— 未来版本可能增加的能力。
-11. **关联文档** — 指向相关的 Layer 1（prd.md）和 Layer 3（frontend-specs/）文档。
+11. **关联文档** — 指向相关的 Layer 1（prd.md）、后端接口 spec（backend-specs/）和前端页面 spec（frontend-specs/）文档。

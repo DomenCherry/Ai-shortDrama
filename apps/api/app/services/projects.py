@@ -17,6 +17,7 @@ from app.models.db_models import (
     ProjectWorldSnapshot,
 )
 from app.models.schemas import (
+    ProjectCharacterSnapshotUpdate,
     ProjectCopywritingPayload,
     ProjectCreate,
     ProjectEpisodeContentPayload,
@@ -25,6 +26,7 @@ from app.models.schemas import (
     ProjectStoryboardShotPayload,
     ProjectStoryOutlinePayload,
     ProjectUpdate,
+    ProjectWorldSnapshotUpdate,
 )
 
 
@@ -351,6 +353,31 @@ def delete_project_world_snapshot(project_id: str, snapshot_id: str) -> dict[str
         return {"ok": True}
 
 
+def update_project_world_snapshot(
+    project_id: str,
+    snapshot_id: str,
+    payload: ProjectWorldSnapshotUpdate,
+) -> dict[str, Any]:
+    with get_session() as session:
+        project = session.get(Project, project_id)
+        if not project:
+            raise ValueError("项目不存在")
+        snapshot = session.get(ProjectWorldSnapshot, snapshot_id)
+        if not snapshot or snapshot.project_id != project_id:
+            raise ValueError("项目世界观不存在")
+
+        # 项目内微调只更新快照副本，不能回写 WorldBook 或 WorldEntry 原始资产。
+        snapshot.name = payload.name
+        snapshot.genre = payload.genre
+        snapshot.snapshot_content = payload.snapshot_content
+        snapshot.entry_snapshot_content = payload.entry_snapshot_content
+        snapshot.updated_at = _now()
+        project.updated_at = snapshot.updated_at
+        _mark_project_downstream_for_review(session, project_id)
+        session.flush()
+        return _world_snapshot_to_response(snapshot)
+
+
 def list_project_character_snapshots(project_id: str) -> list[dict[str, Any]]:
     with get_session() as session:
         project = session.get(Project, project_id)
@@ -373,6 +400,34 @@ def delete_project_character_snapshot(project_id: str, snapshot_id: str) -> dict
         session.delete(snapshot)
         _mark_project_downstream_for_review(session, project_id)
         return {"ok": True}
+
+
+def update_project_character_snapshot(
+    project_id: str,
+    snapshot_id: str,
+    payload: ProjectCharacterSnapshotUpdate,
+) -> dict[str, Any]:
+    with get_session() as session:
+        project = session.get(Project, project_id)
+        if not project:
+            raise ValueError("项目不存在")
+        snapshot = session.get(ProjectCharacterSnapshot, snapshot_id)
+        if not snapshot or snapshot.project_id != project_id:
+            raise ValueError("项目角色不存在")
+
+        # 项目内微调只更新快照副本，不能回写 CharacterCard 原始资产。
+        snapshot.name = payload.name
+        snapshot.gender = payload.gender
+        snapshot.role_type = payload.role_type
+        snapshot.snapshot_content = payload.snapshot_content
+        snapshot.visual_description = payload.visual_description
+        snapshot.reference_image_url = payload.reference_image_url
+        snapshot.reference_local_path = payload.reference_local_path
+        snapshot.updated_at = _now()
+        project.updated_at = snapshot.updated_at
+        _mark_project_downstream_for_review(session, project_id)
+        session.flush()
+        return _character_snapshot_to_response(snapshot)
 
 
 def get_story_outline(project_id: str) -> dict[str, Any] | None:

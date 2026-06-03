@@ -87,14 +87,42 @@ postgresql+psycopg://ai_short_drama:ai_short_drama@127.0.0.1:5432/ai_short_drama
 
 ## 7. 接口边界
 
-当前优先实现：
+当前接口按业务模块分组管理。项目工作台相关接口必须遵守 [项目工作台资产快照后端 Spec](../phase-1/backend-specs/project-workbench-assets.md)。
+
+基础接口：
 
 - `GET /health`
+
+模型配置接口：
+
 - `GET /api/model-configs`
 - `POST /api/model-configs`
 - `POST /api/model-configs/{config_id}/test`
+
+项目接口：
+
 - `GET /api/projects`
 - `POST /api/projects`
+- `GET /api/projects/{project_id}`
+- `PUT /api/projects/{project_id}`
+
+项目资产快照接口：
+
+- `GET /api/projects/{project_id}/world-snapshots`
+- `POST /api/projects/{project_id}/world-snapshots`
+- `PUT /api/projects/{project_id}/world-snapshots/{snapshot_id}`
+- `DELETE /api/projects/{project_id}/world-snapshots/{snapshot_id}`
+- `GET /api/projects/{project_id}/character-snapshots`
+- `POST /api/projects/{project_id}/character-snapshots`
+- `PUT /api/projects/{project_id}/character-snapshots/{snapshot_id}`
+- `DELETE /api/projects/{project_id}/character-snapshots/{snapshot_id}`
+
+项目资产快照业务边界：
+
+- 每个项目最多一个世界观快照。
+- 每个项目可以有多个角色快照，但同一角色卡不能重复加载到同一项目。
+- 项目快照微调不回写资产库原始内容。
+- 加载、替换、更新或删除项目快照后，下游已有创作内容应标记为 `needs_review`。
 
 ## 8. 数据迁移
 

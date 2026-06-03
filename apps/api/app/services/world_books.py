@@ -16,6 +16,7 @@ from app.models.schemas import (
     WorldEntryCreate,
     WorldEntryUpdate,
 )
+from app.services.projects import _mark_project_downstream_for_review
 
 
 def _now() -> datetime:
@@ -342,13 +343,10 @@ def load_world_book_to_project(project_id: str, payload: ProjectWorldSnapshotCre
             snapshot.updated_at = now
         else:
             existing_snapshot = session.scalar(
-                select(ProjectWorldSnapshot).where(
-                    ProjectWorldSnapshot.project_id == project_id,
-                    ProjectWorldSnapshot.name == book.name,
-                )
+                select(ProjectWorldSnapshot).where(ProjectWorldSnapshot.project_id == project_id)
             )
             if existing_snapshot:
-                raise ValueError("世界观名称与项目中已有世界观重复，请选择替换已有世界观或修改名称")
+                raise ValueError("每个项目只能加载一个世界观，请先移除或替换当前项目世界观")
 
             snapshot = ProjectWorldSnapshot(
                 id=str(uuid4()),
@@ -365,4 +363,5 @@ def load_world_book_to_project(project_id: str, payload: ProjectWorldSnapshotCre
             session.add(snapshot)
 
         session.flush()
+        _mark_project_downstream_for_review(session, project_id)
         return _snapshot_to_response(snapshot)
