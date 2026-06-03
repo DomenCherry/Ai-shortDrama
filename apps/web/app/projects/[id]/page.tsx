@@ -186,6 +186,9 @@ export default function ProjectWorkbenchPage() {
   const [availableCharacters, setAvailableCharacters] = useState<CharacterCard[]>([]);
   const [isLoadingPicker, setIsLoadingPicker] = useState(false);
   const [loadingAssetId, setLoadingAssetId] = useState("");
+  const [selectedWorldId, setSelectedWorldId] = useState<string | null>(null);
+  const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<string>>(new Set());
+  const [isBatchLoading, setIsBatchLoading] = useState(false);
 
   const episodeCount = Number(projectForm.episode_count);
   const episodeDuration = Number(projectForm.episode_duration);
@@ -645,7 +648,9 @@ export default function ProjectWorkbenchPage() {
   };
 
   const openWorldPicker = async () => {
+    setSelectedWorldId(null);
     setShowWorldPicker(true);
+    setShowCharacterPicker(false);
     setIsLoadingPicker(true);
     try {
       const worlds = await listWorldBooks({ status: "active" });
@@ -658,7 +663,9 @@ export default function ProjectWorkbenchPage() {
   };
 
   const openCharacterPicker = async () => {
+    setSelectedCharacterIds(new Set());
     setShowCharacterPicker(true);
+    setShowWorldPicker(false);
     setIsLoadingPicker(true);
     try {
       const characters = await listCharacterCards({ status: "active" });
@@ -670,18 +677,21 @@ export default function ProjectWorkbenchPage() {
     }
   };
 
-  const handleLoadWorld = async (worldBookId: string) => {
+  const handleLoadWorld = async () => {
+    if (!selectedWorldId) return;
     if (worldSnapshots.length > 0) {
       setError("该项目已加载世界观，每个项目只能加载一个世界观。请先移除当前项目世界观。");
       return;
     }
-    setLoadingAssetId(worldBookId);
+    setLoadingAssetId(selectedWorldId);
     setError("");
     setStatus("");
     try {
-      await loadWorldBookToProject(projectId, worldBookId);
+      await loadWorldBookToProject(projectId, selectedWorldId);
       setStatus("世界观已加载到项目，下游创作内容已标记为需要检查。");
       await refreshAssets();
+      setShowWorldPicker(false);
+      setSelectedWorldId(null);
       void refreshStoryAndEpisodes();
       void refreshEpisodeArtifacts(selectedEpisodeNo);
     } catch (err) {
@@ -691,21 +701,33 @@ export default function ProjectWorkbenchPage() {
     }
   };
 
-  const handleLoadCharacter = async (characterCardId: string) => {
-    setLoadingAssetId(characterCardId);
+  const handleLoadCharacters = async () => {
+    if (selectedCharacterIds.size === 0) return;
+    setIsBatchLoading(true);
     setError("");
     setStatus("");
-    try {
-      await loadCharacterCardToProject(projectId, characterCardId);
-      setStatus("角色已加载到项目，下游创作内容已标记为需要检查。");
-      await refreshAssets();
-      void refreshStoryAndEpisodes();
-      void refreshEpisodeArtifacts(selectedEpisodeNo);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "角色加载失败");
-    } finally {
-      setLoadingAssetId("");
+    const ids = Array.from(selectedCharacterIds);
+    let failedCount = 0;
+    for (const characterCardId of ids) {
+      try {
+        await loadCharacterCardToProject(projectId, characterCardId);
+      } catch {
+        failedCount++;
+      }
     }
+    setIsBatchLoading(false);
+    if (failedCount === 0) {
+      setStatus(`已成功加载 ${ids.length} 个角色到项目。`);
+    } else if (failedCount < ids.length) {
+      setStatus(`已加载 ${ids.length - failedCount} 个角色，${failedCount} 个加载失败。`);
+    } else {
+      setError("所有角色加载失败，请重试。");
+    }
+    setSelectedCharacterIds(new Set());
+    await refreshAssets();
+    setShowCharacterPicker(false);
+    void refreshStoryAndEpisodes();
+    void refreshEpisodeArtifacts(selectedEpisodeNo);
   };
 
   const editShot = (shot: ProjectStoryboardShot) => {
@@ -864,249 +886,286 @@ export default function ProjectWorkbenchPage() {
       ) : null}
 
       {activeStage === "assets" ? (
-        <div className="grid-2">
-          <AssetSection
-            title="项目世界观"
-            linkHref="/world-books"
-            linkLabel="前往世界观库"
-            isLoading={isLoadingAssets}
-            emptyText="尚未加载世界观。点击下方按钮从世界观库中选择并加载。"
-            onPick={openWorldPicker}
-            pickLabel="加载世界观"
-            pickDisabled={worldSnapshots.length > 0}
-          >
-            {worldSnapshots.map((snapshot) => (
-              <article className="asset-card" key={snapshot.id}>
-                <div className="asset-card-main">
-                  <div className="asset-card-title">
-                    <strong>{snapshot.name}</strong>
-                    <span className="status-badge status-active">已加载 v{snapshot.source_version}</span>
+        <>
+          <div className="grid-2">
+            <AssetSection
+              title="项目世界观"
+              linkHref="/world-books"
+              linkLabel="前往世界观库"
+              isLoading={isLoadingAssets}
+              emptyText="尚未加载世界观。点击下方按钮从世界观库中选择并加载。"
+              onPick={openWorldPicker}
+              pickLabel="加载世界观"
+              pickDisabled={worldSnapshots.length > 0}
+            >
+              {worldSnapshots.map((snapshot) => (
+                <article className="asset-card" key={snapshot.id}>
+                  <div className="asset-card-main">
+                    <div className="asset-card-title">
+                      <strong>{snapshot.name}</strong>
+                      <span className="status-badge status-active">已加载 v{snapshot.source_version}</span>
+                    </div>
+                    <div className="hint">{snapshot.genre}</div>
+                    <p>{worldSnapshotSummary(snapshot)}</p>
+                    <p className="hint">加载时间：{new Date(snapshot.loaded_at).toLocaleString()}</p>
                   </div>
-                  <div className="hint">{snapshot.genre}</div>
-                  <p>{worldSnapshotSummary(snapshot)}</p>
-                  <p className="hint">加载时间：{new Date(snapshot.loaded_at).toLocaleString()}</p>
-                </div>
-                <div className="asset-card-actions">
-                  <button className="button secondary" type="button" onClick={() => startEditingWorldSnapshot(snapshot)}>
-                    编辑项目世界观
-                  </button>
-                  <button
-                    className="button danger"
-                    type="button"
-                    onClick={() => void removeWorldSnapshot(snapshot)}
-                    disabled={removingSnapshotId === snapshot.id}
-                  >
-                    {removingSnapshotId === snapshot.id ? "移除中..." : "从项目移除"}
-                  </button>
-                </div>
-                {editingWorldSnapshotId === snapshot.id ? (
-                  <form className="form-section stack" onSubmit={saveWorldSnapshot}>
-                    <div className="warning-text">此处只修改当前项目世界观，不会修改世界观库原始内容。</div>
-                    <div className="grid-2">
-                      <TextInput label="项目世界观名称" value={worldSnapshotForm.name} onChange={(value) => setWorldSnapshotFormValue("name", value, setWorldSnapshotForm)} />
-                      <TextInput label="题材类型" value={worldSnapshotForm.genre} onChange={(value) => setWorldSnapshotFormValue("genre", value, setWorldSnapshotForm)} />
-                      <TextArea label="基础设定快照" value={worldSnapshotForm.snapshot_content} onChange={(value) => setWorldSnapshotFormValue("snapshot_content", value, setWorldSnapshotForm)} />
-                      <TextArea label="条目快照" value={worldSnapshotForm.entry_snapshot_content} onChange={(value) => setWorldSnapshotFormValue("entry_snapshot_content", value, setWorldSnapshotForm)} />
-                    </div>
-                    <div className="actions">
-                      <button className="button secondary" type="button" onClick={cancelWorldSnapshotEdit} disabled={savingSnapshotId === snapshot.id}>
-                        取消
-                      </button>
-                      <button className="button" type="submit" disabled={savingSnapshotId === snapshot.id}>
-                        {savingSnapshotId === snapshot.id ? "保存中..." : "保存项目世界观"}
-                      </button>
-                    </div>
-                  </form>
-                ) : null}
-              </article>
-            ))}
-          </AssetSection>
+                  <div className="asset-card-actions">
+                    <button className="button secondary" type="button" onClick={() => startEditingWorldSnapshot(snapshot)}>
+                      编辑项目世界观
+                    </button>
+                    <button
+                      className="button danger"
+                      type="button"
+                      onClick={() => void removeWorldSnapshot(snapshot)}
+                      disabled={removingSnapshotId === snapshot.id}
+                    >
+                      {removingSnapshotId === snapshot.id ? "移除中..." : "从项目移除"}
+                    </button>
+                  </div>
+                  {editingWorldSnapshotId === snapshot.id ? (
+                    <form className="form-section stack" onSubmit={saveWorldSnapshot}>
+                      <div className="warning-text">此处只修改当前项目世界观，不会修改世界观库原始内容。</div>
+                      <div className="grid-2">
+                        <TextInput label="项目世界观名称" value={worldSnapshotForm.name} onChange={(value) => setWorldSnapshotFormValue("name", value, setWorldSnapshotForm)} />
+                        <TextInput label="题材类型" value={worldSnapshotForm.genre} onChange={(value) => setWorldSnapshotFormValue("genre", value, setWorldSnapshotForm)} />
+                        <TextArea label="基础设定快照" value={worldSnapshotForm.snapshot_content} onChange={(value) => setWorldSnapshotFormValue("snapshot_content", value, setWorldSnapshotForm)} />
+                        <TextArea label="条目快照" value={worldSnapshotForm.entry_snapshot_content} onChange={(value) => setWorldSnapshotFormValue("entry_snapshot_content", value, setWorldSnapshotForm)} />
+                      </div>
+                      <div className="actions">
+                        <button className="button secondary" type="button" onClick={cancelWorldSnapshotEdit} disabled={savingSnapshotId === snapshot.id}>
+                          取消
+                        </button>
+                        <button className="button" type="submit" disabled={savingSnapshotId === snapshot.id}>
+                          {savingSnapshotId === snapshot.id ? "保存中..." : "保存项目世界观"}
+                        </button>
+                      </div>
+                    </form>
+                  ) : null}
+                </article>
+              ))}
+            </AssetSection>
 
-          {showWorldPicker ? (
-            <div className="panel stack picker-panel">
-              <div className="section-heading">
-                <h3>选择世界观</h3>
-                <button className="button secondary" type="button" onClick={() => setShowWorldPicker(false)}>
-                  关闭
-                </button>
+            <AssetSection
+              title="项目角色"
+              linkHref="/character-cards"
+              linkLabel="前往角色卡库"
+              isLoading={isLoadingAssets}
+              emptyText="尚未加载角色。点击下方按钮从角色卡库中选择并加载。"
+              onPick={openCharacterPicker}
+              pickLabel="加载角色"
+            >
+              {characterSnapshots.map((snapshot) => (
+                <article className="asset-card" key={snapshot.id}>
+                  <div className="asset-card-main">
+                    <div className="asset-card-title">
+                      <strong>{snapshot.name}</strong>
+                      <span className="status-badge status-active">已加载 v{snapshot.source_version}</span>
+                    </div>
+                    <div className="hint">
+                      {snapshot.gender} · {snapshot.role_type}
+                    </div>
+                    <p>{snapshot.visual_description || characterSnapshotSummary(snapshot)}</p>
+                    <p className="hint">加载时间：{new Date(snapshot.loaded_at).toLocaleString()}</p>
+                  </div>
+                  <div className="asset-card-actions">
+                    <button className="button secondary" type="button" onClick={() => startEditingCharacterSnapshot(snapshot)}>
+                      编辑项目角色
+                    </button>
+                    <button
+                      className="button danger"
+                      type="button"
+                      onClick={() => void removeCharacterSnapshot(snapshot)}
+                      disabled={removingSnapshotId === snapshot.id}
+                    >
+                      {removingSnapshotId === snapshot.id ? "移除中..." : "从项目移除"}
+                    </button>
+                  </div>
+                  {editingCharacterSnapshotId === snapshot.id ? (
+                    <form className="form-section stack" onSubmit={saveCharacterSnapshot}>
+                      <div className="warning-text">此处只修改当前项目角色，不会修改角色卡库原始内容。</div>
+                      <div className="grid-2">
+                        <TextInput label="项目角色名" value={characterSnapshotForm.name} onChange={(value) => setCharacterSnapshotFormValue("name", value, setCharacterSnapshotForm)} />
+                        <div className="field">
+                          <label>性别</label>
+                          <select
+                            value={characterSnapshotForm.gender}
+                            onChange={(event) => setCharacterSnapshotFormValue("gender", event.target.value as "男" | "女", setCharacterSnapshotForm)}
+                          >
+                            <option value="女">女</option>
+                            <option value="男">男</option>
+                          </select>
+                        </div>
+                        <TextInput label="人物原型 / 项目定位" value={characterSnapshotForm.role_type} onChange={(value) => setCharacterSnapshotFormValue("role_type", value, setCharacterSnapshotForm)} />
+                        <TextArea label="项目角色设定快照" value={characterSnapshotForm.snapshot_content} onChange={(value) => setCharacterSnapshotFormValue("snapshot_content", value, setCharacterSnapshotForm)} />
+                        <TextArea label="项目内视觉描述" value={characterSnapshotForm.visual_description} onChange={(value) => setCharacterSnapshotFormValue("visual_description", value, setCharacterSnapshotForm)} />
+                        <TextInput label="参考图 URL" value={characterSnapshotForm.reference_image_url} onChange={(value) => setCharacterSnapshotFormValue("reference_image_url", value, setCharacterSnapshotForm)} />
+                        <TextInput label="参考图本地路径" value={characterSnapshotForm.reference_local_path} onChange={(value) => setCharacterSnapshotFormValue("reference_local_path", value, setCharacterSnapshotForm)} />
+                      </div>
+                      <div className="actions">
+                        <button className="button secondary" type="button" onClick={cancelCharacterSnapshotEdit} disabled={savingSnapshotId === snapshot.id}>
+                          取消
+                        </button>
+                        <button className="button" type="submit" disabled={savingSnapshotId === snapshot.id}>
+                          {savingSnapshotId === snapshot.id ? "保存中..." : "保存项目角色"}
+                        </button>
+                      </div>
+                    </form>
+                  ) : null}
+                </article>
+              ))}
+            </AssetSection>
+          </div>
+
+          <AssetDrawer title="选择世界观" isOpen={showWorldPicker} onClose={() => setShowWorldPicker(false)}>
+            {isLoadingPicker ? (
+              <div className="empty-state">正在加载可用世界观...</div>
+            ) : availableWorlds.length === 0 ? (
+              <div className="empty-state">
+                没有可用的世界观。
+                <Link href="/world-books/new" className="button secondary" style={{ marginTop: "0.5rem", display: "inline-block" }}>
+                  创建世界观
+                </Link>
               </div>
-              {isLoadingPicker ? (
-                <div className="empty-state">正在加载可用世界观...</div>
-              ) : availableWorlds.length === 0 ? (
-                <div className="empty-state">
-                  没有可用的世界观。
-                  <Link href="/world-books/new" className="button secondary" style={{ marginTop: "0.5rem", display: "inline-block" }}>
-                    创建世界观
-                  </Link>
-                </div>
-              ) : (
-                <div className="asset-list">
-                  {worldSnapshots.length > 0 ? <div className="warning-text">当前项目已加载世界观，每个项目只能加载一个世界观。</div> : null}
+            ) : (
+              <>
+                {worldSnapshots.length > 0 ? (
+                  <div className="warning-text">当前项目已加载世界观，每个项目只能加载一个世界观。</div>
+                ) : (
+                  <div className="drawer-selection-hint">请选择一个世界观，然后点击底部「加载」按钮。</div>
+                )}
+                <div className="asset-list asset-drawer-list">
                   {availableWorlds.map((wb) => {
                     const hasProjectWorld = worldSnapshots.length > 0;
                     const isLoaded = loadedWorldIds.has(wb.id);
                     const isDisabled = hasProjectWorld || isLoaded;
+                    const isSelected = selectedWorldId === wb.id;
                     return (
-                      <article className={`asset-card ${isDisabled ? "asset-card-disabled" : ""}`} key={wb.id}>
-                        <div className="asset-card-main">
-                          <div className="asset-card-title">
-                            <strong>{wb.name}</strong>
-                            {hasProjectWorld ? (
-                              <span className="status-badge status-active">{isLoaded ? "已加载" : "不可加载"}</span>
-                            ) : (
-                              <span className="status-badge status-draft">{isLoaded ? "已加载" : "可用"}</span>
-                            )}
-                          </div>
-                          <div className="hint">{wb.genre} · v{wb.version}</div>
-                          <p>{wb.summary || wb.world_rules || "无简介"}</p>
+                      <label
+                        className={`drawer-asset-item ${isSelected ? "drawer-item-selected" : ""} ${isDisabled ? "drawer-item-disabled" : ""}`}
+                        key={wb.id}
+                      >
+                        <div className="drawer-asset-item-header">
+                          <input
+                            type="radio"
+                            name="world-pick"
+                            checked={isSelected}
+                            disabled={isDisabled}
+                            onChange={() => setSelectedWorldId(wb.id)}
+                          />
+                          <strong>{wb.name}</strong>
+                          {isLoaded ? (
+                            <span className="status-badge status-active">已加载</span>
+                          ) : hasProjectWorld ? (
+                            <span className="status-badge status-draft">不可加载</span>
+                          ) : (
+                            <span className="status-badge status-draft">可用</span>
+                          )}
                         </div>
-                        <div className="asset-card-actions">
-                          <button
-                            className="button"
-                            type="button"
-                            disabled={isDisabled || loadingAssetId === wb.id}
-                            onClick={() => void handleLoadWorld(wb.id)}
-                          >
-                            {loadingAssetId === wb.id ? "加载中..." : isDisabled ? "不可加载" : "加载到项目"}
-                          </button>
-                        </div>
-                      </article>
+                        <div className="hint">{wb.genre} · v{wb.version}</div>
+                        <p>{wb.summary || wb.world_rules || "无简介"}</p>
+                      </label>
                     );
                   })}
                 </div>
-              )}
-              <div className="hint" style={{ textAlign: "center" }}>
-                <Link href="/world-books">前往世界观库管理</Link>
-              </div>
-            </div>
-          ) : null}
-
-          <AssetSection
-            title="项目角色"
-            linkHref="/character-cards"
-            linkLabel="前往角色卡库"
-            isLoading={isLoadingAssets}
-            emptyText="尚未加载角色。点击下方按钮从角色卡库中选择并加载。"
-            onPick={openCharacterPicker}
-            pickLabel="加载角色"
-          >
-            {characterSnapshots.map((snapshot) => (
-              <article className="asset-card" key={snapshot.id}>
-                <div className="asset-card-main">
-                  <div className="asset-card-title">
-                    <strong>{snapshot.name}</strong>
-                    <span className="status-badge status-active">已加载 v{snapshot.source_version}</span>
-                  </div>
-                  <div className="hint">
-                    {snapshot.gender} · {snapshot.role_type}
-                  </div>
-                  <p>{snapshot.visual_description || characterSnapshotSummary(snapshot)}</p>
-                  <p className="hint">加载时间：{new Date(snapshot.loaded_at).toLocaleString()}</p>
-                </div>
-                <div className="asset-card-actions">
-                  <button className="button secondary" type="button" onClick={() => startEditingCharacterSnapshot(snapshot)}>
-                    编辑项目角色
-                  </button>
-                  <button
-                    className="button danger"
-                    type="button"
-                    onClick={() => void removeCharacterSnapshot(snapshot)}
-                    disabled={removingSnapshotId === snapshot.id}
-                  >
-                    {removingSnapshotId === snapshot.id ? "移除中..." : "从项目移除"}
-                  </button>
-                </div>
-                {editingCharacterSnapshotId === snapshot.id ? (
-                  <form className="form-section stack" onSubmit={saveCharacterSnapshot}>
-                    <div className="warning-text">此处只修改当前项目角色，不会修改角色卡库原始内容。</div>
-                    <div className="grid-2">
-                      <TextInput label="项目角色名" value={characterSnapshotForm.name} onChange={(value) => setCharacterSnapshotFormValue("name", value, setCharacterSnapshotForm)} />
-                      <div className="field">
-                        <label>性别</label>
-                        <select
-                          value={characterSnapshotForm.gender}
-                          onChange={(event) => setCharacterSnapshotFormValue("gender", event.target.value as "男" | "女", setCharacterSnapshotForm)}
-                        >
-                          <option value="女">女</option>
-                          <option value="男">男</option>
-                        </select>
-                      </div>
-                      <TextInput label="人物原型 / 项目定位" value={characterSnapshotForm.role_type} onChange={(value) => setCharacterSnapshotFormValue("role_type", value, setCharacterSnapshotForm)} />
-                      <TextArea label="项目角色设定快照" value={characterSnapshotForm.snapshot_content} onChange={(value) => setCharacterSnapshotFormValue("snapshot_content", value, setCharacterSnapshotForm)} />
-                      <TextArea label="项目内视觉描述" value={characterSnapshotForm.visual_description} onChange={(value) => setCharacterSnapshotFormValue("visual_description", value, setCharacterSnapshotForm)} />
-                      <TextInput label="参考图 URL" value={characterSnapshotForm.reference_image_url} onChange={(value) => setCharacterSnapshotFormValue("reference_image_url", value, setCharacterSnapshotForm)} />
-                      <TextInput label="参考图本地路径" value={characterSnapshotForm.reference_local_path} onChange={(value) => setCharacterSnapshotFormValue("reference_local_path", value, setCharacterSnapshotForm)} />
-                    </div>
-                    <div className="actions">
-                      <button className="button secondary" type="button" onClick={cancelCharacterSnapshotEdit} disabled={savingSnapshotId === snapshot.id}>
-                        取消
-                      </button>
-                      <button className="button" type="submit" disabled={savingSnapshotId === snapshot.id}>
-                        {savingSnapshotId === snapshot.id ? "保存中..." : "保存项目角色"}
-                      </button>
-                    </div>
-                  </form>
-                ) : null}
-              </article>
-            ))}
-          </AssetSection>
-
-          {showCharacterPicker ? (
-            <div className="panel stack picker-panel">
-              <div className="section-heading">
-                <h3>选择角色卡</h3>
-                <button className="button secondary" type="button" onClick={() => setShowCharacterPicker(false)}>
-                  关闭
+              </>
+            )}
+            {!isLoadingPicker && availableWorlds.length > 0 && (
+              <div className="asset-drawer-footer">
+                <button className="button secondary" type="button" onClick={() => setShowWorldPicker(false)}>
+                  取消
+                </button>
+                <button
+                  className="button"
+                  type="button"
+                  disabled={!selectedWorldId || loadingAssetId !== "" || worldSnapshots.length > 0}
+                  onClick={() => void handleLoadWorld()}
+                >
+                  {loadingAssetId ? "加载中..." : `加载${selectedWorldId ? "" : "世界观"}`}
                 </button>
               </div>
-              {isLoadingPicker ? (
-                <div className="empty-state">正在加载可用角色卡...</div>
-              ) : availableCharacters.length === 0 ? (
-                <div className="empty-state">
-                  没有可用的角色卡。
-                  <Link href="/character-cards/new" className="button secondary" style={{ marginTop: "0.5rem", display: "inline-block" }}>
-                    创建角色卡
-                  </Link>
+            )}
+            <div className="hint" style={{ textAlign: "center" }}>
+              <Link href="/world-books">前往世界观库管理</Link>
+            </div>
+          </AssetDrawer>
+
+          <AssetDrawer title="选择角色卡" isOpen={showCharacterPicker} onClose={() => setShowCharacterPicker(false)}>
+            {isLoadingPicker ? (
+              <div className="empty-state">正在加载可用角色卡...</div>
+            ) : availableCharacters.length === 0 ? (
+              <div className="empty-state">
+                没有可用的角色卡。
+                <Link href="/character-cards/new" className="button secondary" style={{ marginTop: "0.5rem", display: "inline-block" }}>
+                  创建角色卡
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="drawer-selection-hint">
+                  已选择 {selectedCharacterIds.size} 个角色，选择完毕后点击底部「加载」按钮。
                 </div>
-              ) : (
-                <div className="asset-list">
+                <div className="asset-list asset-drawer-list">
                   {availableCharacters.map((cc) => {
                     const isLoaded = loadedCharacterIds.has(cc.id);
+                    const isSelected = selectedCharacterIds.has(cc.id);
+                    const isDisabled = isLoaded;
                     return (
-                      <article className={`asset-card ${isLoaded ? "asset-card-disabled" : ""}`} key={cc.id}>
-                        <div className="asset-card-main">
-                          <div className="asset-card-title">
-                            <strong>{cc.name}</strong>
-                            {isLoaded ? (
-                              <span className="status-badge status-active">已加载</span>
-                            ) : (
-                              <span className="status-badge status-draft">可用</span>
-                            )}
-                          </div>
-                          <div className="hint">{cc.gender} · {cc.role_type} · v{cc.version}</div>
-                          <p>{cc.identity || cc.background || "无简介"}</p>
+                      <label
+                        className={`drawer-asset-item ${isSelected ? "drawer-item-selected" : ""} ${isDisabled ? "drawer-item-disabled" : ""}`}
+                        key={cc.id}
+                      >
+                        <div className="drawer-asset-item-header">
+                          <input
+                            type="checkbox"
+                            checked={isSelected || isLoaded}
+                            disabled={isDisabled}
+                            onChange={() => {
+                              setSelectedCharacterIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(cc.id)) {
+                                  next.delete(cc.id);
+                                } else {
+                                  next.add(cc.id);
+                                }
+                                return next;
+                              });
+                            }}
+                          />
+                          <strong>{cc.name}</strong>
+                          {isLoaded ? (
+                            <span className="status-badge status-active">已加载</span>
+                          ) : (
+                            <span className="status-badge status-draft">可用</span>
+                          )}
                         </div>
-                        <div className="asset-card-actions">
-                          <button
-                            className="button"
-                            type="button"
-                            disabled={isLoaded || loadingAssetId === cc.id}
-                            onClick={() => void handleLoadCharacter(cc.id)}
-                          >
-                            {loadingAssetId === cc.id ? "加载中..." : isLoaded ? "已加载" : "加载到项目"}
-                          </button>
-                        </div>
-                      </article>
+                        <div className="hint">{cc.gender} · {cc.role_type} · v{cc.version}</div>
+                        <p>{cc.identity || cc.background || "无简介"}</p>
+                      </label>
                     );
                   })}
                 </div>
-              )}
-              <div className="hint" style={{ textAlign: "center" }}>
-                <Link href="/character-cards">前往角色卡库管理</Link>
+              </>
+            )}
+            {!isLoadingPicker && availableCharacters.length > 0 && (
+              <div className="asset-drawer-footer">
+                <button className="button secondary" type="button" onClick={() => setShowCharacterPicker(false)}>
+                  取消
+                </button>
+                <button
+                  className="button"
+                  type="button"
+                  disabled={selectedCharacterIds.size === 0 || isBatchLoading}
+                  onClick={() => void handleLoadCharacters()}
+                >
+                  {isBatchLoading ? "加载中..." : `加载${selectedCharacterIds.size > 0 ? ` (${selectedCharacterIds.size})` : ""}`}
+                </button>
               </div>
+            )}
+            <div className="hint" style={{ textAlign: "center" }}>
+              <Link href="/character-cards">前往角色卡库管理</Link>
             </div>
-          ) : null}
-        </div>
+          </AssetDrawer>
+        </>
       ) : null}
 
       {activeStage === "story" ? (
@@ -1368,6 +1427,35 @@ function AssetSection({
         <div className="asset-list asset-list-wide">{children}</div>
       )}
     </section>
+  );
+}
+
+function AssetDrawer({
+  title,
+  isOpen,
+  onClose,
+  children
+}: {
+  title: string;
+  isOpen: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="drawer-layer" role="presentation">
+      <button className="drawer-backdrop" type="button" aria-label="关闭选择抽屉" onClick={onClose} />
+      <aside className="asset-drawer" role="dialog" aria-modal="true" aria-labelledby="asset-drawer-title">
+        <div className="asset-drawer-header">
+          <h3 id="asset-drawer-title">{title}</h3>
+          <button className="button secondary" type="button" onClick={onClose}>
+            关闭
+          </button>
+        </div>
+        <div className="asset-drawer-body">{children}</div>
+      </aside>
+    </div>
   );
 }
 
