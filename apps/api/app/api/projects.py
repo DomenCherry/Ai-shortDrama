@@ -17,6 +17,13 @@ from app.models.schemas import (
     ProjectStoryboardShotResponse,
     ProjectStoryOutlinePayload,
     ProjectStoryOutlineResponse,
+    ReferenceStoryStructureApplyPayload,
+    ReferenceStoryStructureDraftResponse,
+    ReferenceStoryStructureExtractPayload,
+    StoryOutlineGenerationResult,
+    StoryOutlineGeneratePayload,
+    StoryOutlineRewritePayload,
+    StoryOutlineRewriteResult,
     ProjectUpdate,
     ProjectWorldSnapshotUpdate,
     ProjectWorldSnapshotResponse,
@@ -120,6 +127,72 @@ def upsert_story_outline(project_id: str, payload: ProjectStoryOutlinePayload) -
         return projects.upsert_story_outline(project_id, payload)
     except ValueError as exc:
         status_code = 404 if str(exc) == "项目不存在" else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+
+@router.post("/{project_id}/story-outline/generate", response_model=StoryOutlineGenerationResult)
+async def generate_story_outline(project_id: str, payload: StoryOutlineGeneratePayload) -> dict:
+    try:
+        return await projects.generate_story_outline(project_id, payload)
+    except ValueError as exc:
+        status_code = 404 if str(exc) in {"项目不存在", "参考框架草稿不存在"} else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+
+@router.post("/{project_id}/story-outline/rewrite", response_model=StoryOutlineRewriteResult)
+async def rewrite_story_outline(project_id: str, payload: StoryOutlineRewritePayload) -> dict:
+    try:
+        return await projects.rewrite_story_outline(project_id, payload)
+    except ValueError as exc:
+        status_code = 404 if str(exc) in {"项目不存在", "整体故事大纲不存在"} else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+
+@router.post("/{project_id}/story-structure-drafts/extract", response_model=ReferenceStoryStructureDraftResponse)
+async def extract_reference_story_structure(project_id: str, payload: ReferenceStoryStructureExtractPayload) -> dict:
+    try:
+        return await projects.extract_reference_story_structure(project_id, payload)
+    except ValueError as exc:
+        status_code = 404 if str(exc) == "项目不存在" else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+
+@router.get("/{project_id}/story-structure-drafts", response_model=list[ReferenceStoryStructureDraftResponse])
+def list_reference_story_structure_drafts(project_id: str) -> list[dict]:
+    try:
+        return projects.list_reference_story_structure_drafts(project_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/{project_id}/story-structure-drafts/{draft_id}", response_model=ReferenceStoryStructureDraftResponse)
+def get_reference_story_structure_draft(project_id: str, draft_id: str) -> dict:
+    try:
+        return projects.get_reference_story_structure_draft(project_id, draft_id)
+    except ValueError as exc:
+        status_code = 404 if str(exc) in {"项目不存在", "参考框架草稿不存在"} else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+
+@router.post("/{project_id}/story-structure-drafts/{draft_id}/apply", response_model=ProjectStoryOutlineResponse)
+def apply_reference_story_structure_draft(
+    project_id: str,
+    draft_id: str,
+    payload: ReferenceStoryStructureApplyPayload,
+) -> dict:
+    try:
+        return projects.apply_reference_story_structure_draft(project_id, draft_id, payload)
+    except ValueError as exc:
+        status_code = 404 if str(exc) in {"项目不存在", "参考框架草稿不存在"} else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+
+@router.post("/{project_id}/story-structure-drafts/{draft_id}/discard", response_model=ReferenceStoryStructureDraftResponse)
+def discard_reference_story_structure_draft(project_id: str, draft_id: str) -> dict:
+    try:
+        return projects.discard_reference_story_structure_draft(project_id, draft_id)
+    except ValueError as exc:
+        status_code = 404 if str(exc) in {"项目不存在", "参考框架草稿不存在"} else 400
         raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 

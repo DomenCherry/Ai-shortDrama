@@ -44,11 +44,13 @@ docs/phase-1/frontend-specs/<page-name>.md
 
 ## 已有页面 Spec
 
+- [全局工作台导航](./app-shell-navigation.md)
 - [项目管理](./project-management.md)
 - [项目工作台](./project-workbench.md)
 - [世界观库](./world-book-library.md)
 - [角色卡库](./character-card-library.md)
 - [模型 API 配置](./model-api-settings.md)
+- [项目故事大纲](./story-outline.md)
 
 ## 模板
 

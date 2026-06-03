@@ -36,19 +36,65 @@ select {
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
+  transition: grid-template-columns 160ms ease;
+}
+
+.app-shell-collapsed {
+  grid-template-columns: 72px minmax(0, 1fr);
 }
 
 .sidebar {
   background: #18332f;
   color: #f8fbfa;
   padding: 24px 18px;
+  min-width: 0;
+  transition: padding 160ms ease;
+}
+
+.app-shell-collapsed .sidebar {
+  padding: 24px 12px;
+}
+
+.sidebar-header {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 28px;
 }
 
 .brand {
   font-size: 18px;
   font-weight: 700;
-  margin-bottom: 28px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand-short {
+  display: none;
+}
+
+.sidebar-toggle {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  color: #f8fbfa;
+  cursor: pointer;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 20px;
+  height: 32px;
+  justify-content: center;
+  line-height: 1;
+  width: 32px;
+}
+
+.sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .nav {
@@ -57,14 +103,56 @@ select {
 }
 
 .nav a {
+  align-items: center;
   border-radius: 6px;
   color: #d6e2df;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
   padding: 10px 12px;
 }
 
 .nav a:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
+}
+
+.nav-icon {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
+.nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-shell-collapsed .brand-full,
+.app-shell-collapsed .nav-label {
+  display: none;
+}
+
+.app-shell-collapsed .brand-short {
+  display: inline;
+}
+
+.app-shell-collapsed .sidebar-header {
+  justify-content: center;
+}
+
+.app-shell-collapsed .nav a {
+  justify-content: center;
+  padding: 10px 0;
 }
 
 .main {

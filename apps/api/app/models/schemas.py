@@ -11,6 +11,11 @@ WorldBookStatus = Literal["draft", "active", "archived"]
 WorldEntryStatus = Literal["active", "disabled"]
 WorldEntryType = Literal["世界规则", "地点", "组织", "阶层关系", "历史事件", "特殊物品", "禁忌或限制", "风格约束", "其他"]
 ProjectArtifactStatus = Literal["draft", "confirmed", "needs_review"]
+ReferenceStorySourceType = Literal["pasted", "uploaded"]
+ReferenceStoryDraftStatus = Literal["draft", "applied", "discarded"]
+ReferenceStoryValidationStatus = Literal["pending", "passed", "failed"]
+StoryOutlineWriteMode = Literal["preview", "apply"]
+ReferenceStoryApplyMode = Literal["fill_empty", "overwrite"]
 
 
 class ModelApiConfigCreate(BaseModel):
@@ -481,13 +486,37 @@ class ProjectArtifactBase(BaseModel):
 
 class ProjectStoryOutlinePayload(ProjectArtifactBase):
     logline: Optional[str] = None
+    story_background: Optional[str] = None
     core_conflict: Optional[str] = None
     main_goal: Optional[str] = None
+    story_start: Optional[str] = None
+    plot_structure: Optional[str] = None
+    reversals: Optional[str] = None
+    emotion_curve: Optional[str] = None
+    foreshadowing: Optional[str] = None
     character_arcs: Optional[str] = None
     ending_direction: Optional[str] = None
+    pacing_advice: Optional[str] = None
+    capacity_advice: Optional[str] = None
     notes: Optional[str] = None
 
-    @field_validator("logline", "core_conflict", "main_goal", "character_arcs", "ending_direction", "notes", mode="before")
+    @field_validator(
+        "logline",
+        "story_background",
+        "core_conflict",
+        "main_goal",
+        "story_start",
+        "plot_structure",
+        "reversals",
+        "emotion_curve",
+        "foreshadowing",
+        "character_arcs",
+        "ending_direction",
+        "pacing_advice",
+        "capacity_advice",
+        "notes",
+        mode="before",
+    )
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
@@ -503,6 +532,120 @@ class ProjectStoryOutlineResponse(ProjectStoryOutlinePayload):
     project_id: str
     created_at: str
     updated_at: str
+
+
+class StoryOutlineGeneratePayload(BaseModel):
+    user_requirements: Optional[str] = None
+    reference_draft_id: Optional[str] = None
+    write_mode: StoryOutlineWriteMode = "preview"
+
+    @field_validator("user_requirements", "reference_draft_id", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class StoryOutlineGenerationResult(BaseModel):
+    outline: ProjectStoryOutlinePayload
+    applied: bool
+    saved_outline: Optional[ProjectStoryOutlineResponse] = None
+    context_summary: str
+
+
+class StoryOutlineRewritePayload(BaseModel):
+    field: str = Field(min_length=1)
+    current_value: str = Field(min_length=1)
+    instruction: str = Field(min_length=1)
+    write_mode: StoryOutlineWriteMode = "preview"
+
+    @field_validator("field", "current_value", "instruction", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class StoryOutlineRewriteResult(BaseModel):
+    field: str
+    value: str
+    applied: bool
+    saved_outline: Optional[ProjectStoryOutlineResponse] = None
+
+
+class ReferenceStoryStructureExtractPayload(BaseModel):
+    source_type: ReferenceStorySourceType
+    source_filename: Optional[str] = None
+    source_text: str = Field(min_length=1)
+    user_requirements: Optional[str] = None
+
+    @field_validator("source_filename", "source_text", "user_requirements", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+    @field_validator("source_filename")
+    @classmethod
+    def validate_source_filename(cls, value: Optional[str], info) -> Optional[str]:
+        if info.data.get("source_type") == "uploaded":
+            if not value:
+                raise ValueError("上传参考故事时必须提供文件名")
+            lowered = value.lower()
+            if not lowered.endswith((".txt", ".md")):
+                raise ValueError("第一版只支持 txt 或 md 文本文件")
+        return value
+
+
+class ReferenceStoryStructureDraftResponse(BaseModel):
+    id: str
+    project_id: str
+    source_type: ReferenceStorySourceType
+    source_filename: Optional[str]
+    source_text_excerpt: Optional[str]
+    story_type: Optional[str]
+    goal_model: Optional[str]
+    inciting_event_type: Optional[str]
+    conflict_model: Optional[str]
+    stage_structure: Optional[str]
+    reversal_mechanism: Optional[str]
+    emotion_curve: Optional[str]
+    foreshadowing_pattern: Optional[str]
+    ending_pattern: Optional[str]
+    adaptation_advice: Optional[str]
+    de_specificity_notes: Optional[str]
+    validation_status: ReferenceStoryValidationStatus
+    validation_notes: Optional[str]
+    status: ReferenceStoryDraftStatus
+    created_at: str
+    updated_at: str
+
+
+class ReferenceStoryStructureApplyPayload(BaseModel):
+    apply_mode: ReferenceStoryApplyMode = "fill_empty"
+    user_requirements: Optional[str] = None
+
+    @field_validator("user_requirements", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
 
 
 class ProjectEpisodeOutlinePayload(ProjectArtifactBase):

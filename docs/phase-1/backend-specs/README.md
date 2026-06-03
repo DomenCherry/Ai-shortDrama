@@ -12,6 +12,7 @@
 | [世界观库](./world-book-library.md) | 世界观 CRUD、条目管理、状态与版本规则 |
 | [角色卡库](./character-card-library.md) | 角色卡 CRUD、参考图上传、三视图生成和兼容规则 |
 | [项目工作台资产快照接口](./project-workbench-assets.md) | 项目世界观和项目角色的加载、微调、移除与隔离规则 |
+| [故事大纲](./story-outline.md) | 整体故事大纲生成、局部改写、参考故事结构抽取和去具体化校验 |
 
 ## 编写约定
 

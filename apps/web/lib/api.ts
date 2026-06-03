@@ -86,10 +86,18 @@ export type ProjectArtifactStatus = "draft" | "confirmed" | "needs_review";
 
 export type ProjectStoryOutlinePayload = {
   logline?: string;
+  story_background?: string;
   core_conflict?: string;
   main_goal?: string;
+  story_start?: string;
+  plot_structure?: string;
+  reversals?: string;
+  emotion_curve?: string;
+  foreshadowing?: string;
   character_arcs?: string;
   ending_direction?: string;
+  pacing_advice?: string;
+  capacity_advice?: string;
   notes?: string;
   status: ProjectArtifactStatus;
 };
@@ -99,6 +107,64 @@ export type ProjectStoryOutline = ProjectStoryOutlinePayload & {
   project_id: string;
   created_at: string;
   updated_at: string;
+};
+
+export type StoryOutlineGeneratePayload = {
+  user_requirements?: string;
+  reference_draft_id?: string;
+  write_mode?: "preview" | "apply";
+};
+
+export type StoryOutlineGenerationResult = {
+  outline: ProjectStoryOutlinePayload;
+  applied: boolean;
+  saved_outline?: ProjectStoryOutline;
+  context_summary: string;
+};
+
+export type StoryOutlineRewritePayload = {
+  field: string;
+  current_value: string;
+  instruction: string;
+  write_mode?: "preview" | "apply";
+};
+
+export type StoryOutlineRewriteResult = {
+  field: string;
+  value: string;
+  applied: boolean;
+  saved_outline?: ProjectStoryOutline;
+};
+
+export type ReferenceStoryStructureDraft = {
+  id: string;
+  project_id: string;
+  source_type: "pasted" | "uploaded";
+  source_filename?: string;
+  source_text_excerpt?: string;
+  story_type?: string;
+  goal_model?: string;
+  inciting_event_type?: string;
+  conflict_model?: string;
+  stage_structure?: string;
+  reversal_mechanism?: string;
+  emotion_curve?: string;
+  foreshadowing_pattern?: string;
+  ending_pattern?: string;
+  adaptation_advice?: string;
+  de_specificity_notes?: string;
+  validation_status: "pending" | "passed" | "failed";
+  validation_notes?: string;
+  status: "draft" | "applied" | "discarded";
+  created_at: string;
+  updated_at: string;
+};
+
+export type ReferenceStoryStructureExtractPayload = {
+  source_type: "pasted" | "uploaded";
+  source_filename?: string;
+  source_text: string;
+  user_requirements?: string;
 };
 
 export type ProjectEpisodeOutlinePayload = {
@@ -467,6 +533,44 @@ export function updateProjectStoryOutline(projectId: string, payload: ProjectSto
   return request<ProjectStoryOutline>(`/api/projects/${projectId}/story-outline`, {
     method: "PUT",
     body: JSON.stringify(payload)
+  });
+}
+
+export function generateProjectStoryOutline(projectId: string, payload: StoryOutlineGeneratePayload) {
+  return request<StoryOutlineGenerationResult>(`/api/projects/${projectId}/story-outline/generate`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function rewriteProjectStoryOutlineField(projectId: string, payload: StoryOutlineRewritePayload) {
+  return request<StoryOutlineRewriteResult>(`/api/projects/${projectId}/story-outline/rewrite`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function extractReferenceStoryStructure(projectId: string, payload: ReferenceStoryStructureExtractPayload) {
+  return request<ReferenceStoryStructureDraft>(`/api/projects/${projectId}/story-structure-drafts/extract`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function listReferenceStoryStructureDrafts(projectId: string) {
+  return request<ReferenceStoryStructureDraft[]>(`/api/projects/${projectId}/story-structure-drafts`);
+}
+
+export function applyReferenceStoryStructureDraft(projectId: string, draftId: string, applyMode: "fill_empty" | "overwrite") {
+  return request<ProjectStoryOutline>(`/api/projects/${projectId}/story-structure-drafts/${draftId}/apply`, {
+    method: "POST",
+    body: JSON.stringify({ apply_mode: applyMode })
+  });
+}
+
+export function discardReferenceStoryStructureDraft(projectId: string, draftId: string) {
+  return request<ReferenceStoryStructureDraft>(`/api/projects/${projectId}/story-structure-drafts/${draftId}/discard`, {
+    method: "POST"
   });
 }
 

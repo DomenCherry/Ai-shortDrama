@@ -37,8 +37,9 @@ def initialize_database() -> None:
         ProjectStoryboardShot,
         ProjectStoryOutline,
         ProjectWorldSnapshot,
+        ReferenceStoryStructureDraft,
         WorldBook,
-        WorldBookEntry,
+        WorldEntry,
     )
 
     Base.metadata.create_all(bind=get_engine())

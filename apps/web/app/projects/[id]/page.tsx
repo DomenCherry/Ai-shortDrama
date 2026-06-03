@@ -5,15 +5,20 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useParams } from "next/navigation";
 import {
+  applyReferenceStoryStructureDraft,
   createProjectStoryboardShot,
   deleteProjectCharacterSnapshot,
   deleteProjectStoryboardShot,
   deleteProjectWorldSnapshot,
+  discardReferenceStoryStructureDraft,
+  extractReferenceStoryStructure,
+  generateProjectStoryOutline,
   getProject,
   getProjectCopywriting,
   getProjectEpisodeContent,
   getProjectEpisodeScript,
   getProjectStoryOutline,
+  listReferenceStoryStructureDrafts,
   listCharacterCards,
   listProjectCharacterSnapshots,
   listProjectEpisodeOutlines,
@@ -32,6 +37,10 @@ import {
   ProjectStoryOutline,
   ProjectSummary,
   ProjectWorldSnapshot,
+  ReferenceStoryStructureDraft,
+  rewriteProjectStoryOutlineField,
+  StoryOutlineGenerationResult,
+  StoryOutlineRewriteResult,
   updateProject,
   updateProjectCharacterSnapshot,
   updateProjectCopywriting,
@@ -78,12 +87,31 @@ type CharacterSnapshotForm = {
 
 type StoryOutlineForm = {
   logline: string;
+  story_background: string;
   core_conflict: string;
   main_goal: string;
+  story_start: string;
+  plot_structure: string;
+  reversals: string;
+  emotion_curve: string;
+  foreshadowing: string;
   character_arcs: string;
   ending_direction: string;
+  pacing_advice: string;
+  capacity_advice: string;
   notes: string;
   status: ProjectArtifactStatus;
+};
+
+type ReferenceStoryInputForm = {
+  source_text: string;
+  source_filename: string;
+  user_requirements: string;
+};
+
+type RewriteForm = {
+  field: string;
+  instruction: string;
 };
 
 type EpisodeOutlineForm = {
@@ -139,6 +167,20 @@ const stages: Array<{ key: Stage; label: string }> = [
   { key: "storyboard", label: "分镜与文案" }
 ];
 
+const storyRewriteFields: Array<{ key: keyof StoryOutlineForm; label: string }> = [
+  { key: "story_background", label: "故事背景" },
+  { key: "main_goal", label: "主线目标" },
+  { key: "core_conflict", label: "核心矛盾" },
+  { key: "plot_structure", label: "起承转合结构" },
+  { key: "reversals", label: "阶段性反转" },
+  { key: "emotion_curve", label: "情绪曲线" },
+  { key: "foreshadowing", label: "关键伏笔" },
+  { key: "ending_direction", label: "结局方向" },
+  { key: "pacing_advice", label: "整体节奏建议" },
+  { key: "capacity_advice", label: "剧情容量建议" },
+  { key: "notes", label: "补充说明" }
+];
+
 export default function ProjectWorkbenchPage() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
@@ -149,6 +191,7 @@ export default function ProjectWorkbenchPage() {
   const [worldSnapshots, setWorldSnapshots] = useState<ProjectWorldSnapshot[]>([]);
   const [characterSnapshots, setCharacterSnapshots] = useState<ProjectCharacterSnapshot[]>([]);
   const [storyOutline, setStoryOutline] = useState<ProjectStoryOutline | null>(null);
+  const [referenceDrafts, setReferenceDrafts] = useState<ReferenceStoryStructureDraft[]>([]);
   const [episodeOutlines, setEpisodeOutlines] = useState<ProjectEpisodeOutline[]>([]);
   const [episodeContent, setEpisodeContent] = useState<ProjectEpisodeContent | null>(null);
   const [episodeScript, setEpisodeScript] = useState<ProjectEpisodeScript | null>(null);
@@ -157,6 +200,12 @@ export default function ProjectWorkbenchPage() {
 
   const [projectForm, setProjectForm] = useState<ProjectForm>(emptyProjectForm);
   const [storyForm, setStoryForm] = useState<StoryOutlineForm>(emptyStoryForm);
+  const [referenceInputForm, setReferenceInputForm] = useState<ReferenceStoryInputForm>(emptyReferenceInputForm);
+  const [rewriteForm, setRewriteForm] = useState<RewriteForm>({ field: "core_conflict", instruction: "" });
+  const [storyGenerationRequirements, setStoryGenerationRequirements] = useState("");
+  const [storyGenerationPreview, setStoryGenerationPreview] = useState<StoryOutlineGenerationResult | null>(null);
+  const [storyRewritePreview, setStoryRewritePreview] = useState<StoryOutlineRewriteResult | null>(null);
+  const [selectedReferenceDraftId, setSelectedReferenceDraftId] = useState("");
   const [episodeForm, setEpisodeForm] = useState<EpisodeOutlineForm>(emptyEpisodeForm);
   const [contentForm, setContentForm] = useState<EpisodeContentForm>(emptyContentForm);
   const [scriptForm, setScriptForm] = useState<EpisodeScriptForm>(emptyScriptForm);
@@ -176,6 +225,10 @@ export default function ProjectWorkbenchPage() {
   const [isLoadingAssets, setIsLoadingAssets] = useState(false);
   const [isLoadingEpisodeArtifacts, setIsLoadingEpisodeArtifacts] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+  const [isRewritingStory, setIsRewritingStory] = useState(false);
+  const [isExtractingReference, setIsExtractingReference] = useState(false);
+  const [isApplyingReference, setIsApplyingReference] = useState(false);
   const [savingSnapshotId, setSavingSnapshotId] = useState("");
   const [removingSnapshotId, setRemovingSnapshotId] = useState("");
   const [removingShotId, setRemovingShotId] = useState("");
@@ -195,6 +248,10 @@ export default function ProjectWorkbenchPage() {
   const totalDuration = useMemo(() => episodeCount * episodeDuration, [episodeCount, episodeDuration]);
   const loadedWorldIds = useMemo(() => new Set(worldSnapshots.map((s) => s.source_world_book_id)), [worldSnapshots]);
   const loadedCharacterIds = useMemo(() => new Set(characterSnapshots.map((s) => s.source_character_card_id)), [characterSnapshots]);
+  const selectedReferenceDraft = useMemo(
+    () => referenceDrafts.find((draft) => draft.id === selectedReferenceDraftId) ?? null,
+    [referenceDrafts, selectedReferenceDraftId]
+  );
   const validationError = validateProject(projectForm, episodeCount, episodeDuration, totalDuration);
   const durationChanged =
     Boolean(project) &&
@@ -270,12 +327,15 @@ export default function ProjectWorkbenchPage() {
   const refreshStoryAndEpisodes = async () => {
     setArtifactError("");
     try {
-      const [outline, outlines] = await Promise.all([
+      const [outline, drafts, outlines] = await Promise.all([
         getProjectStoryOutline(projectId),
+        listReferenceStoryStructureDrafts(projectId),
         listProjectEpisodeOutlines(projectId)
       ]);
       setStoryOutline(outline);
       setStoryForm(storyOutlineToForm(outline));
+      setReferenceDrafts(drafts);
+      setSelectedReferenceDraftId((current) => current || drafts.find((draft) => draft.validation_status === "passed" && draft.status !== "discarded")?.id || "");
       setEpisodeOutlines(outlines);
     } catch (err) {
       setArtifactError(err instanceof Error ? err.message : "项目创作内容加载失败");
@@ -347,15 +407,7 @@ export default function ProjectWorkbenchPage() {
     setArtifactError("");
     setStatus("");
     try {
-      const saved = await updateProjectStoryOutline(projectId, {
-        logline: toOptional(storyForm.logline),
-        core_conflict: toOptional(storyForm.core_conflict),
-        main_goal: toOptional(storyForm.main_goal),
-        character_arcs: toOptional(storyForm.character_arcs),
-        ending_direction: toOptional(storyForm.ending_direction),
-        notes: toOptional(storyForm.notes),
-        status: storyForm.status
-      });
+      const saved = await updateProjectStoryOutline(projectId, storyFormToPayload(storyForm));
       setStoryOutline(saved);
       setStoryForm(storyOutlineToForm(saved));
       setStatus("整体故事大纲已保存，下游分集和剧本已标记为需要检查。");
@@ -366,6 +418,172 @@ export default function ProjectWorkbenchPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const generateStoryOutlinePreview = async () => {
+    setIsGeneratingStory(true);
+    setArtifactError("");
+    setStatus("");
+    try {
+      const result = await generateProjectStoryOutline(projectId, {
+        user_requirements: toOptional(storyGenerationRequirements),
+        reference_draft_id: toOptional(selectedReferenceDraftId),
+        write_mode: "preview"
+      });
+      setStoryGenerationPreview(result);
+      setStatus("故事大纲已生成预览，确认后可应用到正式大纲。");
+    } catch (err) {
+      setArtifactError(err instanceof Error ? err.message : "故事大纲生成失败");
+    } finally {
+      setIsGeneratingStory(false);
+    }
+  };
+
+  const applyStoryGenerationPreview = async () => {
+    if (!storyGenerationPreview) return;
+    if (storyOutline && !window.confirm("应用生成结果会覆盖当前正式故事大纲，并标记下游内容为需要检查。确认应用？")) {
+      return;
+    }
+    setIsGeneratingStory(true);
+    setArtifactError("");
+    setStatus("");
+    try {
+      const saved = await updateProjectStoryOutline(projectId, storyGenerationPreview.outline);
+      setStoryOutline(saved);
+      setStoryForm(storyOutlineToForm(saved));
+      setStoryGenerationPreview(null);
+      setStatus("生成结果已应用到正式故事大纲，下游内容已标记为需要检查。");
+      void refreshStoryAndEpisodes();
+      void refreshEpisodeArtifacts(selectedEpisodeNo);
+    } catch (err) {
+      setArtifactError(err instanceof Error ? err.message : "生成结果应用失败");
+    } finally {
+      setIsGeneratingStory(false);
+    }
+  };
+
+  const rewriteStoryOutlinePreview = async () => {
+    const currentValue = storyForm[rewriteForm.field as keyof StoryOutlineForm];
+    if (typeof currentValue !== "string" || !currentValue.trim()) {
+      setArtifactError("请先选择已有内容的大纲字段。");
+      return;
+    }
+    if (!rewriteForm.instruction.trim()) {
+      setArtifactError("请先填写局部改写要求。");
+      return;
+    }
+    setIsRewritingStory(true);
+    setArtifactError("");
+    setStatus("");
+    try {
+      const result = await rewriteProjectStoryOutlineField(projectId, {
+        field: rewriteForm.field,
+        current_value: currentValue,
+        instruction: rewriteForm.instruction,
+        write_mode: "preview"
+      });
+      setStoryRewritePreview(result);
+      setStatus("局部改写已生成预览。");
+    } catch (err) {
+      setArtifactError(err instanceof Error ? err.message : "局部改写失败");
+    } finally {
+      setIsRewritingStory(false);
+    }
+  };
+
+  const applyStoryRewritePreview = async () => {
+    if (!storyRewritePreview) return;
+    setIsRewritingStory(true);
+    setArtifactError("");
+    setStatus("");
+    try {
+      const nextForm = {
+        ...storyForm,
+        [storyRewritePreview.field]: storyRewritePreview.value
+      };
+      const saved = await updateProjectStoryOutline(projectId, storyFormToPayload(nextForm));
+      setStoryOutline(saved);
+      setStoryForm(storyOutlineToForm(saved));
+      setStoryRewritePreview(null);
+      setStatus("局部改写已应用，下游内容已标记为需要检查。");
+      void refreshStoryAndEpisodes();
+      void refreshEpisodeArtifacts(selectedEpisodeNo);
+    } catch (err) {
+      setArtifactError(err instanceof Error ? err.message : "局部改写应用失败");
+    } finally {
+      setIsRewritingStory(false);
+    }
+  };
+
+  const extractReferenceStructure = async () => {
+    if (!referenceInputForm.source_text.trim()) {
+      setArtifactError("请先上传或粘贴参考故事文本。");
+      return;
+    }
+    setIsExtractingReference(true);
+    setArtifactError("");
+    setStatus("");
+    try {
+      const draft = await extractReferenceStoryStructure(projectId, {
+        source_type: referenceInputForm.source_filename ? "uploaded" : "pasted",
+        source_filename: toOptional(referenceInputForm.source_filename),
+        source_text: referenceInputForm.source_text,
+        user_requirements: toOptional(referenceInputForm.user_requirements)
+      });
+      setReferenceDrafts((current) => replaceReferenceDraft(current, draft));
+      setSelectedReferenceDraftId(draft.id);
+      setStatus(draft.validation_status === "passed" ? "参考结构已抽取并通过去具体化校验。" : "参考结构已抽取，但未通过去具体化校验，不能应用。");
+    } catch (err) {
+      setArtifactError(err instanceof Error ? err.message : "参考故事结构抽取失败");
+    } finally {
+      setIsExtractingReference(false);
+    }
+  };
+
+  const applyReferenceDraft = async (draftId: string, applyMode: "fill_empty" | "overwrite") => {
+    if (applyMode === "overwrite" && storyOutline && !window.confirm("覆盖应用会改写正式故事大纲相关字段，并标记下游内容为需要检查。确认应用？")) {
+      return;
+    }
+    setIsApplyingReference(true);
+    setArtifactError("");
+    setStatus("");
+    try {
+      const saved = await applyReferenceStoryStructureDraft(projectId, draftId, applyMode);
+      setStoryOutline(saved);
+      setStoryForm(storyOutlineToForm(saved));
+      setStatus("参考框架已应用到正式故事大纲，下游内容已标记为需要检查。");
+      void refreshStoryAndEpisodes();
+      void refreshEpisodeArtifacts(selectedEpisodeNo);
+    } catch (err) {
+      setArtifactError(err instanceof Error ? err.message : "参考框架应用失败");
+    } finally {
+      setIsApplyingReference(false);
+    }
+  };
+
+  const discardReferenceDraft = async (draftId: string) => {
+    setArtifactError("");
+    try {
+      const discarded = await discardReferenceStoryStructureDraft(projectId, draftId);
+      setReferenceDrafts((current) => replaceReferenceDraft(current, discarded));
+      if (selectedReferenceDraftId === draftId) {
+        setSelectedReferenceDraftId("");
+      }
+      setStatus("参考框架草稿已废弃。");
+    } catch (err) {
+      setArtifactError(err instanceof Error ? err.message : "参考框架废弃失败");
+    }
+  };
+
+  const handleReferenceFileChange = async (file: File | null) => {
+    if (!file) return;
+    const lowered = file.name.toLowerCase();
+    if (!lowered.endsWith(".txt") && !lowered.endsWith(".md")) {
+      setArtifactError("第一版只支持 txt 或 md 文本文件。");
+      return;
+    }
+    const text = await file.text();
+    setReferenceInputForm((current) => ({ ...current, source_filename: file.name, source_text: text }));
   };
 
   const saveEpisodeOutline = async (event: FormEvent) => {
@@ -1169,23 +1387,152 @@ export default function ProjectWorkbenchPage() {
       ) : null}
 
       {activeStage === "story" ? (
-        <form className="panel stack" onSubmit={saveStoryOutline}>
+        <section className="panel stack">
           <SectionTitle title="整体故事大纲" status={storyOutline?.status ?? storyForm.status} />
+          <form className="stack" onSubmit={saveStoryOutline}>
+            <div className="grid-2">
+              <TextArea label="一句话故事" value={storyForm.logline} onChange={(value) => setStoryFormValue("logline", value, setStoryForm)} />
+              <TextArea label="故事背景" value={storyForm.story_background} onChange={(value) => setStoryFormValue("story_background", value, setStoryForm)} />
+              <TextArea label="核心冲突" value={storyForm.core_conflict} onChange={(value) => setStoryFormValue("core_conflict", value, setStoryForm)} />
+              <TextArea label="主线目标" value={storyForm.main_goal} onChange={(value) => setStoryFormValue("main_goal", value, setStoryForm)} />
+              <TextArea label="故事起点" value={storyForm.story_start} onChange={(value) => setStoryFormValue("story_start", value, setStoryForm)} />
+              <TextArea label="起承转合结构" value={storyForm.plot_structure} onChange={(value) => setStoryFormValue("plot_structure", value, setStoryForm)} />
+              <TextArea label="阶段性反转" value={storyForm.reversals} onChange={(value) => setStoryFormValue("reversals", value, setStoryForm)} />
+              <TextArea label="情绪曲线" value={storyForm.emotion_curve} onChange={(value) => setStoryFormValue("emotion_curve", value, setStoryForm)} />
+              <TextArea label="关键伏笔" value={storyForm.foreshadowing} onChange={(value) => setStoryFormValue("foreshadowing", value, setStoryForm)} />
+              <TextArea label="人物弧光" value={storyForm.character_arcs} onChange={(value) => setStoryFormValue("character_arcs", value, setStoryForm)} />
+              <TextArea label="结局方向" value={storyForm.ending_direction} onChange={(value) => setStoryFormValue("ending_direction", value, setStoryForm)} />
+              <TextArea label="整体节奏建议" value={storyForm.pacing_advice} onChange={(value) => setStoryFormValue("pacing_advice", value, setStoryForm)} />
+              <TextArea label="剧情容量建议" value={storyForm.capacity_advice} onChange={(value) => setStoryFormValue("capacity_advice", value, setStoryForm)} />
+              <TextArea label="补充说明" value={storyForm.notes} onChange={(value) => setStoryFormValue("notes", value, setStoryForm)} />
+            </div>
+            <StatusSelect value={storyForm.status} onChange={(value) => setStoryFormValue("status", value, setStoryForm)} />
+            <div className="actions">
+              <button className="button" type="submit" disabled={isSaving}>
+                {isSaving ? "保存中..." : "保存整体大纲"}
+              </button>
+            </div>
+          </form>
+
           <div className="grid-2">
-            <TextArea label="一句话故事" value={storyForm.logline} onChange={(value) => setStoryFormValue("logline", value, setStoryForm)} />
-            <TextArea label="核心冲突" value={storyForm.core_conflict} onChange={(value) => setStoryFormValue("core_conflict", value, setStoryForm)} />
-            <TextArea label="主线目标" value={storyForm.main_goal} onChange={(value) => setStoryFormValue("main_goal", value, setStoryForm)} />
-            <TextArea label="人物弧光" value={storyForm.character_arcs} onChange={(value) => setStoryFormValue("character_arcs", value, setStoryForm)} />
-            <TextArea label="结局方向" value={storyForm.ending_direction} onChange={(value) => setStoryFormValue("ending_direction", value, setStoryForm)} />
-            <TextArea label="补充说明" value={storyForm.notes} onChange={(value) => setStoryFormValue("notes", value, setStoryForm)} />
+            <section className="stack form-section">
+              <h3>AI 生成整体大纲</h3>
+              <div className="summary-box">
+                {project.title} · {project.genre || "未设置题材"} · {project.episode_count} 集 · 单集 {formatNumber(project.episode_duration)} 分钟 ·
+                世界观 {worldSnapshots.length} 个 · 角色 {characterSnapshots.length} 个
+              </div>
+              <TextArea label="生成补充要求" value={storyGenerationRequirements} onChange={setStoryGenerationRequirements} />
+              <div className="field">
+                <label>参考框架</label>
+                <select value={selectedReferenceDraftId} onChange={(event) => setSelectedReferenceDraftId(event.target.value)}>
+                  <option value="">不使用参考框架</option>
+                  {referenceDrafts.map((draft) => (
+                    <option key={draft.id} value={draft.id} disabled={draft.validation_status !== "passed" || draft.status === "discarded"}>
+                      {draft.story_type || draft.goal_model || "未命名参考框架"} · {referenceValidationLabel(draft.validation_status)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {selectedReferenceDraft ? <div className="hint">当前参考框架：{selectedReferenceDraft.goal_model || selectedReferenceDraft.story_type || selectedReferenceDraft.id}</div> : null}
+              <div className="actions">
+                <button className="button secondary" type="button" disabled={isGeneratingStory} onClick={() => void generateStoryOutlinePreview()}>
+                  {isGeneratingStory ? "生成中..." : "生成预览"}
+                </button>
+                <button className="button" type="button" disabled={!storyGenerationPreview || isGeneratingStory} onClick={() => void applyStoryGenerationPreview()}>
+                  应用生成结果
+                </button>
+              </div>
+              {storyGenerationPreview ? (
+                <div className="summary-box">
+                  <strong>生成预览</strong>
+                  <p>{storyGenerationPreview.context_summary}</p>
+                  <p>{storyGenerationPreview.outline.logline || storyGenerationPreview.outline.main_goal || "生成结果已返回。"}</p>
+                </div>
+              ) : null}
+            </section>
+
+            <section className="stack form-section">
+              <h3>局部改写</h3>
+              <div className="field">
+                <label>改写字段</label>
+                <select value={rewriteForm.field} onChange={(event) => setRewriteForm((current) => ({ ...current, field: event.target.value }))}>
+                  {storyRewriteFields.map((field) => (
+                    <option key={field.key} value={field.key}>
+                      {field.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <TextArea label="改写要求" value={rewriteForm.instruction} onChange={(value) => setRewriteForm((current) => ({ ...current, instruction: value }))} />
+              <div className="actions">
+                <button className="button secondary" type="button" disabled={isRewritingStory} onClick={() => void rewriteStoryOutlinePreview()}>
+                  {isRewritingStory ? "改写中..." : "生成改写预览"}
+                </button>
+                <button className="button" type="button" disabled={!storyRewritePreview || isRewritingStory} onClick={() => void applyStoryRewritePreview()}>
+                  应用改写
+                </button>
+              </div>
+              {storyRewritePreview ? (
+                <div className="summary-box">
+                  <strong>{storyFieldLabel(storyRewritePreview.field)}</strong>
+                  <p>{storyRewritePreview.value}</p>
+                </div>
+              ) : null}
+            </section>
           </div>
-          <StatusSelect value={storyForm.status} onChange={(value) => setStoryFormValue("status", value, setStoryForm)} />
-          <div className="actions">
-            <button className="button" type="submit" disabled={isSaving}>
-              {isSaving ? "保存中..." : "保存整体大纲"}
-            </button>
-          </div>
-        </form>
+
+          <section className="stack form-section">
+            <h3>参考故事结构抽取</h3>
+            <div className="field">
+              <label>上传参考故事（txt / md）</label>
+              <input type="file" accept=".txt,.md,text/plain,text/markdown" onChange={(event) => void handleReferenceFileChange(event.target.files?.[0] ?? null)} />
+            </div>
+            {referenceInputForm.source_filename ? <div className="hint">已选择：{referenceInputForm.source_filename}</div> : null}
+            <TextArea label="参考故事文本" value={referenceInputForm.source_text} onChange={(value) => setReferenceInputForm((current) => ({ ...current, source_text: value, source_filename: "" }))} />
+            <TextArea label="抽取补充要求" value={referenceInputForm.user_requirements} onChange={(value) => setReferenceInputForm((current) => ({ ...current, user_requirements: value }))} />
+            <div className="actions">
+              <button className="button secondary" type="button" onClick={() => setReferenceInputForm(emptyReferenceInputForm)} disabled={isExtractingReference}>
+                清空参考输入
+              </button>
+              <button className="button" type="button" onClick={() => void extractReferenceStructure()} disabled={isExtractingReference}>
+                {isExtractingReference ? "抽取中..." : "抽取参考结构"}
+              </button>
+            </div>
+            {referenceDrafts.length === 0 ? (
+              <div className="empty-state">暂无参考框架草稿。</div>
+            ) : (
+              <div className="asset-list">
+                {referenceDrafts.map((draft) => (
+                  <article className="asset-card" key={draft.id}>
+                    <div className="asset-card-title">
+                      <strong>{draft.story_type || draft.goal_model || "参考框架草稿"}</strong>
+                      <span className={`status-badge ${draft.validation_status === "passed" ? "status-active" : "status-review"}`}>
+                        {referenceValidationLabel(draft.validation_status)}
+                      </span>
+                    </div>
+                    <p>{draft.goal_model || "未填写主线目标模型"}</p>
+                    <p className="hint">{draft.validation_notes || draft.de_specificity_notes || "暂无校验说明"}</p>
+                    <div className="summary-box">
+                      <p>{draft.stage_structure || "未填写阶段结构"}</p>
+                      <p>{draft.adaptation_advice || "未填写短剧改编建议"}</p>
+                    </div>
+                    <div className="asset-card-actions">
+                      <button className="button secondary" type="button" disabled={draft.validation_status !== "passed" || isApplyingReference} onClick={() => void applyReferenceDraft(draft.id, "fill_empty")}>
+                        填充空字段
+                      </button>
+                      <button className="button secondary" type="button" disabled={draft.validation_status !== "passed" || isApplyingReference} onClick={() => void applyReferenceDraft(draft.id, "overwrite")}>
+                        覆盖应用
+                      </button>
+                      <button className="button danger" type="button" disabled={draft.status === "discarded"} onClick={() => void discardReferenceDraft(draft.id)}>
+                        {draft.status === "discarded" ? "已废弃" : "废弃"}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        </section>
       ) : null}
 
       {activeStage === "episodes" ? (
@@ -1559,12 +1906,26 @@ const emptyCharacterSnapshotForm: CharacterSnapshotForm = {
 
 const emptyStoryForm: StoryOutlineForm = {
   logline: "",
+  story_background: "",
   core_conflict: "",
   main_goal: "",
+  story_start: "",
+  plot_structure: "",
+  reversals: "",
+  emotion_curve: "",
+  foreshadowing: "",
   character_arcs: "",
   ending_direction: "",
+  pacing_advice: "",
+  capacity_advice: "",
   notes: "",
   status: "draft"
+};
+
+const emptyReferenceInputForm: ReferenceStoryInputForm = {
+  source_text: "",
+  source_filename: "",
+  user_requirements: ""
 };
 
 const emptyEpisodeForm: EpisodeOutlineForm = {
@@ -1649,10 +2010,18 @@ function storyOutlineToForm(outline: ProjectStoryOutline | null): StoryOutlineFo
   if (!outline) return emptyStoryForm;
   return {
     logline: outline.logline || "",
+    story_background: outline.story_background || "",
     core_conflict: outline.core_conflict || "",
     main_goal: outline.main_goal || "",
+    story_start: outline.story_start || "",
+    plot_structure: outline.plot_structure || "",
+    reversals: outline.reversals || "",
+    emotion_curve: outline.emotion_curve || "",
+    foreshadowing: outline.foreshadowing || "",
     character_arcs: outline.character_arcs || "",
     ending_direction: outline.ending_direction || "",
+    pacing_advice: outline.pacing_advice || "",
+    capacity_advice: outline.capacity_advice || "",
     notes: outline.notes || "",
     status: outline.status
   };
@@ -1749,9 +2118,34 @@ function replaceCharacterSnapshot(current: ProjectCharacterSnapshot[], next: Pro
   return [...filtered, next].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 }
 
+function replaceReferenceDraft(current: ReferenceStoryStructureDraft[], next: ReferenceStoryStructureDraft) {
+  const filtered = current.filter((draft) => draft.id !== next.id);
+  return [...filtered, next].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+}
+
 function replaceShot(current: ProjectStoryboardShot[], next: ProjectStoryboardShot) {
   const filtered = current.filter((shot) => shot.id !== next.id);
   return [...filtered, next].sort((a, b) => a.shot_no - b.shot_no);
+}
+
+function storyFormToPayload(form: StoryOutlineForm) {
+  return {
+    logline: toOptional(form.logline),
+    story_background: toOptional(form.story_background),
+    core_conflict: toOptional(form.core_conflict),
+    main_goal: toOptional(form.main_goal),
+    story_start: toOptional(form.story_start),
+    plot_structure: toOptional(form.plot_structure),
+    reversals: toOptional(form.reversals),
+    emotion_curve: toOptional(form.emotion_curve),
+    foreshadowing: toOptional(form.foreshadowing),
+    character_arcs: toOptional(form.character_arcs),
+    ending_direction: toOptional(form.ending_direction),
+    pacing_advice: toOptional(form.pacing_advice),
+    capacity_advice: toOptional(form.capacity_advice),
+    notes: toOptional(form.notes),
+    status: form.status
+  };
 }
 
 function nextShotNo(shots: ProjectStoryboardShot[]) {
@@ -1819,6 +2213,16 @@ function artifactStatusClass(status: ProjectArtifactStatus) {
   if (status === "confirmed") return "status-active";
   if (status === "needs_review") return "status-review";
   return "status-draft";
+}
+
+function storyFieldLabel(field: string) {
+  return storyRewriteFields.find((item) => item.key === field)?.label ?? field;
+}
+
+function referenceValidationLabel(status: ReferenceStoryStructureDraft["validation_status"]) {
+  if (status === "passed") return "校验通过";
+  if (status === "failed") return "校验失败";
+  return "校验中";
 }
 
 function worldSnapshotSummary(snapshot: ProjectWorldSnapshot) {

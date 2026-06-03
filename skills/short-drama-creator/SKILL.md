@@ -30,6 +30,7 @@ description: 当需要帮助用户创建 AI 短剧项目时使用，包括选题
 
 - 选题策划：`rules/topic-planning-rule.md`
 - 整体故事大纲与剧情脉络：`rules/story-outline-rule.md`
+- 参考故事结构抽取：`rules/story-structure-extraction-rule.md`
 - 人物设定：`rules/character-design-rule.md`
 - 人物视觉描述和图片提示词：`rules/character-image-rule.md`
 - 分集大纲：`rules/episode-outline-rule.md`
@@ -46,6 +47,7 @@ description: 当需要帮助用户创建 AI 短剧项目时使用，包括选题
 - 生成内容应符合短视频平台的观看节奏。
 - 每一集都应包含钩子、冲突、反转和结尾悬念。
 - 用户手动修改后的内容优先级高于此前 AI 生成内容。
+- 参考故事结构抽取必须使用专门规则，不得复用普通故事大纲、摘要或改写规则。
 
 ## 风格建议
 
