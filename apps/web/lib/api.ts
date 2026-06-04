@@ -156,6 +156,7 @@ export type ReferenceStoryStructureDraft = {
   validation_status: "pending" | "passed" | "failed";
   validation_notes?: string;
   status: "draft" | "applied" | "discarded";
+  outline_preview: ProjectStoryOutlinePayload;
   created_at: string;
   updated_at: string;
 };

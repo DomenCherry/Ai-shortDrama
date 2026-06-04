@@ -146,6 +146,7 @@ AI 生成和参考故事结构抽取必须读取当前启用且最近测试成�
 | validation_status | pending / passed / failed | 去具体化校验状态 |
 | validation_notes | string | 校验说明或失败原因 |
 | status | draft / applied / discarded | 草稿状态 |
+| outline_preview | ProjectStoryOutlinePayload | 后端按正式故事大纲字段映射出的可编辑预览，不自动写入正式大纲 |
 | created_at | string | 创建时间 |
 | updated_at | string | 更新时间 |
 
@@ -284,6 +285,8 @@ POST /api/projects/{project_id}/story-structure-drafts/extract
 - `uploaded` 只允许 `.txt` / `.md` 文件名。
 - 后端使用 `rules/story-structure-extraction-rule.md` 构造模型调用。
 - 后端必须执行去具体化校验。
+- 后端必须基于抽取草稿计算 `outline_preview`，字段类型与 `ProjectStoryOutlinePayload` 一致。
+- `outline_preview` 只用于前端预览和人工调整，不得在抽取接口中写入 `ProjectStoryOutline`。
 - 校验失败时允许返回 `validation_status = "failed"` 的草稿，供前端展示失败原因，但该草稿不得应用。
 - 响应不得返回完整 `source_text`。
 

@@ -13,7 +13,7 @@
 | 角色卡库 | [character-card-library.md](./character-card-library.md) | 角色卡资产管理与项目加载 |
 | 模型 API 配置 | [model-api-settings.md](./model-api-settings.md) | 文本/图片模型配置与连通性测试 |
 | 项目管理 | [project-management.md](./project-management.md) | 项目创建、时长配置、列表管理 |
-| 项目工作台 | [project-workbench.md](./project-workbench.md) | 阶段导航、内容状态机、人工编辑 |
+| 项目工作台 | [project-workbench.md](./project-workbench.md) | 三类入口、内容状态机、人工编辑 |
 
 ### 未实现（薄占位）
 
@@ -38,7 +38,7 @@
   ├── 创作资产库 ── 世界观库 ──┐                │
   │                     角色卡库 ──┐             │
   │                               │             │
-  └── 项目工作台 ────────────────┤             │
+  └── 项目工作台（三类入口）──────┤             │
         │                        │             │
         ├── 选题策划生成 ◄────────┘◄────────────┘
         │     │

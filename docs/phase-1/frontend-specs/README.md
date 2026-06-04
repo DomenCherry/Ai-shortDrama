@@ -46,7 +46,7 @@ docs/phase-1/frontend-specs/<page-name>.md
 
 - [全局工作台导航](./app-shell-navigation.md)
 - [项目管理](./project-management.md)
-- [项目工作台](./project-workbench.md)
+- [项目工作台](./project-workbench.md) - 三类入口、故事文本、短剧制作和资产只读约束
 - [世界观库](./world-book-library.md)
 - [角色卡库](./character-card-library.md)
 - [模型 API 配置](./model-api-settings.md)

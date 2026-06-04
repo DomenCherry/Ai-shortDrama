@@ -167,6 +167,27 @@ def _story_outline_to_response(outline: ProjectStoryOutline) -> dict[str, Any]:
     }
 
 
+def _reference_outline_preview(draft: ReferenceStoryStructureDraft, user_requirements: str | None = None) -> ProjectStoryOutlinePayload:
+    mapping = {
+        "logline": draft.goal_model,
+        "story_background": draft.story_type,
+        "main_goal": draft.goal_model,
+        "core_conflict": draft.conflict_model,
+        "story_start": draft.inciting_event_type,
+        "plot_structure": draft.stage_structure,
+        "reversals": draft.reversal_mechanism,
+        "emotion_curve": draft.emotion_curve,
+        "foreshadowing": draft.foreshadowing_pattern,
+        "character_arcs": None,
+        "ending_direction": draft.ending_pattern,
+        "pacing_advice": draft.adaptation_advice,
+        "capacity_advice": draft.adaptation_advice,
+        "notes": "\n\n".join(part for part in (draft.de_specificity_notes, user_requirements) if part),
+    }
+    normalized = {field: _normalize_optional_text(value) for field, value in mapping.items()}
+    return ProjectStoryOutlinePayload(**normalized, status="draft")
+
+
 def _reference_draft_to_response(draft: ReferenceStoryStructureDraft) -> dict[str, Any]:
     return {
         "id": draft.id,
@@ -188,6 +209,7 @@ def _reference_draft_to_response(draft: ReferenceStoryStructureDraft) -> dict[st
         "validation_status": draft.validation_status,
         "validation_notes": draft.validation_notes,
         "status": draft.status,
+        "outline_preview": _reference_outline_preview(draft).model_dump(),
         "created_at": draft.created_at.isoformat(),
         "updated_at": draft.updated_at.isoformat(),
     }
@@ -512,23 +534,9 @@ def _apply_reference_to_outline(
     apply_mode: str,
     user_requirements: str | None,
 ) -> None:
-    mapping = {
-        "logline": draft.goal_model,
-        "story_background": draft.story_type,
-        "main_goal": draft.goal_model,
-        "core_conflict": draft.conflict_model,
-        "story_start": draft.inciting_event_type,
-        "plot_structure": draft.stage_structure,
-        "reversals": draft.reversal_mechanism,
-        "emotion_curve": draft.emotion_curve,
-        "foreshadowing": draft.foreshadowing_pattern,
-        "ending_direction": draft.ending_pattern,
-        "pacing_advice": draft.adaptation_advice,
-        "capacity_advice": draft.adaptation_advice,
-        "notes": "\n\n".join(part for part in (draft.de_specificity_notes, user_requirements) if part),
-    }
-    for field, value in mapping.items():
-        normalized = _normalize_optional_text(value)
+    preview = _reference_outline_preview(draft, user_requirements)
+    for field in STORY_OUTLINE_FIELDS:
+        normalized = _normalize_optional_text(getattr(preview, field))
         if not normalized:
             continue
         if apply_mode == "overwrite" or not getattr(outline, field):

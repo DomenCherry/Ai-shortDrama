@@ -629,6 +629,7 @@ class ReferenceStoryStructureDraftResponse(BaseModel):
     validation_status: ReferenceStoryValidationStatus
     validation_notes: Optional[str]
     status: ReferenceStoryDraftStatus
+    outline_preview: ProjectStoryOutlinePayload
     created_at: str
     updated_at: str
 

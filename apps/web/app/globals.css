@@ -333,28 +333,87 @@ select {
   padding: 12px;
 }
 
-.stage-tabs {
-  align-items: center;
+.workspace-entry-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.workspace-entry-card {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  min-height: 190px;
+  padding: 18px;
+  text-align: left;
+  text-decoration: none;
 }
 
-.stage-tab {
+.workspace-entry-card:hover,
+.workspace-entry-card.active {
+  border-color: #9fc7bb;
+  box-shadow: 0 8px 22px rgba(24, 51, 47, 0.08);
+}
+
+.workspace-entry-title {
+  color: #18332f;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.workspace-entry-description {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.workspace-entry-metrics {
+  align-self: end;
+  display: grid;
+  gap: 6px;
+}
+
+.workspace-entry-metrics span {
+  color: #343a40;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.module-subnav {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 6px 18px rgba(24, 51, 47, 0.05);
+  display: flex;
+  gap: 4px;
+  min-height: 42px;
+  overflow-x: auto;
+  padding: 4px 0;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.module-subnav-tab {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
   color: #343a40;
   cursor: pointer;
-  padding: 9px 12px;
+  flex: 0 0 auto;
+  font-weight: 700;
+  min-height: 34px;
+  padding: 7px 12px;
+  white-space: nowrap;
 }
 
-.stage-tab:hover,
-.stage-tab.active {
+.module-subnav-tab:hover,
+.module-subnav-tab.active {
   background: #eef3f1;
   border-color: #c7ddd6;
   color: var(--brand-strong);
@@ -362,6 +421,26 @@ select {
 
 .compact-field {
   max-width: 280px;
+}
+
+.readonly-context {
+  background: #f8faf9;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.readonly-context-title {
+  color: #18332f;
+  font-weight: 800;
+}
+
+.readonly-context-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
 }
 
 .episode-workspace {
@@ -876,6 +955,8 @@ select {
   .filter-bar,
   .filter-bar-compact,
   .metric-grid,
+  .workspace-entry-grid,
+  .readonly-context-grid,
   .detail-layout,
   .episode-workspace {
     grid-template-columns: 1fr;
