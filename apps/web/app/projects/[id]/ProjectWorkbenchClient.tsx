@@ -48,6 +48,7 @@ import {
 type Stage = "settings" | "assets" | "story" | "episodes" | "content" | "script" | "storyboard";
 type WorkspaceGroupKey = "projectAssets" | "storyText" | "production";
 export type WorkspaceMode = "landing" | WorkspaceGroupKey;
+type ReferenceTab = "settings" | "characters" | "style" | "inspiration";
 
 type ProjectForm = {
   title: string;
@@ -108,8 +109,13 @@ type EpisodeOutlineForm = {
 };
 
 type EpisodeContentForm = {
+  title: string;
   detailed_content: string;
+  chapter_summary: string;
+  hook: string;
   key_beats: string;
+  previous_context_summary: string;
+  quality_check_notes: string;
   status: ProjectArtifactStatus;
 };
 
@@ -159,18 +165,18 @@ const workspaceGroups: Array<{
   {
     key: "storyText",
     title: "故事文本",
-    description: "把项目写成可读的故事文本，包含整体结构、分集结构和每集具体内容。",
+    description: "把项目写成可读的故事文本，包含整体结构、分集结构和单集故事正文。",
     defaultStage: "story",
     stages: [
       { key: "story", label: "故事大纲" },
       { key: "episodes", label: "分集大纲" },
-      { key: "content", label: "单集内容" }
+      { key: "content", label: "单集故事正文" }
     ]
   },
   {
     key: "production",
     title: "短剧制作",
-    description: "沿用故事文本和项目资产，把每集内容转换为脚本、分镜、字幕和平台文案。",
+    description: "沿用故事文本和项目资产，把每集单集故事正文转换为脚本、分镜、字幕和平台文案。",
     defaultStage: "script",
     stages: [
       { key: "script", label: "剧本" },
@@ -236,6 +242,7 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
   const [selectedWorldId, setSelectedWorldId] = useState<string | null>(null);
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<Set<string>>(new Set());
   const [isBatchLoading, setIsBatchLoading] = useState(false);
+  const [activeReferenceTab, setActiveReferenceTab] = useState<ReferenceTab>("settings");
 
   const episodeCount = Number(projectForm.episode_count);
   const episodeDuration = Number(projectForm.episode_duration);
@@ -272,6 +279,7 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
   const episodeContentStatus = episodeContent?.status ?? contentForm.status;
   const episodeScriptStatus = episodeScript?.status ?? scriptForm.status;
   const copywritingStatus = copywriting?.status ?? copyForm.status;
+  const contentWordCount = useMemo(() => countContentCharacters(contentForm.detailed_content), [contentForm.detailed_content]);
 
   useEffect(() => {
     void refreshWorkbench();
@@ -422,7 +430,7 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
       const saved = await updateProjectStoryOutline(projectId, storyFormToPayload(storyForm));
       setStoryOutline(saved);
       setStoryForm(storyOutlineToForm(saved));
-      setStatus("整体故事大纲已保存，分集大纲、单集内容和短剧制作内容已标记为需要检查。");
+      setStatus("整体故事大纲已保存，分集大纲、单集故事正文和短剧制作内容已标记为需要检查。");
       void refreshStoryAndEpisodes();
       void refreshEpisodeArtifacts(selectedEpisodeNo);
     } catch (err) {
@@ -450,7 +458,7 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
       });
       setEpisodeOutlines((current) => replaceEpisodeOutline(current, saved));
       setEpisodeForm(episodeOutlineToForm(saved));
-      setStatus(`第 ${selectedEpisodeNo} 集分集大纲已保存，同集单集内容和短剧制作内容已标记为需要检查。`);
+      setStatus(`第 ${selectedEpisodeNo} 集分集大纲已保存，同集单集故事正文和短剧制作内容已标记为需要检查。`);
       void refreshEpisodeArtifacts(selectedEpisodeNo);
     } catch (err) {
       setArtifactError(err instanceof Error ? err.message : "分集大纲保存失败");
@@ -466,16 +474,21 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
     setStatus("");
     try {
       const saved = await updateProjectEpisodeContent(projectId, selectedEpisodeNo, {
+        title: toOptional(contentForm.title),
         detailed_content: toOptional(contentForm.detailed_content),
+        chapter_summary: toOptional(contentForm.chapter_summary),
+        hook: toOptional(contentForm.hook),
         key_beats: toOptional(contentForm.key_beats),
+        previous_context_summary: toOptional(contentForm.previous_context_summary),
+        quality_check_notes: toOptional(contentForm.quality_check_notes),
         status: contentForm.status
       });
       setEpisodeContent(saved);
       setContentForm(episodeContentToForm(saved));
-      setStatus(`第 ${selectedEpisodeNo} 集详细内容已保存，同集短剧制作内容已标记为需要检查。`);
+      setStatus(`第 ${selectedEpisodeNo} 集单集故事正文已保存，同集短剧制作内容已标记为需要检查。`);
       void refreshEpisodeArtifacts(selectedEpisodeNo);
     } catch (err) {
-      setArtifactError(err instanceof Error ? err.message : "单集内容保存失败");
+      setArtifactError(err instanceof Error ? err.message : "单集故事正文保存失败");
     } finally {
       setIsSaving(false);
     }
@@ -831,6 +844,11 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
     setShotForm({ ...emptyShotForm, shot_no: String(nextShotNo(shots)) });
   };
 
+  const showAiPlaceholder = (label: string) => {
+    setArtifactError("");
+    setStatus(`${label}暂未接入，后续完善。`);
+  };
+
   if (isLoading) {
     return (
       <div className="stack">
@@ -868,7 +886,7 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
           <h1 className="page-title">{isLandingMode ? project.title : currentWorkspaceGroup?.title}</h1>
           <p className="page-description">
             {isLandingMode
-              ? "先维护项目资料和资产，再完成故事文本，最后把每集内容转换为短剧制作文本。上游变更后，下游内容会提示需要检查。"
+              ? "先维护项目资料和资产，再完成故事文本，最后把单集故事正文转换为短剧制作文本。上游变更后，下游内容会提示需要检查。"
               : currentWorkspaceGroup?.description}
           </p>
           {!isLandingMode ? <p className="hint">当前项目：{project.title}</p> : null}
@@ -920,18 +938,18 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
         />
         <WorkspaceEntryCard
           title="故事文本"
-          description="形成可读的故事 / 小说化文本，短剧制作必须以每集具体内容为输入。"
+          description="形成可读的故事 / 小说化文本，短剧制作必须以单集故事正文为输入。"
           href={`/projects/${projectId}/story-text`}
           isActive={!isLandingMode && activeWorkspaceGroup.key === "storyText"}
           metrics={[
             `整体大纲：${artifactStatusLabel(storyOutlineStatus)}`,
             `分集大纲：${filledEpisodeOutlineCount}/${project.episode_count}`,
-            `当前集内容：${artifactStatusLabel(episodeContentStatus)}`
+            `当前集正文：${artifactStatusLabel(episodeContentStatus)}`
           ]}
         />
         <WorkspaceEntryCard
           title="短剧制作"
-          description="沿用已选世界观、角色和每集故事内容，生成视频生产需要的文字内容。"
+          description="沿用已选世界观、角色和单集故事正文，生成视频生产需要的文字内容。"
           href={`/projects/${projectId}/production`}
           isActive={!isLandingMode && activeWorkspaceGroup.key === "production"}
           metrics={[
@@ -1374,19 +1392,167 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
       ) : null}
 
       {!isLandingMode && activeStage === "content" ? (
-        <form className="panel stack" onSubmit={saveEpisodeContent}>
-          <SectionTitle title="单集详细内容" status={episodeContent?.status ?? contentForm.status} />
-          <EpisodePicker episodeCount={project.episode_count} value={selectedEpisodeNo} onChange={setSelectedEpisodeNo} />
-          {isLoadingEpisodeArtifacts ? <div className="empty-state">正在加载单集内容...</div> : null}
-          <TextArea label="详细剧情内容" value={contentForm.detailed_content} onChange={(value) => setContentFormValue("detailed_content", value, setContentForm)} />
-          <TextArea label="关键剧情节拍" value={contentForm.key_beats} onChange={(value) => setContentFormValue("key_beats", value, setContentForm)} />
-          <StatusSelect value={contentForm.status} onChange={(value) => setContentFormValue("status", value, setContentForm)} />
-          <div className="actions">
-            <button className="button" type="submit" disabled={isSaving}>
-              {isSaving ? "保存中..." : "保存单集内容"}
-            </button>
-          </div>
-        </form>
+        <section className="panel stack">
+          <SectionTitle title="单集故事正文" status={episodeContent?.status ?? contentForm.status} />
+          <form className="episode-writing-form stack" onSubmit={saveEpisodeContent}>
+            <div className="episode-writing-toolbar">
+              <div className="episode-toolbar-main">
+                <span className="episode-chip">第 {selectedEpisodeNo} 集</span>
+                <TextInput label="章节标题" value={contentForm.title} onChange={(value) => setContentFormValue("title", value, setContentForm)} />
+              </div>
+              <div className="episode-toolbar-actions">
+                <span className="word-count-row">{contentWordCount} 字</span>
+                <StatusSelect value={contentForm.status} onChange={(value) => setContentFormValue("status", value, setContentForm)} />
+                <button className="button" type="submit" disabled={isSaving}>
+                  {isSaving ? "保存中..." : "保存"}
+                </button>
+              </div>
+            </div>
+
+            {isLoadingEpisodeArtifacts ? <div className="empty-state">正在加载单集故事正文...</div> : null}
+
+            <div className="episode-writing-workspace">
+              <aside className="episode-index writing-episode-index" aria-label="单集故事正文分集列表">
+                <EpisodePicker episodeCount={project.episode_count} value={selectedEpisodeNo} onChange={setSelectedEpisodeNo} />
+                <div className="episode-index-list">
+                  {episodeRows.map((row) => (
+                    <button
+                      className={`episode-index-item ${selectedEpisodeNo === row.episodeNo ? "active" : ""}`}
+                      type="button"
+                      key={row.episodeNo}
+                      onClick={() => setSelectedEpisodeNo(row.episodeNo)}
+                      aria-current={selectedEpisodeNo === row.episodeNo ? "true" : undefined}
+                    >
+                      <span className="episode-index-main">
+                        <strong>第 {row.episodeNo} 集</strong>
+                        <span>{row.outline?.title || "未填写标题"}</span>
+                      </span>
+                      <span className="episode-index-meta">
+                        {selectedEpisodeNo === row.episodeNo ? (
+                          <ArtifactStatusBadge status={episodeContent?.status ?? contentForm.status} />
+                        ) : (
+                          <ArtifactStatusBadge status={row.outline?.status ?? "draft"} />
+                        )}
+                      </span>
+                      <span className="episode-index-summary">{row.outline?.synopsis || "尚未填写本集梗概"}</span>
+                    </button>
+                  ))}
+                </div>
+              </aside>
+
+              <aside className="writing-context-panel" aria-label="章节上下文与 AI 创作控制台">
+                <ReferenceCard title="本章大纲">
+                  <p>{selectedEpisodeOutline?.synopsis || "尚未填写本集梗概。"}</p>
+                  <p className="hint">{selectedEpisodeOutline?.hook ? `钩子：${selectedEpisodeOutline.hook}` : "可先在分集大纲中补充钩子。"}</p>
+                </ReferenceCard>
+                <ReferenceCard title="AI 创作控制台">
+                  <div className="ai-action-grid" aria-label="AI 创作能力入口">
+                    {episodeAiActions.map((action) => (
+                      <button
+                        className="button secondary"
+                        type="button"
+                        key={action}
+                        onClick={() => showAiPlaceholder(action)}
+                      >
+                        {action}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="hint">当前仅展示入口，暂不调用后端 AI 接口。</p>
+                </ReferenceCard>
+                <ReferenceCard title="章节摘要">
+                  <TextArea label="摘要" value={contentForm.chapter_summary} onChange={(value) => setContentFormValue("chapter_summary", value, setContentForm)} />
+                </ReferenceCard>
+                <ReferenceCard title="本集钩子">
+                  <TextArea label="钩子" value={contentForm.hook} onChange={(value) => setContentFormValue("hook", value, setContentForm)} />
+                </ReferenceCard>
+                <ReferenceCard title="关键剧情节拍">
+                  <TextArea label="节拍" value={contentForm.key_beats} onChange={(value) => setContentFormValue("key_beats", value, setContentForm)} />
+                </ReferenceCard>
+                <ReferenceCard title="前文上下文">
+                  <TextArea label="上下文" value={contentForm.previous_context_summary} onChange={(value) => setContentFormValue("previous_context_summary", value, setContentForm)} />
+                </ReferenceCard>
+              </aside>
+
+              <section className="episode-paper-editor" aria-label="正文编辑区">
+                <div className="paper-editor-heading">
+                  <div>
+                    <h3>正文编辑区</h3>
+                    <p className="hint">单集故事正文是可读的故事 / 小说化文本，不是短剧剧本。</p>
+                  </div>
+                  <ArtifactStatusBadge status={episodeContent?.status ?? contentForm.status} />
+                </div>
+                <TextArea label="正文内容" value={contentForm.detailed_content} onChange={(value) => setContentFormValue("detailed_content", value, setContentForm)} />
+              </section>
+
+              <aside className="writing-reference-panel" aria-label="正文创作参考面板">
+                <div className="reference-tabs" role="tablist" aria-label="参考面板">
+                  {referenceTabs.map((tab) => (
+                    <button
+                      className={`reference-tab ${activeReferenceTab === tab.key ? "active" : ""}`}
+                      type="button"
+                      key={tab.key}
+                      onClick={() => setActiveReferenceTab(tab.key)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="reference-tab-panel">
+                  {activeReferenceTab === "settings" ? (
+                    <ReferenceCard title="世界观设定">
+                      <p>{worldSnapshots[0] ? worldSnapshotSummary(worldSnapshots[0]) : "尚未加载项目世界观。"}</p>
+                      <button className="reference-link-button" type="button" onClick={() => showAiPlaceholder("设定参考")}>
+                        设定参考
+                      </button>
+                    </ReferenceCard>
+                  ) : null}
+                  {activeReferenceTab === "characters" ? (
+                    <ReferenceCard title="角色参考">
+                      {characterSnapshots.length > 0 ? (
+                        <ul className="compact-list">
+                          {characterSnapshots.slice(0, 8).map((character) => (
+                            <li key={character.id}>
+                              <strong>{character.name}</strong>
+                              <span>{character.role_type}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>尚未加载项目角色。</p>
+                      )}
+                      <button className="reference-link-button" type="button" onClick={() => showAiPlaceholder("角色参考")}>
+                        角色参考
+                      </button>
+                    </ReferenceCard>
+                  ) : null}
+                  {activeReferenceTab === "style" ? (
+                    <ReferenceCard title="文风">
+                      <p>用于沉淀表达偏好、文风规则和参考资料摘要。本阶段只展示入口。</p>
+                      <button className="reference-link-button" type="button" onClick={() => showAiPlaceholder("文风面板")}>
+                        文风
+                      </button>
+                    </ReferenceCard>
+                  ) : null}
+                  {activeReferenceTab === "inspiration" ? (
+                    <ReferenceCard title="灵感">
+                      <p>用于沉淀可选桥段、冲突点、反转方向和短剧爽点。本阶段只展示入口。</p>
+                      <button className="reference-link-button" type="button" onClick={() => showAiPlaceholder("灵感面板")}>
+                        灵感
+                      </button>
+                    </ReferenceCard>
+                  ) : null}
+                </div>
+                <ReferenceCard title="质检备注">
+                  <TextArea label="备注" value={contentForm.quality_check_notes} onChange={(value) => setContentFormValue("quality_check_notes", value, setContentForm)} />
+                  <button className="reference-link-button" type="button" onClick={() => showAiPlaceholder("一致性质检")}>
+                    一致性质检
+                  </button>
+                </ReferenceCard>
+              </aside>
+            </div>
+          </form>
+        </section>
       ) : null}
 
       {!isLandingMode && activeStage === "script" ? (
@@ -1597,14 +1763,14 @@ function ProductionContextSummary({
     <section className="readonly-context" aria-label="短剧制作沿用上下文">
       <div>
         <div className="readonly-context-title">沿用上游上下文</div>
-        <p className="hint">短剧制作只读取项目资产和故事文本；如需调整世界观、角色或每集内容，请回到对应入口修改。</p>
+        <p className="hint">短剧制作只读取项目资产和故事文本；如需调整世界观、角色或单集故事正文，请回到对应入口修改。</p>
       </div>
       <div className="readonly-context-grid">
         <Metric label="世界观" value={worldSnapshots[0]?.name || "未加载"} />
         <Metric label="角色" value={`${characterSnapshots.length} 个`} />
         <Metric label="整体大纲" value={artifactStatusLabel(storyOutlineStatus)} />
         <Metric label="当前分集大纲" value={episodeOutline ? artifactStatusLabel(episodeOutline.status) : "草稿"} />
-        <Metric label="当前单集内容" value={artifactStatusLabel(episodeContentStatus)} />
+        <Metric label="当前单集正文" value={artifactStatusLabel(episodeContentStatus)} />
       </div>
       {hasNeedsReview ? <div className="warning-text">上游故事文本存在需要检查内容，建议确认后再继续短剧制作。</div> : null}
       {hasMissingContext ? <div className="warning-text">项目资产或当前集故事文本尚未完整，短剧制作结果可能缺少连续性依据。</div> : null}
@@ -1613,9 +1779,18 @@ function ProductionContextSummary({
           回到项目资料 / 资产
         </Link>
         <Link className="button secondary" href={`/projects/${projectId}/story-text?stage=content`}>
-          回到单集内容
+          回到单集故事正文
         </Link>
       </div>
+    </section>
+  );
+}
+
+function ReferenceCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="reference-card">
+      <h3>{title}</h3>
+      {children}
     </section>
   );
 }
@@ -1825,10 +2000,24 @@ const emptyEpisodeForm: EpisodeOutlineForm = {
 };
 
 const emptyContentForm: EpisodeContentForm = {
+  title: "",
   detailed_content: "",
+  chapter_summary: "",
+  hook: "",
   key_beats: "",
+  previous_context_summary: "",
+  quality_check_notes: "",
   status: "draft"
 };
+
+const episodeAiActions = ["正文创作", "续写", "润色", "撤销润色", "摘要", "钩子提取", "一致性质检"];
+
+const referenceTabs: Array<{ key: ReferenceTab; label: string }> = [
+  { key: "settings", label: "设定" },
+  { key: "characters", label: "角色" },
+  { key: "style", label: "文风" },
+  { key: "inspiration", label: "灵感" }
+];
 
 const emptyScriptForm: EpisodeScriptForm = {
   scene_text: "",
@@ -1929,8 +2118,13 @@ function episodeOutlineToForm(outline: ProjectEpisodeOutline | null): EpisodeOut
 function episodeContentToForm(content: ProjectEpisodeContent | null): EpisodeContentForm {
   if (!content) return emptyContentForm;
   return {
+    title: content.title || "",
     detailed_content: content.detailed_content || "",
+    chapter_summary: content.chapter_summary || "",
+    hook: content.hook || "",
     key_beats: content.key_beats || "",
+    previous_context_summary: content.previous_context_summary || "",
+    quality_check_notes: content.quality_check_notes || "",
     status: content.status
   };
 }
@@ -2036,6 +2230,10 @@ function storyFormToPayload(form: StoryOutlineForm) {
 
 function nextShotNo(shots: ProjectStoryboardShot[]) {
   return shots.reduce((max, shot) => Math.max(max, shot.shot_no), 0) + 1;
+}
+
+function countContentCharacters(content: string) {
+  return Array.from(content).filter((char) => !/\s/.test(char)).length;
 }
 
 function setProjectFormValue(field: keyof ProjectForm, value: string, setter: Dispatch<SetStateAction<ProjectForm>>) {

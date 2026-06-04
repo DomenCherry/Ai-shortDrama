@@ -188,8 +188,13 @@ export type ProjectEpisodeOutline = ProjectEpisodeOutlinePayload & {
 };
 
 export type ProjectEpisodeContentPayload = {
+  title?: string;
   detailed_content?: string;
+  chapter_summary?: string;
+  hook?: string;
   key_beats?: string;
+  previous_context_summary?: string;
+  quality_check_notes?: string;
   status: ProjectArtifactStatus;
 };
 
@@ -197,6 +202,7 @@ export type ProjectEpisodeContent = ProjectEpisodeContentPayload & {
   id: string;
   project_id: string;
   episode_no: number;
+  word_count: number;
   created_at: string;
   updated_at: string;
 };

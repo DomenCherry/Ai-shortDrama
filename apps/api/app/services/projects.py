@@ -238,8 +238,14 @@ def _episode_content_to_response(content: ProjectEpisodeContent) -> dict[str, An
         "id": content.id,
         "project_id": content.project_id,
         "episode_no": content.episode_no,
+        "title": content.title,
         "detailed_content": content.detailed_content,
+        "chapter_summary": content.chapter_summary,
+        "hook": content.hook,
         "key_beats": content.key_beats,
+        "word_count": content.word_count,
+        "previous_context_summary": content.previous_context_summary,
+        "quality_check_notes": content.quality_check_notes,
         "status": content.status,
         "created_at": content.created_at.isoformat(),
         "updated_at": content.updated_at.isoformat(),
@@ -547,6 +553,12 @@ def _apply_reference_to_outline(
 def _validate_episode_no(project: Project, episode_no: int) -> None:
     if episode_no <= 0 or episode_no > project.episode_count:
         raise ValueError("集数编号必须在项目集数范围内")
+
+
+def _count_content_characters(content: str | None) -> int:
+    if not content:
+        return 0
+    return sum(1 for char in content if not char.isspace())
 
 
 def _mark_project_downstream_for_review(session, project_id: str) -> None:
@@ -1077,8 +1089,14 @@ def upsert_episode_content(project_id: str, episode_no: int, payload: ProjectEpi
             )
             session.add(content)
 
+        content.title = payload.title
         content.detailed_content = payload.detailed_content
+        content.chapter_summary = payload.chapter_summary
+        content.hook = payload.hook
         content.key_beats = payload.key_beats
+        content.word_count = _count_content_characters(payload.detailed_content)
+        content.previous_context_summary = payload.previous_context_summary
+        content.quality_check_notes = payload.quality_check_notes
         content.status = payload.status
         content.updated_at = now
         project.updated_at = now

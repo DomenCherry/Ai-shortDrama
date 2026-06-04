@@ -7,7 +7,7 @@
 三类入口：
 
 - 项目资料 / 资产：项目基础信息、项目世界观快照、项目角色快照。
-- 故事文本：整体故事大纲、分集大纲、单集内容。
+- 故事文本：整体故事大纲、分集大纲、单集故事正文。
 - 短剧制作：单集剧本、分镜镜头、字幕和发布文案。
 
 覆盖能力：
@@ -22,6 +22,8 @@
 
 - 世界观和角色快照的加载、微调和移除接口细节，见 [项目工作台资产快照接口](./project-workbench-assets.md)。
 - 整体故事大纲 AI 生成、局部改写和参考故事结构抽取，见 [故事大纲](./story-outline.md)。
+- 分集大纲与单集故事正文创作的详细字段和接口规则，见 [分集大纲与单集故事正文创作](./episode-outline.md)。
+- 单集故事正文的 AI 创作、续写、润色、撤销润色、摘要、钩子提取和一致性质检；本阶段只要求前端展示入口，不新增后端 AI 接口。
 - 世界观库、角色卡库原始资产 CRUD。
 - AI 自动分镜拆解、分镜图生成、配音、字幕文件生成和视频生成。
 
@@ -57,12 +59,12 @@
 
 | 上游操作 | 需要标记的下游内容 |
 | --- | --- |
-| 更新项目基础信息 | 整体故事大纲、分集大纲、单集内容、单集剧本、分镜、文案 |
-| 加载、更新、移除项目世界观 | 整体故事大纲、分集大纲、单集内容、单集剧本、分镜、文案 |
-| 加载、更新、移除项目角色 | 整体故事大纲、分集大纲、单集内容、单集剧本、分镜、文案 |
-| 保存整体故事大纲 | 分集大纲、单集内容、单集剧本、分镜、文案 |
-| 保存某集分集大纲 | 同集单集内容、同集单集剧本、同集分镜、同集文案 |
-| 保存某集单集内容 | 同集单集剧本、同集分镜、同集文案 |
+| 更新项目基础信息 | 整体故事大纲、分集大纲、单集故事正文、单集剧本、分镜、文案 |
+| 加载、更新、移除项目世界观 | 整体故事大纲、分集大纲、单集故事正文、单集剧本、分镜、文案 |
+| 加载、更新、移除项目角色 | 整体故事大纲、分集大纲、单集故事正文、单集剧本、分镜、文案 |
+| 保存整体故事大纲 | 分集大纲、单集故事正文、单集剧本、分镜、文案 |
+| 保存某集分集大纲 | 同集单集故事正文、同集单集剧本、同集分镜、同集文案 |
+| 保存某集单集故事正文 | 同集单集剧本、同集分镜、同集文案 |
 | 保存某集单集剧本 | 同集分镜、同集文案 |
 
 ### 2.4 集数校验
@@ -124,15 +126,21 @@
 
 ### 3.3 ProjectEpisodeContent
 
-表示故事文本入口中的每集具体故事内容。
+表示故事文本入口中的单集故事正文。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| id | string | 单集内容 ID |
+| id | string | 单集故事正文 ID |
 | project_id | string | 所属项目 ID |
 | episode_no | number | 集数编号 |
-| detailed_content | string | 详细剧情内容 |
+| title | string | 章节标题 |
+| detailed_content | string | 正文内容 |
+| chapter_summary | string | 章节摘要 |
+| hook | string | 本集钩子 |
 | key_beats | string | 关键剧情节拍 |
+| word_count | number | 正文字数统计 |
+| previous_context_summary | string | 前文上下文引用 |
+| quality_check_notes | string | 质检备注 |
 | status | draft / confirmed / needs_review | 内容状态 |
 | created_at | string | 创建时间 |
 | updated_at | string | 更新时间 |
@@ -238,7 +246,7 @@ PUT /api/projects/{project_id}/story-outline
 业务要求：
 
 - 创建或更新正式整体故事大纲。
-- 保存成功后，分集大纲、单集内容、单集剧本、分镜和文案标记为 `needs_review`。
+- 保存成功后，分集大纲、单集故事正文、单集剧本、分镜和文案标记为 `needs_review`。
 
 ### 4.5 查询分集大纲列表
 
@@ -263,9 +271,9 @@ PUT /api/projects/{project_id}/episode-outlines/{episode_no}
 
 - 校验 `episode_no` 在项目集数范围内。
 - 创建或更新对应集分集大纲。
-- 保存成功后，同集单集内容、单集剧本、分镜和文案标记为 `needs_review`。
+- 保存成功后，同集单集故事正文、单集剧本、分镜和文案标记为 `needs_review`。
 
-### 4.7 查询某集具体故事内容
+### 4.7 查询某集单集故事正文
 
 ```text
 GET /api/projects/{project_id}/episode-contents/{episode_no}
@@ -277,7 +285,7 @@ GET /api/projects/{project_id}/episode-contents/{episode_no}
 - `400`：集数编号非法。
 - `404`：项目不存在。
 
-### 4.8 保存某集具体故事内容
+### 4.8 保存某集单集故事正文
 
 ```text
 PUT /api/projects/{project_id}/episode-contents/{episode_no}
@@ -288,7 +296,7 @@ PUT /api/projects/{project_id}/episode-contents/{episode_no}
 业务要求：
 
 - 校验 `episode_no` 在项目集数范围内。
-- 创建或更新对应集具体故事内容。
+- 创建或更新对应集单集故事正文。
 - 保存成功后，同集单集剧本、分镜和文案标记为 `needs_review`。
 
 ### 4.9 查询某集剧本
@@ -315,7 +323,7 @@ PUT /api/projects/{project_id}/episode-scripts/{episode_no}
 
 - 校验 `episode_no` 在项目集数范围内。
 - 创建或更新对应集剧本。
-- 不得修改世界观、角色、整体故事大纲、分集大纲或单集内容。
+- 不得修改世界观、角色、整体故事大纲、分集大纲或单集故事正文。
 - 保存成功后，同集分镜和文案标记为 `needs_review`。
 
 ### 4.11 查询某集分镜镜头
@@ -407,8 +415,8 @@ PUT /api/projects/{project_id}/copywriting/{episode_no}
 - 项目基础信息可以保存，并触发故事文本和短剧制作内容 `needs_review`。
 - 整体故事大纲可以读取和保存。
 - 分集大纲可以按集保存，且只影响对应集下游内容状态。
-- 单集内容可以按集保存，且只影响对应集短剧制作内容状态。
-- 单集剧本可以按集保存，且不修改世界观、角色、整体故事大纲、分集大纲或单集内容。
+- 单集故事正文可以按集保存，且只影响对应集短剧制作内容状态。
+- 单集剧本可以按集保存，且不修改世界观、角色、整体故事大纲、分集大纲或单集故事正文。
 - 分镜镜头可以按集新增、更新、删除。
 - 字幕和发布文案可以按集保存。
 - 所有按集接口必须拒绝超出项目集数范围的 `episode_no`。
@@ -419,5 +427,6 @@ PUT /api/projects/{project_id}/copywriting/{episode_no}
 - [第一期 PRD](../prd.md)
 - [项目工作台模块 PRD](../module-prds/project-workbench.md)
 - [项目工作台前端 Spec](../frontend-specs/project-workbench.md)
+- [分集大纲与单集故事正文创作后端 Spec](./episode-outline.md)
 - [项目工作台资产快照后端 Spec](./project-workbench-assets.md)
 - [故事大纲后端 Spec](./story-outline.md)

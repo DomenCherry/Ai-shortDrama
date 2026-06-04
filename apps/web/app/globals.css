@@ -533,6 +533,261 @@ select {
   margin: 0;
 }
 
+.episode-writing-form {
+  gap: 14px;
+}
+
+.episode-writing-toolbar {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(24, 51, 47, 0.06);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 8px 10px;
+  position: sticky;
+  top: 50px;
+  z-index: 15;
+}
+
+.episode-toolbar-main,
+.episode-toolbar-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.episode-toolbar-main {
+  flex: 1 1 auto;
+}
+
+.episode-toolbar-actions {
+  flex: 0 0 auto;
+}
+
+.episode-chip {
+  background: #eef7f4;
+  border: 1px solid #c7ddd6;
+  border-radius: 6px;
+  color: var(--brand-strong);
+  flex: 0 0 auto;
+  font-weight: 800;
+  padding: 8px 10px;
+}
+
+.episode-writing-toolbar .field {
+  flex: 1 1 320px;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.episode-writing-toolbar .field label {
+  font-size: 12px;
+}
+
+.episode-writing-toolbar .field input,
+.episode-writing-toolbar .field select {
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
+.episode-writing-toolbar .compact-field {
+  flex: 0 0 150px;
+  max-width: 160px;
+  min-width: 132px;
+}
+
+.episode-writing-workspace {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns:
+    minmax(220px, 260px)
+    minmax(280px, 320px)
+    minmax(440px, 1fr)
+    minmax(300px, 340px);
+}
+
+.writing-episode-index,
+.writing-context-panel,
+.writing-reference-panel {
+  max-height: calc(100vh - 150px);
+  overflow: auto;
+  position: sticky;
+  top: 112px;
+}
+
+.writing-context-panel,
+.writing-reference-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.episode-paper-editor {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(24, 51, 47, 0.07);
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 18px;
+}
+
+.paper-editor-heading {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding-bottom: 12px;
+}
+
+.paper-editor-heading h3,
+.paper-editor-heading p {
+  margin: 0;
+}
+
+.episode-paper-editor .field textarea {
+  border: 0;
+  font-size: 17px;
+  line-height: 1.9;
+  min-height: 620px;
+  outline: 0;
+  padding: 12px 4px;
+}
+
+.episode-paper-editor .field textarea:focus {
+  box-shadow: inset 0 0 0 1px #c7ddd6;
+}
+
+.word-count-row {
+  align-items: center;
+  color: var(--muted);
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.ai-action-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ai-action-grid .button {
+  min-height: 36px;
+  padding: 8px 10px;
+}
+
+.reference-card {
+  background: #fbfcfb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.reference-card h3,
+.reference-card p {
+  margin: 0;
+}
+
+.reference-link-button {
+  background: #eef3f1;
+  border: 1px solid #c7ddd6;
+  border-radius: 6px;
+  color: var(--brand-strong);
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 34px;
+  padding: 7px 10px;
+  text-align: center;
+}
+
+.reference-link-button:hover {
+  background: #e1eee9;
+}
+
+.reference-button-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.reference-tabs {
+  background: #eef3f1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 4px;
+}
+
+.reference-tab {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #343a40;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  min-height: 32px;
+  padding: 6px 8px;
+}
+
+.reference-tab:hover,
+.reference-tab.active {
+  background: #ffffff;
+  color: var(--brand-strong);
+  box-shadow: 0 2px 8px rgba(24, 51, 47, 0.08);
+}
+
+.reference-tab-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.writing-context-panel .reference-card .field textarea,
+.writing-reference-panel .reference-card .field textarea {
+  min-height: 96px;
+}
+
+.compact-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.compact-list li {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding-bottom: 8px;
+}
+
+.compact-list li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.compact-list span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -958,17 +1213,45 @@ select {
   .workspace-entry-grid,
   .readonly-context-grid,
   .detail-layout,
-  .episode-workspace {
+  .episode-workspace,
+  .episode-writing-workspace {
     grid-template-columns: 1fr;
   }
 
   .side-panel,
-  .episode-index {
+  .episode-index,
+  .writing-episode-index,
+  .writing-context-panel,
+  .writing-reference-panel {
     position: static;
   }
 
-  .episode-index {
+  .episode-index,
+  .writing-episode-index,
+  .writing-context-panel,
+  .writing-reference-panel {
     max-height: none;
+  }
+
+  .episode-writing-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    position: static;
+  }
+
+  .episode-toolbar-main,
+  .episode-toolbar-actions {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .episode-toolbar-main .field,
+  .episode-toolbar-actions .field {
+    min-width: min(100%, 220px);
+  }
+
+  .episode-paper-editor .field textarea {
+    min-height: 420px;
   }
 
   .episode-index-list {

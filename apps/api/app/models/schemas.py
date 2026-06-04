@@ -685,10 +685,24 @@ class ProjectEpisodeOutlineResponse(ProjectEpisodeOutlinePayload):
 
 
 class ProjectEpisodeContentPayload(ProjectArtifactBase):
+    title: Optional[str] = None
     detailed_content: Optional[str] = None
+    chapter_summary: Optional[str] = None
+    hook: Optional[str] = None
     key_beats: Optional[str] = None
+    previous_context_summary: Optional[str] = None
+    quality_check_notes: Optional[str] = None
 
-    @field_validator("detailed_content", "key_beats", mode="before")
+    @field_validator(
+        "title",
+        "detailed_content",
+        "chapter_summary",
+        "hook",
+        "key_beats",
+        "previous_context_summary",
+        "quality_check_notes",
+        mode="before",
+    )
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
         if value is None:
@@ -703,6 +717,7 @@ class ProjectEpisodeContentResponse(ProjectEpisodeContentPayload):
     id: str
     project_id: str
     episode_no: int
+    word_count: int
     created_at: str
     updated_at: str
 
