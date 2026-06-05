@@ -1,6 +1,6 @@
 """add episode content writing fields
 
-Revision ID: 0011_episode_content_writing_fields
+Revision ID: 0011_episode_content_fields
 Revises: 0010_story_outline_generation
 Create Date: 2026-06-04
 """
@@ -10,7 +10,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "0011_episode_content_writing_fields"
+revision: str = "0011_episode_content_fields"
 down_revision: Union[str, None] = "0010_story_outline_generation"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

@@ -1,7 +1,7 @@
 """add story outline generation fields
 
 Revision ID: 0010_story_outline_generation
-Revises: 0009_project_asset_snapshot_constraints
+Revises: 0009_asset_snapshot_constraints
 Create Date: 2026-06-03
 """
 from typing import Sequence, Union
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 revision: str = "0010_story_outline_generation"
-down_revision: Union[str, None] = "0009_project_asset_snapshot_constraints"
+down_revision: Union[str, None] = "0009_asset_snapshot_constraints"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
