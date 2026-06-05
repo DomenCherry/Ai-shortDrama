@@ -13,6 +13,7 @@ import {
   ReferenceStoryStructureDraft,
   updateProjectStoryOutline
 } from "@/lib/api";
+import { storyOutlineFieldGroups } from "../../storyOutlineFields";
 
 type ReferenceStoryInputForm = {
   source_text: string;
@@ -213,23 +214,32 @@ export default function StoryOutlineExtractPage() {
           <span className={`status-badge ${artifactStatusClass(previewForm.status)}`}>{artifactStatusLabel(previewForm.status)}</span>
         </div>
         <form className="stack" onSubmit={confirmStoryOutline}>
-          <div className="grid-2">
-            <TextArea label="一句话故事" value={previewForm.logline} onChange={(value) => setPreviewFormValue("logline", value, setPreviewForm)} />
-            <TextArea label="故事背景" value={previewForm.story_background} onChange={(value) => setPreviewFormValue("story_background", value, setPreviewForm)} />
-            <TextArea label="核心冲突" value={previewForm.core_conflict} onChange={(value) => setPreviewFormValue("core_conflict", value, setPreviewForm)} />
-            <TextArea label="主线目标" value={previewForm.main_goal} onChange={(value) => setPreviewFormValue("main_goal", value, setPreviewForm)} />
-            <TextArea label="故事起点" value={previewForm.story_start} onChange={(value) => setPreviewFormValue("story_start", value, setPreviewForm)} />
-            <TextArea label="起承转合结构" value={previewForm.plot_structure} onChange={(value) => setPreviewFormValue("plot_structure", value, setPreviewForm)} />
-            <TextArea label="阶段性反转" value={previewForm.reversals} onChange={(value) => setPreviewFormValue("reversals", value, setPreviewForm)} />
-            <TextArea label="情绪曲线" value={previewForm.emotion_curve} onChange={(value) => setPreviewFormValue("emotion_curve", value, setPreviewForm)} />
-            <TextArea label="关键伏笔" value={previewForm.foreshadowing} onChange={(value) => setPreviewFormValue("foreshadowing", value, setPreviewForm)} />
-            <TextArea label="人物弧光" value={previewForm.character_arcs} onChange={(value) => setPreviewFormValue("character_arcs", value, setPreviewForm)} />
-            <TextArea label="结局方向" value={previewForm.ending_direction} onChange={(value) => setPreviewFormValue("ending_direction", value, setPreviewForm)} />
-            <TextArea label="整体节奏建议" value={previewForm.pacing_advice} onChange={(value) => setPreviewFormValue("pacing_advice", value, setPreviewForm)} />
-            <TextArea label="剧情容量建议" value={previewForm.capacity_advice} onChange={(value) => setPreviewFormValue("capacity_advice", value, setPreviewForm)} />
-            <TextArea label="补充说明" value={previewForm.notes} onChange={(value) => setPreviewFormValue("notes", value, setPreviewForm)} />
+          <div className="outline-field-groups">
+            {storyOutlineFieldGroups.map((group) => (
+              <section className="outline-field-group" key={group.id}>
+                <div className="outline-field-group-heading">
+                  <h3>{group.title}</h3>
+                  <p>{group.description}</p>
+                </div>
+                <div className="grid-2">
+                  {group.fields.map((field) => (
+                    <TextArea
+                      key={field.key}
+                      label={field.label}
+                      placeholder={`${field.description}\n${field.example}`}
+                      value={previewForm[field.key]}
+                      onChange={(value) => setPreviewFormValue(field.key, value, setPreviewForm)}
+                    />
+                  ))}
+                </div>
+                {group.id === "execution" ? (
+                  <div className="outline-field-status">
+                    <StatusSelect value={previewForm.status} onChange={(value) => setPreviewFormValue("status", value, setPreviewForm)} />
+                  </div>
+                ) : null}
+              </section>
+            ))}
           </div>
-          <StatusSelect value={previewForm.status} onChange={(value) => setPreviewFormValue("status", value, setPreviewForm)} />
           <div className="actions">
             <Link className="button secondary" href={`/projects/${projectId}?stage=story`}>
               取消
@@ -244,11 +254,21 @@ export default function StoryOutlineExtractPage() {
   );
 }
 
-function TextArea({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function TextArea({
+  label,
+  value,
+  placeholder,
+  onChange
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <div className="field">
       <label>{label}</label>
-      <textarea value={value} onChange={(event) => onChange(event.target.value)} rows={4} />
+      <textarea value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} rows={4} />
     </div>
   );
 }

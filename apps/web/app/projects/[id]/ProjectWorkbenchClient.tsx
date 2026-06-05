@@ -44,6 +44,7 @@ import {
   WorldBook,
   CharacterCard
 } from "@/lib/api";
+import { storyOutlineFieldGroups } from "./storyOutlineFields";
 
 type Stage = "settings" | "assets" | "story" | "episodes" | "content" | "script" | "storyboard";
 type WorkspaceGroupKey = "projectAssets" | "storyText" | "production";
@@ -1344,23 +1345,32 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
             </Link>
           </div>
           <form className="stack" onSubmit={saveStoryOutline}>
-            <div className="grid-2">
-              <TextArea label="一句话故事" value={storyForm.logline} onChange={(value) => setStoryFormValue("logline", value, setStoryForm)} />
-              <TextArea label="故事背景" value={storyForm.story_background} onChange={(value) => setStoryFormValue("story_background", value, setStoryForm)} />
-              <TextArea label="核心冲突" value={storyForm.core_conflict} onChange={(value) => setStoryFormValue("core_conflict", value, setStoryForm)} />
-              <TextArea label="主线目标" value={storyForm.main_goal} onChange={(value) => setStoryFormValue("main_goal", value, setStoryForm)} />
-              <TextArea label="故事起点" value={storyForm.story_start} onChange={(value) => setStoryFormValue("story_start", value, setStoryForm)} />
-              <TextArea label="起承转合结构" value={storyForm.plot_structure} onChange={(value) => setStoryFormValue("plot_structure", value, setStoryForm)} />
-              <TextArea label="阶段性反转" value={storyForm.reversals} onChange={(value) => setStoryFormValue("reversals", value, setStoryForm)} />
-              <TextArea label="情绪曲线" value={storyForm.emotion_curve} onChange={(value) => setStoryFormValue("emotion_curve", value, setStoryForm)} />
-              <TextArea label="关键伏笔" value={storyForm.foreshadowing} onChange={(value) => setStoryFormValue("foreshadowing", value, setStoryForm)} />
-              <TextArea label="人物弧光" value={storyForm.character_arcs} onChange={(value) => setStoryFormValue("character_arcs", value, setStoryForm)} />
-              <TextArea label="结局方向" value={storyForm.ending_direction} onChange={(value) => setStoryFormValue("ending_direction", value, setStoryForm)} />
-              <TextArea label="整体节奏建议" value={storyForm.pacing_advice} onChange={(value) => setStoryFormValue("pacing_advice", value, setStoryForm)} />
-              <TextArea label="剧情容量建议" value={storyForm.capacity_advice} onChange={(value) => setStoryFormValue("capacity_advice", value, setStoryForm)} />
-              <TextArea label="补充说明" value={storyForm.notes} onChange={(value) => setStoryFormValue("notes", value, setStoryForm)} />
+            <div className="outline-field-groups">
+              {storyOutlineFieldGroups.map((group) => (
+                <section className="outline-field-group" key={group.id}>
+                  <div className="outline-field-group-heading">
+                    <h3>{group.title}</h3>
+                    <p>{group.description}</p>
+                  </div>
+                  <div className="grid-2">
+                    {group.fields.map((field) => (
+                      <TextArea
+                        key={field.key}
+                        label={field.label}
+                        placeholder={`${field.description}\n${field.example}`}
+                        value={storyForm[field.key]}
+                        onChange={(value) => setStoryFormValue(field.key, value, setStoryForm)}
+                      />
+                    ))}
+                  </div>
+                  {group.id === "execution" ? (
+                    <div className="outline-field-status">
+                      <StatusSelect value={storyForm.status} onChange={(value) => setStoryFormValue("status", value, setStoryForm)} />
+                    </div>
+                  ) : null}
+                </section>
+              ))}
             </div>
-            <StatusSelect value={storyForm.status} onChange={(value) => setStoryFormValue("status", value, setStoryForm)} />
             <div className="actions">
               <button className="button" type="submit" disabled={isSaving}>
                 {isSaving ? "保存中..." : "保存整体大纲"}
@@ -1954,11 +1964,21 @@ function NumberInput({
   );
 }
 
-function TextArea({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function TextArea({
+  label,
+  value,
+  placeholder,
+  onChange
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <div className="field">
       <label>{label}</label>
-      <textarea value={value} onChange={(event) => onChange(event.target.value)} />
+      <textarea value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }

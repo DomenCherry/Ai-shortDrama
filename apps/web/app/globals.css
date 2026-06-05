@@ -306,6 +306,44 @@ select {
   resize: vertical;
 }
 
+.field textarea::placeholder {
+  color: #8a969f;
+}
+
+.outline-field-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.outline-field-group {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.outline-field-group-heading {
+  display: grid;
+  gap: 3px;
+}
+
+.outline-field-group-heading h3 {
+  color: #17201d;
+  font-size: 16px;
+  margin: 0;
+}
+
+.outline-field-group-heading p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.outline-field-status {
+  max-width: 240px;
+}
+
 .checkbox-field {
   align-items: center;
   color: #343a40;
