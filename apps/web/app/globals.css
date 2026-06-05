@@ -851,6 +851,41 @@ select {
   margin: 0;
 }
 
+.outline-reference-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.outline-reference-list div {
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 2px;
+  padding-bottom: 7px;
+}
+
+.outline-reference-list div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.outline-reference-list dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.outline-reference-list dd {
+  color: var(--text);
+  display: -webkit-box;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .reference-link-button {
   background: #eef3f1;
   border: 1px solid #c7ddd6;

@@ -132,13 +132,13 @@
 | id | string | 单集故事正文 ID |
 | project_id | string | 所属项目 ID |
 | episode_no | number | 集数编号 |
-| title | string | 章节标题 |
+| title | string | 兼容镜像字段，取当前集分集大纲标题；不作为单集故事正文的独立标题来源 |
 | detailed_content | string | 正文内容 |
-| chapter_summary | string | 章节摘要 |
-| hook | string | 本集钩子 |
-| key_beats | string | 关键剧情节拍 |
+| chapter_summary | string | 正文摘要，正文完成后的成稿摘要 |
+| hook | string | 正文钩子 / 传播点，从正文中沉淀的吸引点、悬念或传播点 |
+| key_beats | string | 正文节拍，正文实际展开后的关键剧情节点 |
 | word_count | number | 正文字数统计 |
-| previous_context_summary | string | 前文上下文引用 |
+| previous_context_summary | string | 前文参考，例如前几集正文摘要、上集结尾和未回收伏笔 |
 | quality_check_notes | string | 质检备注 |
 | status | draft / confirmed / needs_review | 内容状态 |
 | created_at | string | 创建时间 |
@@ -148,12 +148,12 @@
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| title | string | 否 | 章节标题 |
+| title | string | 否 | 兼容镜像字段，应由服务端或调用方使用当前集分集大纲标题填充；正文页不单独编辑 |
 | detailed_content | string | 否 | 正文内容 |
-| chapter_summary | string | 否 | 章节摘要 |
-| hook | string | 否 | 本集钩子 |
-| key_beats | string | 否 | 关键剧情节拍 |
-| previous_context_summary | string | 否 | 前文上下文引用 |
+| chapter_summary | string | 否 | 正文摘要，正文完成后的成稿摘要 |
+| hook | string | 否 | 正文钩子 / 传播点 |
+| key_beats | string | 否 | 正文节拍 |
+| previous_context_summary | string | 否 | 前文参考 |
 | quality_check_notes | string | 否 | 质检备注 |
 | status | draft / confirmed / needs_review | 否 | 内容状态，默认 `draft` |
 
@@ -161,6 +161,7 @@
 
 - 当前实现如仅包含 `detailed_content`、`key_beats` 和 `status`，新增字段应允许为空。
 - 字段扩展不得破坏已有项目数据读取和保存。
+- 单集故事正文标题与分集大纲标题语义一致。后续如收敛数据模型，应优先保留 `ProjectEpisodeOutline.title`，`ProjectEpisodeContent.title` 可作为兼容镜像字段迁移或废弃。
 
 ## 4. 接口定义
 

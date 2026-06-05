@@ -474,7 +474,7 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
     setStatus("");
     try {
       const saved = await updateProjectEpisodeContent(projectId, selectedEpisodeNo, {
-        title: toOptional(contentForm.title),
+        title: toOptional(selectedEpisodeOutline?.title || contentForm.title),
         detailed_content: toOptional(contentForm.detailed_content),
         chapter_summary: toOptional(contentForm.chapter_summary),
         hook: toOptional(contentForm.hook),
@@ -1446,25 +1446,46 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
                 </div>
               </aside>
 
-              <aside className="writing-context-panel" aria-label="章节上下文与正文元信息">
-                <ReferenceCard title="本章大纲">
-                  <p>{selectedEpisodeOutline?.synopsis || "尚未填写本集梗概。"}</p>
-                  <p className="hint">{selectedEpisodeOutline?.hook ? `钩子：${selectedEpisodeOutline.hook}` : "可先在分集大纲中补充钩子。"}</p>
+              <aside className="writing-context-panel" aria-label="大纲参考与正文元信息">
+                <ReferenceCard title="上游大纲参考">
+                  <dl className="outline-reference-list">
+                    <div>
+                      <dt>标题</dt>
+                      <dd>{selectedEpisodeOutline?.title || "未填写标题"}</dd>
+                    </div>
+                    <div>
+                      <dt>本集梗概</dt>
+                      <dd>{selectedEpisodeOutline?.synopsis || "未填写"}</dd>
+                    </div>
+                    <div>
+                      <dt>开场钩子</dt>
+                      <dd>{selectedEpisodeOutline?.hook || "未填写"}</dd>
+                    </div>
+                    <div>
+                      <dt>本集冲突</dt>
+                      <dd>{selectedEpisodeOutline?.conflict || "未填写"}</dd>
+                    </div>
+                    <div>
+                      <dt>关键反转</dt>
+                      <dd>{selectedEpisodeOutline?.reversal || "未填写"}</dd>
+                    </div>
+                    <div>
+                      <dt>结尾悬念</dt>
+                      <dd>{selectedEpisodeOutline?.cliffhanger || "未填写"}</dd>
+                    </div>
+                  </dl>
                 </ReferenceCard>
-                <ReferenceCard title="章节标题">
-                  <TextInput label="标题" value={contentForm.title} onChange={(value) => setContentFormValue("title", value, setContentForm)} />
-                </ReferenceCard>
-                <ReferenceCard title="章节摘要">
+                <ReferenceCard title="正文摘要">
                   <TextArea label="摘要" value={contentForm.chapter_summary} onChange={(value) => setContentFormValue("chapter_summary", value, setContentForm)} />
                 </ReferenceCard>
-                <ReferenceCard title="本集钩子">
-                  <TextArea label="钩子" value={contentForm.hook} onChange={(value) => setContentFormValue("hook", value, setContentForm)} />
+                <ReferenceCard title="正文钩子 / 传播点">
+                  <TextArea label="钩子 / 传播点" value={contentForm.hook} onChange={(value) => setContentFormValue("hook", value, setContentForm)} />
                 </ReferenceCard>
-                <ReferenceCard title="关键剧情节拍">
+                <ReferenceCard title="正文节拍">
                   <TextArea label="节拍" value={contentForm.key_beats} onChange={(value) => setContentFormValue("key_beats", value, setContentForm)} />
                 </ReferenceCard>
-                <ReferenceCard title="前文上下文">
-                  <TextArea label="上下文" value={contentForm.previous_context_summary} onChange={(value) => setContentFormValue("previous_context_summary", value, setContentForm)} />
+                <ReferenceCard title="前文参考">
+                  <TextArea label="前文参考" value={contentForm.previous_context_summary} onChange={(value) => setContentFormValue("previous_context_summary", value, setContentForm)} />
                 </ReferenceCard>
               </aside>
 
