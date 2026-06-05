@@ -21,7 +21,6 @@
 - 润色。
 - 撤销润色。
 - 自动摘要。
-- 钩子提取。
 - 一致性质检。
 - 独立角色参考、设定参考、文风或灵感后端接口。
 
@@ -83,7 +82,6 @@
 - `POST /api/projects/{project_id}/episode-contents/{episode_no}/polish`
 - `POST /api/projects/{project_id}/episode-contents/{episode_no}/undo-polish`
 - `POST /api/projects/{project_id}/episode-contents/{episode_no}/summarize`
-- `POST /api/projects/{project_id}/episode-contents/{episode_no}/extract-hook`
 - `POST /api/projects/{project_id}/episode-contents/{episode_no}/quality-check`
 
 前端点击相关按钮时，只展示“该 AI 能力暂未接入，后续完善”，不发送请求。
@@ -135,10 +133,10 @@
 | title | string | 兼容镜像字段，取当前集分集大纲标题；不作为单集故事正文的独立标题来源 |
 | detailed_content | string | 正文内容 |
 | chapter_summary | string | 正文摘要，正文完成后的成稿摘要 |
-| hook | string | 正文钩子 / 传播点，从正文中沉淀的吸引点、悬念或传播点 |
-| key_beats | string | 正文节拍，正文实际展开后的关键剧情节点 |
+| hook | string | 兼容 / 派生字段，一期正文页不展示；钩子提取和传播点沉淀归入短剧制作 |
+| key_beats | string | 兼容 / 派生字段，一期正文页不展示；后续可由分集大纲的开场钩子、本集冲突、关键反转和结尾悬念组合生成 |
 | word_count | number | 正文字数统计 |
-| previous_context_summary | string | 前文参考，例如前几集正文摘要、上集结尾和未回收伏笔 |
+| previous_context_summary | string | 兼容 / 派生字段，一期正文页不展示为可编辑字段；前文参考直接读取上一集正文摘要 |
 | quality_check_notes | string | 质检备注 |
 | status | draft / confirmed / needs_review | 内容状态 |
 | created_at | string | 创建时间 |
@@ -151,17 +149,18 @@
 | title | string | 否 | 兼容镜像字段，应由服务端或调用方使用当前集分集大纲标题填充；正文页不单独编辑 |
 | detailed_content | string | 否 | 正文内容 |
 | chapter_summary | string | 否 | 正文摘要，正文完成后的成稿摘要 |
-| hook | string | 否 | 正文钩子 / 传播点 |
-| key_beats | string | 否 | 正文节拍 |
-| previous_context_summary | string | 否 | 前文参考 |
+| hook | string | 否 | 兼容 / 派生字段，一期正文页不展示 |
+| key_beats | string | 否 | 兼容 / 派生字段，一期正文页不展示 |
+| previous_context_summary | string | 否 | 兼容 / 派生字段，一期正文页不展示为可编辑字段 |
 | quality_check_notes | string | 否 | 质检备注 |
 | status | draft / confirmed / needs_review | 否 | 内容状态，默认 `draft` |
 
 兼容要求：
 
-- 当前实现如仅包含 `detailed_content`、`key_beats` 和 `status`，新增字段应允许为空。
+- 当前实现如仅包含 `detailed_content`、`key_beats` 和 `status`，新增字段应允许为空；其中 `key_beats` 暂不在一期正文页作为独立用户字段展示。
 - 字段扩展不得破坏已有项目数据读取和保存。
 - 单集故事正文标题与分集大纲标题语义一致。后续如收敛数据模型，应优先保留 `ProjectEpisodeOutline.title`，`ProjectEpisodeContent.title` 可作为兼容镜像字段迁移或废弃。
+- 前文参考直接由当前集上一集的 `chapter_summary` 读取生成；`previous_context_summary` 暂作为兼容字段保留，不作为一期正文页编辑输入。
 
 ## 4. 接口定义
 
@@ -275,7 +274,7 @@ PUT /api/projects/{project_id}/episode-contents/{episode_no}
 - 保存单集故事正文后，同集剧本、分镜和文案标记为 `needs_review`。
 - 所有按集接口拒绝超出项目集数范围的 `episode_no`。
 - 保存单集故事正文不会修改世界观、角色、整体故事大纲、分集大纲、剧本、分镜或文案内容。
-- 本阶段不新增任何单集故事正文 AI 生成、续写、润色、摘要、钩子提取或质检接口。
+- 本阶段不新增任何单集故事正文 AI 生成、续写、润色、摘要或质检接口。钩子提取归入短剧制作模块。
 
 ## 8. 关联文档
 

@@ -23,7 +23,7 @@
 - 世界观和角色快照的加载、微调和移除接口细节，见 [项目工作台资产快照接口](./project-workbench-assets.md)。
 - 整体故事大纲 AI 生成、局部改写和参考故事结构抽取，见 [故事大纲](./story-outline.md)。
 - 分集大纲与单集故事正文创作的详细字段和接口规则，见 [分集大纲与单集故事正文创作](./episode-outline.md)。
-- 单集故事正文的 AI 创作、续写、润色、撤销润色、摘要、钩子提取和一致性质检；本阶段只要求前端展示入口，不新增后端 AI 接口。
+- 单集故事正文的 AI 创作、续写、润色、撤销润色、摘要和一致性质检；本阶段只要求前端展示入口，不新增后端 AI 接口。钩子提取和传播点沉淀归入短剧制作模块，本阶段同样只展示前端入口。
 - 世界观库、角色卡库原始资产 CRUD。
 - AI 自动分镜拆解、分镜图生成、配音、字幕文件生成和视频生成。
 
@@ -133,13 +133,13 @@
 | id | string | 单集故事正文 ID |
 | project_id | string | 所属项目 ID |
 | episode_no | number | 集数编号 |
-| title | string | 章节标题 |
+| title | string | 兼容镜像字段，取分集大纲标题；正文页不单独编辑 |
 | detailed_content | string | 正文内容 |
-| chapter_summary | string | 章节摘要 |
-| hook | string | 本集钩子 |
-| key_beats | string | 关键剧情节拍 |
+| chapter_summary | string | 正文摘要 |
+| hook | string | 兼容 / 派生字段，一期正文页不展示；钩子提取和传播点沉淀归入短剧制作 |
+| key_beats | string | 兼容 / 派生字段，一期正文页不展示；后续可由分集大纲的开场钩子、本集冲突、关键反转和结尾悬念组合生成 |
 | word_count | number | 正文字数统计 |
-| previous_context_summary | string | 前文上下文引用 |
+| previous_context_summary | string | 兼容 / 派生字段，一期正文页不展示为可编辑字段；前文参考直接读取上一集正文摘要 |
 | quality_check_notes | string | 质检备注 |
 | status | draft / confirmed / needs_review | 内容状态 |
 | created_at | string | 创建时间 |
@@ -193,7 +193,7 @@
 | subtitles | string | 字幕 |
 | platform_title | string | 平台标题 |
 | platform_description | string | 平台简介 |
-| publish_copy | string | 发布文案 |
+| publish_copy | string | 传播点 / 发布文案 |
 | status | draft / confirmed / needs_review | 内容状态 |
 | created_at | string | 创建时间 |
 | updated_at | string | 更新时间 |

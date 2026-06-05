@@ -204,6 +204,7 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
   const [storyOutline, setStoryOutline] = useState<ProjectStoryOutline | null>(null);
   const [episodeOutlines, setEpisodeOutlines] = useState<ProjectEpisodeOutline[]>([]);
   const [episodeContent, setEpisodeContent] = useState<ProjectEpisodeContent | null>(null);
+  const [previousEpisodeContent, setPreviousEpisodeContent] = useState<ProjectEpisodeContent | null>(null);
   const [episodeScript, setEpisodeScript] = useState<ProjectEpisodeScript | null>(null);
   const [storyboardShots, setStoryboardShots] = useState<ProjectStoryboardShot[]>([]);
   const [copywriting, setCopywriting] = useState<ProjectCopywriting | null>(null);
@@ -280,6 +281,10 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
   const episodeScriptStatus = episodeScript?.status ?? scriptForm.status;
   const copywritingStatus = copywriting?.status ?? copyForm.status;
   const contentWordCount = useMemo(() => countContentCharacters(contentForm.detailed_content), [contentForm.detailed_content]);
+  const previousEpisodeSummary =
+    selectedEpisodeNo <= 1
+      ? "第 1 集暂无前文参考。"
+      : previousEpisodeContent?.chapter_summary || `第 ${selectedEpisodeNo - 1} 集尚未填写正文摘要。`;
 
   useEffect(() => {
     void refreshWorkbench();
@@ -366,13 +371,15 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
     setIsLoadingEpisodeArtifacts(true);
     setArtifactError("");
     try {
-      const [content, script, shots, copy] = await Promise.all([
+      const [content, previousContent, script, shots, copy] = await Promise.all([
         getProjectEpisodeContent(projectId, episodeNo),
+        episodeNo > 1 ? getProjectEpisodeContent(projectId, episodeNo - 1) : Promise.resolve(null),
         getProjectEpisodeScript(projectId, episodeNo),
         listProjectStoryboardShots(projectId, episodeNo),
         getProjectCopywriting(projectId, episodeNo)
       ]);
       setEpisodeContent(content);
+      setPreviousEpisodeContent(previousContent);
       setEpisodeScript(script);
       setStoryboardShots(shots);
       setCopywriting(copy);
@@ -477,9 +484,9 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
         title: toOptional(selectedEpisodeOutline?.title || contentForm.title),
         detailed_content: toOptional(contentForm.detailed_content),
         chapter_summary: toOptional(contentForm.chapter_summary),
-        hook: toOptional(contentForm.hook),
-        key_beats: toOptional(contentForm.key_beats),
-        previous_context_summary: toOptional(contentForm.previous_context_summary),
+        hook: toOptional(episodeContent?.hook || contentForm.hook),
+        key_beats: toOptional(episodeContent?.key_beats || contentForm.key_beats),
+        previous_context_summary: toOptional(episodeContent?.previous_context_summary || contentForm.previous_context_summary),
         quality_check_notes: toOptional(contentForm.quality_check_notes),
         status: contentForm.status
       });
@@ -880,6 +887,8 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
   }
 
   const showEpisodeAiActions = currentWorkspaceGroup?.key === "storyText" && activeStage === "content";
+  const showProductionAiActions = currentWorkspaceGroup?.key === "production";
+  const moduleFunctionActions = showEpisodeAiActions ? episodeAiActions : showProductionAiActions ? productionAiActions : [];
 
   return (
     <div className={`stack ${!isLandingMode ? "module-workbench" : ""}`}>
@@ -903,7 +912,7 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
             <h1>{currentWorkspaceGroup?.title}</h1>
             <span title={currentWorkspaceGroup?.description}>当前项目：{project.title}</span>
           </div>
-          <div className={`module-toolbar-center ${showEpisodeAiActions ? "has-functions" : ""}`}>
+          <div className={`module-toolbar-center ${moduleFunctionActions.length > 0 ? "has-functions" : ""}`}>
             <nav
               className="module-subnav module-stage-switcher"
               aria-label={`${currentWorkspaceGroup?.title ?? "模块"}内容导航`}
@@ -919,9 +928,9 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
                 </button>
               ))}
             </nav>
-            {showEpisodeAiActions ? (
-              <div className="module-function-strip" aria-label="AI 创作能力入口">
-                {episodeAiActions.map((action) => (
+            {moduleFunctionActions.length > 0 ? (
+              <div className="module-function-strip" aria-label="AI 功能入口">
+                {moduleFunctionActions.map((action) => (
                   <button className="module-ai-action" type="button" key={action} onClick={() => showAiPlaceholder(action)}>
                     {action}
                   </button>
@@ -1478,14 +1487,9 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
                 <ReferenceCard title="正文摘要">
                   <TextArea label="摘要" value={contentForm.chapter_summary} onChange={(value) => setContentFormValue("chapter_summary", value, setContentForm)} />
                 </ReferenceCard>
-                <ReferenceCard title="正文钩子 / 传播点">
-                  <TextArea label="钩子 / 传播点" value={contentForm.hook} onChange={(value) => setContentFormValue("hook", value, setContentForm)} />
-                </ReferenceCard>
-                <ReferenceCard title="正文节拍">
-                  <TextArea label="节拍" value={contentForm.key_beats} onChange={(value) => setContentFormValue("key_beats", value, setContentForm)} />
-                </ReferenceCard>
                 <ReferenceCard title="前文参考">
-                  <TextArea label="前文参考" value={contentForm.previous_context_summary} onChange={(value) => setContentFormValue("previous_context_summary", value, setContentForm)} />
+                  <p>{previousEpisodeSummary}</p>
+                  {selectedEpisodeNo > 1 ? <p className="hint">来源：第 {selectedEpisodeNo - 1} 集正文摘要。</p> : null}
                 </ReferenceCard>
               </aside>
 
@@ -1687,7 +1691,7 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
               <TextArea label="字幕/剧情内文案" value={copyForm.subtitles} onChange={(value) => setCopyFormValue("subtitles", value, setCopyForm)} />
               <TextInput label="平台标题" value={copyForm.platform_title} onChange={(value) => setCopyFormValue("platform_title", value, setCopyForm)} />
               <TextArea label="平台简介" value={copyForm.platform_description} onChange={(value) => setCopyFormValue("platform_description", value, setCopyForm)} />
-              <TextArea label="发布文案" value={copyForm.publish_copy} onChange={(value) => setCopyFormValue("publish_copy", value, setCopyForm)} />
+              <TextArea label="传播点 / 发布文案" value={copyForm.publish_copy} onChange={(value) => setCopyFormValue("publish_copy", value, setCopyForm)} />
             </div>
             <StatusSelect value={copyForm.status} onChange={(value) => setCopyFormValue("status", value, setCopyForm)} />
             <div className="actions">
@@ -2041,7 +2045,8 @@ const emptyContentForm: EpisodeContentForm = {
   status: "draft"
 };
 
-const episodeAiActions = ["正文创作", "续写", "润色", "撤销润色", "摘要", "钩子提取", "一致性质检"];
+const episodeAiActions = ["正文创作", "续写", "润色", "撤销润色", "摘要", "一致性质检"];
+const productionAiActions = ["钩子提取"];
 
 const referenceTabs: Array<{ key: ReferenceTab; label: string }> = [
   { key: "settings", label: "设定" },
