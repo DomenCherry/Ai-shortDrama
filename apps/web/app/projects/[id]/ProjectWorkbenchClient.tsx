@@ -879,6 +879,8 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
     );
   }
 
+  const showEpisodeAiActions = currentWorkspaceGroup?.key === "storyText" && activeStage === "content";
+
   return (
     <div className={`stack ${!isLandingMode ? "module-workbench" : ""}`}>
       {isLandingMode ? (
@@ -901,24 +903,35 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
             <h1>{currentWorkspaceGroup?.title}</h1>
             <span title={currentWorkspaceGroup?.description}>当前项目：{project.title}</span>
           </div>
-          <nav className="module-subnav" aria-label={`${currentWorkspaceGroup?.title ?? "模块"}内容导航`}>
-            {visibleStages.map((stage) => (
-              <button
-                className={`module-subnav-tab ${activeStage === stage.key ? "active" : ""}`}
-                type="button"
-                key={stage.key}
-                onClick={() => setActiveStage(stage.key)}
-              >
-                {stage.label}
-              </button>
-            ))}
-          </nav>
+          <div className={`module-toolbar-center ${showEpisodeAiActions ? "has-functions" : ""}`}>
+            <nav
+              className="module-subnav module-stage-switcher"
+              aria-label={`${currentWorkspaceGroup?.title ?? "模块"}内容导航`}
+            >
+              {visibleStages.map((stage) => (
+                <button
+                  className={`module-subnav-tab ${activeStage === stage.key ? "active" : ""}`}
+                  type="button"
+                  key={stage.key}
+                  onClick={() => setActiveStage(stage.key)}
+                >
+                  {stage.label}
+                </button>
+              ))}
+            </nav>
+            {showEpisodeAiActions ? (
+              <div className="module-function-strip" aria-label="AI 创作能力入口">
+                {episodeAiActions.map((action) => (
+                  <button className="module-ai-action" type="button" key={action} onClick={() => showAiPlaceholder(action)}>
+                    {action}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <div className="module-toolbar-actions">
             <Link className="button secondary compact-button" href={`/projects/${projectId}`}>
               工作台入口
-            </Link>
-            <Link className="button secondary compact-button" href="/">
-              项目管理
             </Link>
           </div>
         </header>
@@ -1365,12 +1378,11 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
                   >
                     <span className="episode-index-main">
                       <strong>第 {row.episodeNo} 集</strong>
-                      <span>{row.outline?.title || "未填写标题"}</span>
+                      <span className="episode-index-meta">
+                        <ArtifactStatusBadge status={row.outline?.status ?? "draft"} />
+                      </span>
                     </span>
-                    <span className="episode-index-meta">
-                      <ArtifactStatusBadge status={row.outline?.status ?? "draft"} />
-                    </span>
-                    <span className="episode-index-summary">{row.outline?.synopsis || "尚未填写本集梗概"}</span>
+                    <span className="episode-index-title">{row.outline?.title || "未填写标题"}</span>
                   </button>
                 ))}
               </div>
@@ -1404,19 +1416,6 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
       {!isLandingMode && activeStage === "content" ? (
         <section className="panel stack">
           <form className="episode-writing-form stack" onSubmit={saveEpisodeContent}>
-            <div className="episode-writing-toolbar">
-              <div className="episode-toolbar-main">
-                <span className="episode-chip">第 {selectedEpisodeNo} 集</span>
-              </div>
-              <div className="episode-toolbar-actions">
-                <span className="word-count-row">{contentWordCount} 字</span>
-                <StatusSelect value={contentForm.status} onChange={(value) => setContentFormValue("status", value, setContentForm)} />
-                <button className="button" type="submit" disabled={isSaving}>
-                  {isSaving ? "保存中..." : "保存"}
-                </button>
-              </div>
-            </div>
-
             {isLoadingEpisodeArtifacts ? <div className="empty-state">正在加载单集故事正文...</div> : null}
 
             <div className="episode-writing-workspace">
@@ -1433,43 +1432,27 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
                     >
                       <span className="episode-index-main">
                         <strong>第 {row.episodeNo} 集</strong>
-                        <span>{row.outline?.title || "未填写标题"}</span>
+                        <span className="episode-index-meta">
+                          {selectedEpisodeNo === row.episodeNo ? (
+                            <ArtifactStatusBadge status={episodeContent?.status ?? contentForm.status} />
+                          ) : (
+                            <ArtifactStatusBadge status={row.outline?.status ?? "draft"} />
+                          )}
+                        </span>
                       </span>
-                      <span className="episode-index-meta">
-                        {selectedEpisodeNo === row.episodeNo ? (
-                          <ArtifactStatusBadge status={episodeContent?.status ?? contentForm.status} />
-                        ) : (
-                          <ArtifactStatusBadge status={row.outline?.status ?? "draft"} />
-                        )}
-                      </span>
-                      <span className="episode-index-summary">{row.outline?.synopsis || "尚未填写本集梗概"}</span>
+                      <span className="episode-index-title">{row.outline?.title || "未填写标题"}</span>
                     </button>
                   ))}
                 </div>
               </aside>
 
-              <aside className="writing-context-panel" aria-label="章节上下文与 AI 创作控制台">
+              <aside className="writing-context-panel" aria-label="章节上下文与正文元信息">
                 <ReferenceCard title="本章大纲">
                   <p>{selectedEpisodeOutline?.synopsis || "尚未填写本集梗概。"}</p>
                   <p className="hint">{selectedEpisodeOutline?.hook ? `钩子：${selectedEpisodeOutline.hook}` : "可先在分集大纲中补充钩子。"}</p>
                 </ReferenceCard>
                 <ReferenceCard title="章节标题">
                   <TextInput label="标题" value={contentForm.title} onChange={(value) => setContentFormValue("title", value, setContentForm)} />
-                </ReferenceCard>
-                <ReferenceCard title="AI 创作控制台">
-                  <div className="ai-action-grid" aria-label="AI 创作能力入口">
-                    {episodeAiActions.map((action) => (
-                      <button
-                        className="button secondary"
-                        type="button"
-                        key={action}
-                        onClick={() => showAiPlaceholder(action)}
-                      >
-                        {action}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="hint">当前仅展示入口，暂不调用后端 AI 接口。</p>
                 </ReferenceCard>
                 <ReferenceCard title="章节摘要">
                   <TextArea label="摘要" value={contentForm.chapter_summary} onChange={(value) => setContentFormValue("chapter_summary", value, setContentForm)} />
@@ -1489,9 +1472,22 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
                 <div className="paper-editor-heading">
                   <div>
                     <h3>正文编辑区</h3>
-                    <p className="hint">单集故事正文是可读的故事 / 小说化文本，不是短剧剧本。</p>
                   </div>
-                  <ArtifactStatusBadge status={episodeContent?.status ?? contentForm.status} />
+                  <div className="paper-editor-actions">
+                    <span className="word-count-row">{contentWordCount} 字</span>
+                    <select
+                      aria-label="正文状态"
+                      value={contentForm.status}
+                      onChange={(event) => setContentFormValue("status", event.target.value as ProjectArtifactStatus, setContentForm)}
+                    >
+                      <option value="draft">草稿</option>
+                      <option value="confirmed">已确认</option>
+                      <option value="needs_review">需要检查</option>
+                    </select>
+                    <button className="button" type="submit" disabled={isSaving}>
+                      {isSaving ? "保存中..." : "保存"}
+                    </button>
+                  </div>
                 </div>
                 <TextArea label="正文内容" value={contentForm.detailed_content} onChange={(value) => setContentFormValue("detailed_content", value, setContentForm)} />
               </section>
