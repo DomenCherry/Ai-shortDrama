@@ -222,11 +222,12 @@
 | 删除分镜镜头 | `deleteProjectStoryboardShot` | `DELETE /api/projects/{project_id}/storyboard-shots/{episode_no}/{shot_id}` | shot_id | `{ ok: true }` | 展示分镜删除失败 |
 | 读取/保存文案 | `getProjectCopywriting` / `updateProjectCopywriting` | `GET/PUT /api/projects/{project_id}/copywriting/{episode_no}` | 文案字段 | 文案 | 展示文案加载或保存失败 |
 
-## 5. 响应式要求
+## 5. 桌面端布局要求
 
-- 三个工作入口在桌面端可横向并列，在窄屏下改为单列。
+- 第一期项目工作台默认面向桌面端使用，不要求移动端专门适配。
+- 三个工作入口在桌面端横向并列展示。
 - 入口卡片高度应稳定，状态文案过长时自然换行。
-- 分集选择器、剧本、分镜、文案表单在窄屏下不横向溢出。
+- 模块编辑页优先保证 `1280px` 及以上宽度下信息密度和编辑效率。
 - 短剧制作的只读上下文摘要不应遮挡编辑表单。
 
 ## 6. 验收标准

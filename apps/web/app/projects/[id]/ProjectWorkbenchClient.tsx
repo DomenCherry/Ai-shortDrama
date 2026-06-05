@@ -880,28 +880,49 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
   }
 
   return (
-    <div className="stack">
-      <header className="page-header">
-        <div>
-          <h1 className="page-title">{isLandingMode ? project.title : currentWorkspaceGroup?.title}</h1>
-          <p className="page-description">
-            {isLandingMode
-              ? "先维护项目资料和资产，再完成故事文本，最后把单集故事正文转换为短剧制作文本。上游变更后，下游内容会提示需要检查。"
-              : currentWorkspaceGroup?.description}
-          </p>
-          {!isLandingMode ? <p className="hint">当前项目：{project.title}</p> : null}
-        </div>
-        <div className="actions">
-          {!isLandingMode ? (
-            <Link className="button secondary" href={`/projects/${projectId}`}>
-              返回工作台入口
+    <div className={`stack ${!isLandingMode ? "module-workbench" : ""}`}>
+      {isLandingMode ? (
+        <header className="page-header">
+          <div>
+            <h1 className="page-title">{project.title}</h1>
+            <p className="page-description">
+              先维护项目资料和资产，再完成故事文本，最后把单集故事正文转换为短剧制作文本。上游变更后，下游内容会提示需要检查。
+            </p>
+          </div>
+          <div className="actions">
+            <Link className="button secondary" href="/">
+              返回项目管理
             </Link>
-          ) : null}
-          <Link className="button secondary" href="/">
-            返回项目管理
-          </Link>
-        </div>
-      </header>
+          </div>
+        </header>
+      ) : (
+        <header className="module-toolbar">
+          <div className="module-toolbar-title">
+            <h1>{currentWorkspaceGroup?.title}</h1>
+            <span title={currentWorkspaceGroup?.description}>当前项目：{project.title}</span>
+          </div>
+          <nav className="module-subnav" aria-label={`${currentWorkspaceGroup?.title ?? "模块"}内容导航`}>
+            {visibleStages.map((stage) => (
+              <button
+                className={`module-subnav-tab ${activeStage === stage.key ? "active" : ""}`}
+                type="button"
+                key={stage.key}
+                onClick={() => setActiveStage(stage.key)}
+              >
+                {stage.label}
+              </button>
+            ))}
+          </nav>
+          <div className="module-toolbar-actions">
+            <Link className="button secondary compact-button" href={`/projects/${projectId}`}>
+              工作台入口
+            </Link>
+            <Link className="button secondary compact-button" href="/">
+              项目管理
+            </Link>
+          </div>
+        </header>
+      )}
 
       {isLandingMode ? (
       <section className="panel stack">
@@ -961,25 +982,14 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
       </section>
       ) : null}
 
-      {!isLandingMode ? (
-        <nav className="module-subnav" aria-label={`${currentWorkspaceGroup?.title ?? "模块"}内容导航`}>
-          {visibleStages.map((stage) => (
-            <button
-              className={`module-subnav-tab ${activeStage === stage.key ? "active" : ""}`}
-              type="button"
-              key={stage.key}
-              onClick={() => setActiveStage(stage.key)}
-            >
-              {stage.label}
-            </button>
-          ))}
-        </nav>
+      {error || status || assetError || artifactError ? (
+        <div className="module-status-strip">
+          {error ? <span className="error">{error}</span> : null}
+          {status ? <span className="success">{status}</span> : null}
+          {assetError ? <span className="error">{assetError}</span> : null}
+          {artifactError ? <span className="error">{artifactError}</span> : null}
+        </div>
       ) : null}
-
-      {error ? <div className="error">{error}</div> : null}
-      {status ? <div className="success">{status}</div> : null}
-      {assetError ? <div className="error">{assetError}</div> : null}
-      {artifactError ? <div className="error">{artifactError}</div> : null}
 
       {!isLandingMode && activeStage === "settings" ? (
         <form className="panel stack" onSubmit={saveProject}>
@@ -1393,12 +1403,10 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
 
       {!isLandingMode && activeStage === "content" ? (
         <section className="panel stack">
-          <SectionTitle title="单集故事正文" status={episodeContent?.status ?? contentForm.status} />
           <form className="episode-writing-form stack" onSubmit={saveEpisodeContent}>
             <div className="episode-writing-toolbar">
               <div className="episode-toolbar-main">
                 <span className="episode-chip">第 {selectedEpisodeNo} 集</span>
-                <TextInput label="章节标题" value={contentForm.title} onChange={(value) => setContentFormValue("title", value, setContentForm)} />
               </div>
               <div className="episode-toolbar-actions">
                 <span className="word-count-row">{contentWordCount} 字</span>
@@ -1444,6 +1452,9 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
                 <ReferenceCard title="本章大纲">
                   <p>{selectedEpisodeOutline?.synopsis || "尚未填写本集梗概。"}</p>
                   <p className="hint">{selectedEpisodeOutline?.hook ? `钩子：${selectedEpisodeOutline.hook}` : "可先在分集大纲中补充钩子。"}</p>
+                </ReferenceCard>
+                <ReferenceCard title="章节标题">
+                  <TextInput label="标题" value={contentForm.title} onChange={(value) => setContentFormValue("title", value, setContentForm)} />
                 </ReferenceCard>
                 <ReferenceCard title="AI 创作控制台">
                   <div className="ai-action-grid" aria-label="AI 创作能力入口">
@@ -1760,28 +1771,31 @@ function ProductionContextSummary({
   const hasMissingContext = worldSnapshots.length === 0 || characterSnapshots.length === 0 || !episodeOutline;
 
   return (
-    <section className="readonly-context" aria-label="短剧制作沿用上下文">
-      <div>
-        <div className="readonly-context-title">沿用上游上下文</div>
+    <section className="readonly-context readonly-context-compact" aria-label="短剧制作沿用上下文">
+      <details>
+        <summary>
+          <span className="readonly-context-title">沿用上游上下文</span>
+          <span className="hint">世界观 {worldSnapshots[0]?.name || "未加载"} · 角色 {characterSnapshots.length} 个 · 正文 {artifactStatusLabel(episodeContentStatus)}</span>
+        </summary>
         <p className="hint">短剧制作只读取项目资产和故事文本；如需调整世界观、角色或单集故事正文，请回到对应入口修改。</p>
-      </div>
-      <div className="readonly-context-grid">
-        <Metric label="世界观" value={worldSnapshots[0]?.name || "未加载"} />
-        <Metric label="角色" value={`${characterSnapshots.length} 个`} />
-        <Metric label="整体大纲" value={artifactStatusLabel(storyOutlineStatus)} />
-        <Metric label="当前分集大纲" value={episodeOutline ? artifactStatusLabel(episodeOutline.status) : "草稿"} />
-        <Metric label="当前单集正文" value={artifactStatusLabel(episodeContentStatus)} />
-      </div>
+        <div className="readonly-context-grid">
+          <Metric label="世界观" value={worldSnapshots[0]?.name || "未加载"} />
+          <Metric label="角色" value={`${characterSnapshots.length} 个`} />
+          <Metric label="整体大纲" value={artifactStatusLabel(storyOutlineStatus)} />
+          <Metric label="当前分集大纲" value={episodeOutline ? artifactStatusLabel(episodeOutline.status) : "草稿"} />
+          <Metric label="当前单集正文" value={artifactStatusLabel(episodeContentStatus)} />
+        </div>
+        <div className="actions">
+          <Link className="button secondary" href={`/projects/${projectId}/assets`}>
+            回到项目资料 / 资产
+          </Link>
+          <Link className="button secondary" href={`/projects/${projectId}/story-text?stage=content`}>
+            回到单集故事正文
+          </Link>
+        </div>
+      </details>
       {hasNeedsReview ? <div className="warning-text">上游故事文本存在需要检查内容，建议确认后再继续短剧制作。</div> : null}
       {hasMissingContext ? <div className="warning-text">项目资产或当前集故事文本尚未完整，短剧制作结果可能缺少连续性依据。</div> : null}
-      <div className="actions">
-        <Link className="button secondary" href={`/projects/${projectId}/assets`}>
-          回到项目资料 / 资产
-        </Link>
-        <Link className="button secondary" href={`/projects/${projectId}/story-text?stage=content`}>
-          回到单集故事正文
-        </Link>
-      </div>
     </section>
   );
 }

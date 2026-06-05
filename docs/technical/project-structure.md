@@ -177,7 +177,7 @@ docs/technical/frontend-page-spec-template.md
 - 交互状态。
 - API 依赖。
 - 错误提示。
-- 响应式要求。
+- 桌面端布局要求。
 - 验收标准。
 
 页面 spec 只描述前端行为和验收，不替代模块 PRD 或后端接口 spec。
@@ -204,7 +204,7 @@ docs/technical/frontend-page-spec-template.md
 
 前端 spec 可以保留 API 依赖表，但只用于说明页面调用关系；接口字段、数据库写入、错误码、安全边界和状态传播以后端 spec 为准。
 
-后端 spec 可以保留前端 service 对齐表，但只用于说明接口调用入口；页面布局、按钮动作、交互状态和响应式要求以前端 spec 为准。
+后端 spec 可以保留前端 service 对齐表，但只用于说明接口调用入口；页面布局、按钮动作、交互状态和桌面端布局要求以前端 spec 为准。
 
 ## 10. 功能实现流程
 
