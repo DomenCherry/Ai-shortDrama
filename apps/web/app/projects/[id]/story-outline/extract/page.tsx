@@ -156,7 +156,7 @@ export default function StoryOutlineExtractPage() {
     setStatus("");
     try {
       await updateProjectStoryOutline(projectId, storyFormToPayload(previewForm));
-      router.push(`/projects/${projectId}?stage=story`);
+      router.push(`/projects/${projectId}/story-text`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "故事大纲确认失败");
     } finally {
@@ -173,7 +173,7 @@ export default function StoryOutlineExtractPage() {
             {isLoadingProject ? "正在加载项目资料..." : `${project?.title ?? "项目"} · 上传参考故事后抽取去具体化的大纲预览。`}
           </p>
         </div>
-        <Link className="button secondary" href={`/projects/${projectId}?stage=story`}>
+        <Link className="button secondary" href={`/projects/${projectId}/story-text`}>
           返回故事大纲
         </Link>
       </header>
@@ -241,7 +241,7 @@ export default function StoryOutlineExtractPage() {
             ))}
           </div>
           <div className="actions">
-            <Link className="button secondary" href={`/projects/${projectId}?stage=story`}>
+            <Link className="button secondary" href={`/projects/${projectId}/story-text`}>
               取消
             </Link>
             <button className="button" type="submit" disabled={!draft || draft.validation_status !== "passed" || isSaving}>
