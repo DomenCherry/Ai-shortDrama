@@ -55,6 +55,15 @@ apps
 
 后端继续保持 `api / core / models / services` 分层。
 
+Projects 后端已做行为不变的结构性拆分：
+
+- `api/projects.py` 保留为 `/api/projects` 路由聚合器。
+- `api/project_routes/` 按项目基础、资产、故事文本和短剧制作拆分 route。
+- `services/projects.py` 保留为兼容 facade。
+- `services/project/` 按项目基础、资产、故事文本、短剧制作和生成公共能力拆分业务逻辑。
+
+该拆分不改变 HTTP 路径、请求体、响应体、数据库 schema 或前端 API client。
+
 后续预留但暂不实现：
 
 - `generation`：文本生成、图片生成和 AI 任务记录。

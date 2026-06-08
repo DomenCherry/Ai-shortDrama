@@ -89,6 +89,45 @@ apps/api/app
 - `models`：SQLAlchemy 模型和 Pydantic schema。
 - `services`：业务逻辑。
 
+Projects 模块已按业务域拆分。对外 HTTP 路径保持 `/api/projects` 不变，内部结构为：
+
+```text
+apps/api/app
+├── api
+│   ├── projects.py
+│   └── project_routes
+│       ├── management.py
+│       ├── assets.py
+│       ├── story_outline.py
+│       ├── episode_outlines.py
+│       ├── episode_contents.py
+│       ├── episode_scripts.py
+│       └── production.py
+└── services
+    ├── projects.py
+    └── project
+        ├── common.py
+        ├── management.py
+        ├── assets.py
+        ├── generation_common.py
+        ├── story
+        │   ├── outline.py
+        │   ├── episode_outlines.py
+        │   ├── episode_contents.py
+        │   └── episode_scripts.py
+        └── production
+            ├── storyboard.py
+            └── copywriting.py
+```
+
+边界规则：
+
+- `api/projects.py` 只聚合 projects 子路由，不承载具体接口实现。
+- `services/projects.py` 是兼容 facade，只重新导出原公开 service 函数。
+- `project/common.py` 承载通用序列化、episode 校验和下游 `needs_review` 状态传播。
+- `project/generation_common.py` 承载规则文件读取、文本模型调用、JSON 解析和生成上下文公共能力。
+- 新增 projects 子能力时优先放入对应业务域模块，不继续堆叠到兼容 facade。
+
 后续预留服务模块：
 
 - `generation`：文本生成、图片生成和 AI 任务记录。
