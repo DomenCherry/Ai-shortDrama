@@ -1340,6 +1340,9 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
           <div className="section-heading">
             <h2>整体故事大纲</h2>
             <ArtifactStatusBadge status={storyOutline?.status ?? storyForm.status} />
+            <Link className="button secondary" href={`/projects/${projectId}/story-outline/assist`}>
+              AI协助
+            </Link>
             <Link className="button secondary" href={`/projects/${projectId}/story-outline/extract`}>
               AI提取
             </Link>

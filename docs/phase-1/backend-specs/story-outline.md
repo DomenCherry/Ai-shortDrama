@@ -1,4 +1,4 @@
-# 后端接口 Spec：整体故事大纲与参考故事结构抽取
+# 后端接口 Spec：整体故事大纲、AI 协助与参考故事结构抽取
 
 ## 1. 适用范围
 
@@ -7,6 +7,7 @@
 覆盖能力：
 
 - 查询和保存正式整体故事大纲。
+- 通过对话式 AI 协助补齐故事大纲字段草稿。
 - 生成完整整体故事大纲。
 - 局部改写整体故事大纲字段。
 - 上传或粘贴参考故事文本。
@@ -20,13 +21,14 @@
 - PDF、Word、网页链接或图片 OCR 输入。
 - 参考故事版权状态识别。
 - 复杂版本对比和回滚。
+- AI 协助创作对话记录持久化。
 - 自动生成分集大纲、人物设定或剧本。
 
 ## 2. 核心后端规则
 
 ### 2.1 文本模型前置校验
 
-AI 生成和参考故事结构抽取必须读取当前启用且最近测试成功的文本模型配置。
+AI 生成、AI 协助创作和参考故事结构抽取必须读取当前启用且最近测试成功的文本模型配置。
 
 如果没有可用文本模型配置，接口返回 `400`，错误提示：
 
@@ -55,7 +57,17 @@ AI 生成和参考故事结构抽取必须读取当前启用且最近测试成�
 
 - `rules/story-outline-rule.md`
 
-### 2.4 去具体化校验
+### 2.4 AI 协助创作规则
+
+AI 协助创作必须使用独立规则模板：
+
+- `rules/story-outline-assistant-rule.md`
+
+后端不得将 AI 协助创作对话交给普通整体故事大纲生成 Prompt 或参考故事结构抽取 Prompt。
+
+AI 协助接口只返回引导话术、字段补丁和完成状态，不写入 `ProjectStoryOutline`，不标记下游内容为 `needs_review`。只有前端后续调用正式故事大纲保存接口时，才触发正式保存和下游状态传播。
+
+### 2.5 去具体化校验
 
 参考框架草稿生成后，后端必须执行输出校验。
 
@@ -73,7 +85,7 @@ AI 生成和参考故事结构抽取必须读取当前启用且最近测试成�
 
 如果第一次校验失败，服务层应优先触发一次基于失败原因的重新去具体化。重试后仍失败时，保存失败草稿和失败原因，并阻止应用。
 
-### 2.5 下游状态传播
+### 2.6 下游状态传播
 
 以下操作成功后，后端应将已存在的下游内容标记为 `needs_review`：
 
@@ -81,6 +93,7 @@ AI 生成和参考故事结构抽取必须读取当前启用且最近测试成�
 - 生成完整故事大纲并写入正式大纲。
 - 局部改写并写入正式大纲。
 - 应用参考框架草稿到正式故事大纲。
+- AI 协助创作确认保存正式故事大纲。
 
 下游范围：
 
@@ -90,7 +103,7 @@ AI 生成和参考故事结构抽取必须读取当前启用且最近测试成�
 - 分镜。
 - 文案。
 
-仅上传参考故事或生成参考框架草稿，不标记下游内容。
+仅上传参考故事、生成参考框架草稿、进入 AI 协助创作页、发送 AI 协助对话或更新页面草稿，不标记下游内容。
 
 ## 3. 数据对象
 
@@ -149,6 +162,21 @@ AI 生成和参考故事结构抽取必须读取当前启用且最近测试成�
 | outline_preview | ProjectStoryOutlinePayload | 后端按正式故事大纲字段映射出的可编辑预览，不自动写入正式大纲 |
 | created_at | string | 创建时间 |
 | updated_at | string | 更新时间 |
+
+### 3.3 StoryOutlineAssistResult
+
+AI 协助创作接口返回的临时结果，不落库。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| assistant_message | string | AI 面向用户的下一步引导话术 |
+| outline_patch | Partial<ProjectStoryOutlinePayload> | 本轮建议填充或修改的故事大纲字段补丁，不包含 `status` |
+| completion.required_fields | string[] | 必填字段 key，固定为故事核心层和结构规划层字段 |
+| completion.completed_fields | string[] | 已完成的必填字段 key |
+| completion.missing_fields | string[] | 未完成的必填字段 key |
+| completion.is_complete | boolean | 必填字段是否全部完成 |
+| field_notes | object | 字段更新原因，key 为字段名 |
+| next_focus_fields | string[] | 下一轮建议关注的字段 |
 
 ## 4. 接口定义
 
@@ -259,7 +287,43 @@ POST /api/projects/{project_id}/story-outline/rewrite
 - `preview` 只返回改写内容。
 - `apply` 写回对应字段并标记下游内容为 `needs_review`。
 
-### 4.5 抽取参考故事结构
+### 4.5 AI 协助创作故事大纲
+
+```text
+POST /api/projects/{project_id}/story-outline/assist
+```
+
+请求体：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| action | start / reply | 是 | 启动引导或回复用户输入 |
+| current_outline | ProjectStoryOutlinePayload | 是 | 当前页面字段草稿 |
+| messages | Message[] | 是 | 当前页面内已有对话历史 |
+| user_message | string | reply 必填 | 用户当前轮回复 |
+
+`Message`：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| role | user / assistant | 消息角色 |
+| content | string | 消息内容 |
+
+响应：
+
+- `200`：`StoryOutlineAssistResult`。
+- `400`：文本模型不可用、回复内容为空、模型响应格式非法。
+- `404`：项目不存在。
+
+业务要求：
+
+- 后端必须使用 `rules/story-outline-assistant-rule.md` 作为 system prompt。
+- 接口必须聚合项目基础信息、世界观快照、角色快照、当前字段草稿、对话历史和用户当前回复。
+- `outline_patch` 只允许返回故事大纲文本字段，不允许返回 `status`、`id`、`project_id`、时间字段或下游字段。
+- 必填字段为故事核心层和结构规划层字段；执行辅助层字段不阻塞 `completion.is_complete`。
+- 接口只返回草稿建议，不写入正式故事大纲，不触发下游 `needs_review`。
+
+### 4.6 抽取参考故事结构
 
 ```text
 POST /api/projects/{project_id}/story-structure-drafts/extract
@@ -297,7 +361,7 @@ POST /api/projects/{project_id}/story-structure-drafts/extract
 - 参考故事结构抽取暂不可用，请先配置并测试成功文本生成模型 API。
 - 抽取结果未通过去具体化校验，不能应用到正式故事大纲。
 
-### 4.6 查询参考框架草稿列表
+### 4.7 查询参考框架草稿列表
 
 ```text
 GET /api/projects/{project_id}/story-structure-drafts
@@ -308,7 +372,7 @@ GET /api/projects/{project_id}/story-structure-drafts
 - `200`：`ReferenceStoryStructureDraft[]`，按 `updated_at desc` 排序。
 - `404`：项目不存在。
 
-### 4.7 查询参考框架草稿详情
+### 4.8 查询参考框架草稿详情
 
 ```text
 GET /api/projects/{project_id}/story-structure-drafts/{draft_id}
@@ -319,7 +383,7 @@ GET /api/projects/{project_id}/story-structure-drafts/{draft_id}
 - `200`：`ReferenceStoryStructureDraft`。
 - `404`：项目或草稿不存在。
 
-### 4.8 应用参考框架草稿
+### 4.9 应用参考框架草稿
 
 ```text
 POST /api/projects/{project_id}/story-structure-drafts/{draft_id}/apply
@@ -347,7 +411,7 @@ POST /api/projects/{project_id}/story-structure-drafts/{draft_id}/apply
 - 成功后设置草稿 `status = "applied"`。
 - 成功后标记下游内容为 `needs_review`。
 
-### 4.9 废弃参考框架草稿
+### 4.10 废弃参考框架草稿
 
 ```text
 POST /api/projects/{project_id}/story-structure-drafts/{draft_id}/discard

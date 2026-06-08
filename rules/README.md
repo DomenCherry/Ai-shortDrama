@@ -11,6 +11,7 @@
 
 - `topic-planning-rule.md`：选题策划规则。
 - `story-outline-rule.md`：整体故事大纲与剧情脉络规则。
+- `story-outline-assistant-rule.md`：故事大纲 AI 协助创作规则。
 - `story-structure-extraction-rule.md`：参考故事结构抽取与去具体化规则。
 - `character-design-rule.md`：人物设定规则。
 - `character-image-rule.md`：人物示意图与图片提示词规则。
@@ -22,5 +23,6 @@
 - 用户已有手动修改内容时，以用户修改为准。
 - 下游内容必须引用上游已确认内容。
 - 参考故事结构抽取必须使用独立规则，不得复用普通故事大纲、摘要或改写规则。
+- 故事大纲 AI 协助创作必须使用独立规则，不得复用普通故事大纲生成或参考故事结构抽取规则。
 - 生成结果应可编辑、可复用、可导出。
 - 短剧总时长不超过 240 分钟，单集时长不超过 2 分钟。

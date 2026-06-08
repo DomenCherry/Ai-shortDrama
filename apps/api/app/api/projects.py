@@ -20,6 +20,8 @@ from app.models.schemas import (
     ReferenceStoryStructureApplyPayload,
     ReferenceStoryStructureDraftResponse,
     ReferenceStoryStructureExtractPayload,
+    StoryOutlineAssistPayload,
+    StoryOutlineAssistResult,
     StoryOutlineGenerationResult,
     StoryOutlineGeneratePayload,
     StoryOutlineRewritePayload,
@@ -145,6 +147,15 @@ async def rewrite_story_outline(project_id: str, payload: StoryOutlineRewritePay
         return await projects.rewrite_story_outline(project_id, payload)
     except ValueError as exc:
         status_code = 404 if str(exc) in {"项目不存在", "整体故事大纲不存在"} else 400
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
+
+
+@router.post("/{project_id}/story-outline/assist", response_model=StoryOutlineAssistResult, response_model_exclude_none=True)
+async def assist_story_outline(project_id: str, payload: StoryOutlineAssistPayload) -> dict:
+    try:
+        return await projects.assist_story_outline(project_id, payload)
+    except ValueError as exc:
+        status_code = 404 if str(exc) == "项目不存在" else 400
         raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 

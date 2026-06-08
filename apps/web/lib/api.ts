@@ -136,6 +136,35 @@ export type StoryOutlineRewriteResult = {
   saved_outline?: ProjectStoryOutline;
 };
 
+export type StoryOutlineAssistMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type StoryOutlineAssistPatch = Partial<Omit<ProjectStoryOutlinePayload, "status">>;
+
+export type StoryOutlineAssistPayload = {
+  action: "start" | "reply";
+  current_outline: ProjectStoryOutlinePayload;
+  messages: StoryOutlineAssistMessage[];
+  user_message?: string;
+};
+
+export type StoryOutlineAssistCompletion = {
+  required_fields: string[];
+  completed_fields: string[];
+  missing_fields: string[];
+  is_complete: boolean;
+};
+
+export type StoryOutlineAssistResult = {
+  assistant_message: string;
+  outline_patch: StoryOutlineAssistPatch;
+  completion: StoryOutlineAssistCompletion;
+  field_notes: Record<string, string>;
+  next_focus_fields: string[];
+};
+
 export type ReferenceStoryStructureDraft = {
   id: string;
   project_id: string;
@@ -552,6 +581,13 @@ export function generateProjectStoryOutline(projectId: string, payload: StoryOut
 
 export function rewriteProjectStoryOutlineField(projectId: string, payload: StoryOutlineRewritePayload) {
   return request<StoryOutlineRewriteResult>(`/api/projects/${projectId}/story-outline/rewrite`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function assistProjectStoryOutline(projectId: string, payload: StoryOutlineAssistPayload) {
+  return request<StoryOutlineAssistResult>(`/api/projects/${projectId}/story-outline/assist`, {
     method: "POST",
     body: JSON.stringify(payload)
   });

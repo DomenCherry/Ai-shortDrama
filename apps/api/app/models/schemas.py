@@ -16,6 +16,8 @@ ReferenceStoryDraftStatus = Literal["draft", "applied", "discarded"]
 ReferenceStoryValidationStatus = Literal["pending", "passed", "failed"]
 StoryOutlineWriteMode = Literal["preview", "apply"]
 ReferenceStoryApplyMode = Literal["fill_empty", "overwrite"]
+StoryOutlineAssistAction = Literal["start", "reply"]
+StoryOutlineAssistMessageRole = Literal["user", "assistant"]
 
 
 class ModelApiConfigCreate(BaseModel):
@@ -579,6 +581,96 @@ class StoryOutlineRewriteResult(BaseModel):
     value: str
     applied: bool
     saved_outline: Optional[ProjectStoryOutlineResponse] = None
+
+
+class StoryOutlineAssistMessage(BaseModel):
+    role: StoryOutlineAssistMessageRole
+    content: str = Field(min_length=1)
+
+    @field_validator("content", mode="before")
+    @classmethod
+    def normalize_content(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class StoryOutlineAssistPatch(BaseModel):
+    logline: Optional[str] = None
+    story_background: Optional[str] = None
+    core_conflict: Optional[str] = None
+    main_goal: Optional[str] = None
+    story_start: Optional[str] = None
+    plot_structure: Optional[str] = None
+    reversals: Optional[str] = None
+    emotion_curve: Optional[str] = None
+    foreshadowing: Optional[str] = None
+    character_arcs: Optional[str] = None
+    ending_direction: Optional[str] = None
+    pacing_advice: Optional[str] = None
+    capacity_advice: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator(
+        "logline",
+        "story_background",
+        "core_conflict",
+        "main_goal",
+        "story_start",
+        "plot_structure",
+        "reversals",
+        "emotion_curve",
+        "foreshadowing",
+        "character_arcs",
+        "ending_direction",
+        "pacing_advice",
+        "capacity_advice",
+        "notes",
+        mode="before",
+    )
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class StoryOutlineAssistPayload(BaseModel):
+    action: StoryOutlineAssistAction
+    current_outline: ProjectStoryOutlinePayload
+    messages: list[StoryOutlineAssistMessage] = Field(default_factory=list)
+    user_message: Optional[str] = None
+
+    @field_validator("user_message", mode="before")
+    @classmethod
+    def normalize_user_message(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class StoryOutlineAssistCompletion(BaseModel):
+    required_fields: list[str]
+    completed_fields: list[str]
+    missing_fields: list[str]
+    is_complete: bool
+
+
+class StoryOutlineAssistResult(BaseModel):
+    assistant_message: str
+    outline_patch: StoryOutlineAssistPatch
+    completion: StoryOutlineAssistCompletion
+    field_notes: dict[str, str] = Field(default_factory=dict)
+    next_focus_fields: list[str] = Field(default_factory=list)
 
 
 class ReferenceStoryStructureExtractPayload(BaseModel):

@@ -33,6 +33,8 @@ from app.models.schemas import (
     ProjectStoryOutlinePayload,
     ReferenceStoryStructureApplyPayload,
     ReferenceStoryStructureExtractPayload,
+    StoryOutlineAssistPatch,
+    StoryOutlineAssistPayload,
     StoryOutlineGeneratePayload,
     StoryOutlineRewritePayload,
     ProjectUpdate,
@@ -56,6 +58,20 @@ STORY_OUTLINE_FIELDS = (
     "pacing_advice",
     "capacity_advice",
     "notes",
+)
+
+STORY_OUTLINE_ASSIST_REQUIRED_FIELDS = (
+    "logline",
+    "story_background",
+    "main_goal",
+    "core_conflict",
+    "story_start",
+    "ending_direction",
+    "plot_structure",
+    "reversals",
+    "emotion_curve",
+    "foreshadowing",
+    "character_arcs",
 )
 
 REFERENCE_DRAFT_FIELDS = (
@@ -339,6 +355,65 @@ def _generated_outline_payload(data: dict[str, Any]) -> ProjectStoryOutlinePaylo
     return ProjectStoryOutlinePayload(**normalized, status="draft")
 
 
+def _story_outline_assist_patch(data: dict[str, Any]) -> StoryOutlineAssistPatch:
+    raw_patch = data.get("outline_patch")
+    if not isinstance(raw_patch, dict):
+        raw_patch = {}
+    normalized = {
+        field: _normalize_optional_text(str(raw_patch.get(field))) if raw_patch.get(field) is not None else None
+        for field in STORY_OUTLINE_FIELDS
+    }
+    return StoryOutlineAssistPatch(**normalized)
+
+
+def _merge_story_outline_patch(payload: ProjectStoryOutlinePayload, patch: StoryOutlineAssistPatch) -> ProjectStoryOutlinePayload:
+    values = _outline_payload_dict(payload)
+    for field in STORY_OUTLINE_FIELDS:
+        value = getattr(patch, field)
+        if value is not None:
+            values[field] = value
+    return ProjectStoryOutlinePayload(**values)
+
+
+def _story_outline_assist_completion(payload: ProjectStoryOutlinePayload) -> dict[str, Any]:
+    completed_fields = [
+        field
+        for field in STORY_OUTLINE_ASSIST_REQUIRED_FIELDS
+        if _normalize_optional_text(getattr(payload, field))
+    ]
+    missing_fields = [field for field in STORY_OUTLINE_ASSIST_REQUIRED_FIELDS if field not in completed_fields]
+    return {
+        "required_fields": list(STORY_OUTLINE_ASSIST_REQUIRED_FIELDS),
+        "completed_fields": completed_fields,
+        "missing_fields": missing_fields,
+        "is_complete": len(missing_fields) == 0,
+    }
+
+
+def _story_outline_assist_notes(data: dict[str, Any]) -> dict[str, str]:
+    raw_notes = data.get("field_notes")
+    if not isinstance(raw_notes, dict):
+        return {}
+    notes: dict[str, str] = {}
+    for field, note in raw_notes.items():
+        if field in STORY_OUTLINE_FIELDS and note is not None:
+            normalized = _normalize_optional_text(str(note))
+            if normalized:
+                notes[field] = normalized
+    return notes
+
+
+def _story_outline_assist_next_focus(data: dict[str, Any]) -> list[str]:
+    raw_fields = data.get("next_focus_fields")
+    if not isinstance(raw_fields, list):
+        return []
+    fields: list[str] = []
+    for field in raw_fields:
+        if isinstance(field, str) and field in STORY_OUTLINE_FIELDS and field not in fields:
+            fields.append(field)
+    return fields
+
+
 def _reference_draft_payload(data: dict[str, Any]) -> dict[str, str | None]:
     return {field: _normalize_optional_text(str(data.get(field))) if data.get(field) is not None else None for field in REFERENCE_DRAFT_FIELDS}
 
@@ -470,6 +545,32 @@ def _rewrite_prompt(project: Project, field: str, current_value: str, instructio
     return (
         "请局部改写指定故事大纲字段。只返回 JSON 对象，不要返回 Markdown。\n"
         "JSON 字段必须包含 value，value 为改写后的中文字符串。\n\n"
+        f"{json.dumps(context, ensure_ascii=False)}"
+    )
+
+
+def _story_outline_assist_prompt(
+    project: Project,
+    world_snapshots: list[ProjectWorldSnapshot],
+    character_snapshots: list[ProjectCharacterSnapshot],
+    payload: StoryOutlineAssistPayload,
+) -> str:
+    completion = _story_outline_assist_completion(payload.current_outline)
+    context = {
+        "action": payload.action,
+        "project": _project_to_response(project),
+        "world_snapshots": [_world_snapshot_to_response(snapshot) for snapshot in world_snapshots],
+        "character_snapshots": [_character_snapshot_to_response(snapshot) for snapshot in character_snapshots],
+        "current_outline": _outline_payload_dict(payload.current_outline),
+        "completion": completion,
+        "messages": [message.model_dump() for message in payload.messages],
+        "user_message": payload.user_message,
+        "required_fields": list(STORY_OUTLINE_ASSIST_REQUIRED_FIELDS),
+    }
+    return (
+        "请根据以下上下文，以故事大纲 AI 协助创作身份继续引导用户。只返回 JSON 对象，不要返回 Markdown。\n"
+        "JSON 字段必须包含：assistant_message、outline_patch、field_notes、next_focus_fields。\n"
+        "outline_patch 只能包含允许的故事大纲文本字段，不得包含 status 或元数据字段。\n\n"
         f"{json.dumps(context, ensure_ascii=False)}"
     )
 
@@ -888,6 +989,35 @@ async def rewrite_story_outline(project_id: str, payload: StoryOutlineRewritePay
         _mark_story_downstream_for_review(session, project_id)
         session.flush()
         return {"field": payload.field, "value": value, "applied": True, "saved_outline": _story_outline_to_response(outline)}
+
+
+async def assist_story_outline(project_id: str, payload: StoryOutlineAssistPayload) -> dict[str, Any]:
+    if payload.action == "reply" and not payload.user_message:
+        raise ValueError("请先输入回复内容")
+
+    with get_session() as session:
+        project = session.get(Project, project_id)
+        if not project:
+            raise ValueError("项目不存在")
+        world_snapshots = session.scalars(select(ProjectWorldSnapshot).where(ProjectWorldSnapshot.project_id == project_id)).all()
+        character_snapshots = session.scalars(select(ProjectCharacterSnapshot).where(ProjectCharacterSnapshot.project_id == project_id)).all()
+        prompt = _story_outline_assist_prompt(project, world_snapshots, character_snapshots, payload)
+
+    system_prompt = _read_rule("story-outline-assistant-rule.md")
+    data = await _call_text_generation_api(system_prompt, prompt, max_tokens=1400)
+    assistant_message = _normalize_optional_text(str(data.get("assistant_message"))) if data.get("assistant_message") is not None else None
+    if not assistant_message:
+        raise ValueError("AI 协助响应缺少引导内容")
+
+    patch = _story_outline_assist_patch(data)
+    merged_outline = _merge_story_outline_patch(payload.current_outline, patch)
+    return {
+        "assistant_message": assistant_message,
+        "outline_patch": patch.model_dump(exclude_none=True),
+        "completion": _story_outline_assist_completion(merged_outline),
+        "field_notes": _story_outline_assist_notes(data),
+        "next_focus_fields": _story_outline_assist_next_focus(data),
+    }
 
 
 def list_reference_story_structure_drafts(project_id: str) -> list[dict[str, Any]]:
