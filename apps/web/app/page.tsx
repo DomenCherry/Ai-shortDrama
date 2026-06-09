@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { listProjects, ProjectSummary } from "@/lib/api";
 
 export default function ProjectManagementPage() {
@@ -33,9 +35,9 @@ export default function ProjectManagementPage() {
           <h1 className="page-title">项目管理</h1>
           <p className="page-description">查看已有短剧项目，继续编辑项目资料，或创建新的短剧项目。</p>
         </div>
-        <Link className="button" href="/projects/new">
-          创建项目
-        </Link>
+        <Button className="button" asChild>
+          <Link href="/projects/new">创建项目</Link>
+        </Button>
       </header>
 
       <section className="panel stack">
@@ -48,9 +50,9 @@ export default function ProjectManagementPage() {
           <div className="stack">
             <div className="error">{error}</div>
             <div className="actions" style={{ justifyContent: "flex-start" }}>
-              <button className="button secondary" type="button" onClick={() => void refreshProjects()}>
+              <Button className="button secondary" type="button" onClick={() => void refreshProjects()}>
                 重试
-              </button>
+              </Button>
             </div>
           </div>
         ) : null}
@@ -59,9 +61,9 @@ export default function ProjectManagementPage() {
           <div className="empty-state stack">
             <p>还没有短剧项目。</p>
             <div className="actions" style={{ justifyContent: "flex-start" }}>
-              <Link className="button" href="/projects/new">
-                创建第一个项目
-              </Link>
+              <Button className="button" asChild>
+                <Link href="/projects/new">创建第一个项目</Link>
+              </Button>
             </div>
           </div>
         ) : null}
@@ -73,9 +75,9 @@ export default function ProjectManagementPage() {
                 <div className="asset-card-main">
                   <div className="asset-card-title">
                     <strong>{project.title}</strong>
-                    <span className={`status-badge status-${project.status === "draft" ? "draft" : "active"}`}>
+                    <Badge className={`status-badge status-${project.status === "draft" ? "draft" : "active"}`}>
                       {project.status === "draft" ? "草稿" : project.status}
-                    </span>
+                    </Badge>
                   </div>
                   <div className="hint">
                     {project.genre || "未设置题材"} · {project.target_platform || "未设置平台"} · {project.episode_count} 集 ·
@@ -85,9 +87,9 @@ export default function ProjectManagementPage() {
                   <p className="hint">更新时间：{new Date(project.updated_at).toLocaleString()}</p>
                 </div>
                 <div className="asset-card-actions">
-                  <Link className="button secondary" href={`/projects/${project.id}`}>
-                    进入工作台
-                  </Link>
+                  <Button className="button secondary" asChild>
+                    <Link href={`/projects/${project.id}`}>进入工作台</Link>
+                  </Button>
                 </div>
               </article>
             ))}

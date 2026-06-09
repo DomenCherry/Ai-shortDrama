@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, MouseEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { createWorldBook } from "@/lib/api";
 import {
   emptyWorldBookForm,
@@ -61,9 +62,9 @@ export default function NewWorldBookPage() {
           <h1 className="page-title">新建世界观</h1>
           <p className="page-description">创建可在多个短剧项目中复用的故事世界设定。项目加载后会保存独立快照。</p>
         </div>
-        <Link className="button secondary" href="/world-books" onClick={guardLeaveToList}>
-          返回列表
-        </Link>
+        <Button className="button secondary" asChild>
+          <Link href="/world-books" onClick={guardLeaveToList}>返回列表</Link>
+        </Button>
       </header>
 
       <form className="panel stack form-page" onSubmit={saveWorldBook}>
@@ -78,12 +79,12 @@ export default function NewWorldBookPage() {
         {error ? <div className="error">{error}</div> : null}
 
         <div className="actions action-wrap">
-          <Link className="button secondary" href="/world-books" onClick={guardLeaveToList}>
-            取消
-          </Link>
-          <button className="button" type="submit" disabled={isSaving}>
+          <Button className="button secondary" asChild>
+            <Link href="/world-books" onClick={guardLeaveToList}>取消</Link>
+          </Button>
+          <Button className="button" type="submit" disabled={isSaving}>
             {isSaving ? "保存中..." : "保存世界观"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

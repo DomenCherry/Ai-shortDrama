@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/simple-select";
+import { Textarea } from "@/components/ui/textarea";
 import { CharacterCard, CharacterCardPayload, CharacterCardStatus, CharacterGender, resolveAssetUrl } from "@/lib/api";
 
 export type CharacterCardForm = {
@@ -88,25 +91,22 @@ export function CharacterCardFormView({ form, onChange, disabled = false, hideSt
           />
           <div className="field">
             <label>性别</label>
-            <select disabled={disabled} value={form.gender} onChange={(event) => onChange("gender", event.target.value)}>
-              <option value="">请选择性别</option>
-              {genderOptions.map((gender) => (
-                <option key={gender} value={gender}>
-                  {gender}
-                </option>
-              ))}
-            </select>
+            <SimpleSelect
+              disabled={disabled}
+              value={form.gender}
+              onValueChange={(value) => onChange("gender", value)}
+              options={[{ label: "请选择性别", value: "" }, ...genderOptions.map((gender) => ({ label: gender, value: gender }))]}
+            />
             <span className="field-hint">性别会用于人物设定、对白称谓和三视图生成，只支持男或女。</span>
           </div>
           <div className="field">
             <label>人物原型</label>
-            <select disabled={disabled} value={form.role_type} onChange={(event) => onChange("role_type", event.target.value)}>
-              {roleOptions.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
+            <SimpleSelect
+              disabled={disabled}
+              value={form.role_type}
+              onValueChange={(value) => onChange("role_type", value)}
+              options={roleOptions.map((role) => ({ label: role, value: role }))}
+            />
             <span className="field-hint">选择跨项目稳定的人设原型，例如复仇者、守护者、操控者或成长型。</span>
           </div>
         </div>
@@ -122,11 +122,16 @@ export function CharacterCardFormView({ form, onChange, disabled = false, hideSt
         {!hideStatusField && (
           <div className="field">
             <label>状态</label>
-            <select disabled={disabled} value={form.status} onChange={(event) => onChange("status", event.target.value)}>
-              <option value="draft">草稿</option>
-              <option value="active">可加载</option>
-              <option value="archived">已归档</option>
-            </select>
+            <SimpleSelect
+              disabled={disabled}
+              value={form.status}
+              onValueChange={(value) => onChange("status", value)}
+              options={[
+                { label: "草稿", value: "draft" },
+                { label: "可加载", value: "active" },
+                { label: "已归档", value: "archived" }
+              ]}
+            />
             <span className="field-hint">草稿用于未完成角色；可加载状态才能加入项目。</span>
           </div>
         )}
@@ -175,7 +180,7 @@ function TextAreaField({
   return (
     <div className="field">
       <label>{label}</label>
-      <textarea disabled={disabled} value={form[field]} onChange={(event) => onChange(field, event.target.value)} placeholder={placeholder} />
+      <Textarea disabled={disabled} value={form[field]} onChange={(event) => onChange(field, event.target.value)} placeholder={placeholder} />
       {hint ? <span className="field-hint">{hint}</span> : null}
     </div>
   );
@@ -201,7 +206,7 @@ function InputField({
   return (
     <div className="field">
       <label>{label}</label>
-      <input disabled={disabled} value={form[field]} onChange={(event) => onChange(field, event.target.value)} placeholder={placeholder} />
+      <Input disabled={disabled} value={form[field]} onChange={(event) => onChange(field, event.target.value)} placeholder={placeholder} />
       {hint ? <span className="field-hint">{hint}</span> : null}
     </div>
   );
@@ -242,7 +247,7 @@ export function TurnaroundPromptField({
   return (
     <div className="field turnaround-prompt-field">
       <label>三视图提示词</label>
-      <textarea
+      <Textarea
         disabled={disabled}
         value={form.turnaround_prompt}
         onChange={(event) => onChange("turnaround_prompt", event.target.value)}

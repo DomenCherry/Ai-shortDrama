@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/simple-select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   archiveWorldBook,
   createWorldEntry,
@@ -270,9 +275,9 @@ export default function WorldBookDetailPage() {
     return (
       <div className="stack">
         <div className="error">{error || "世界观详情加载失败"}</div>
-        <Link className="button secondary" href="/world-books">
-          返回列表
-        </Link>
+        <Button className="button secondary" asChild>
+          <Link href="/world-books">返回列表</Link>
+        </Button>
       </div>
     );
   }
@@ -284,9 +289,9 @@ export default function WorldBookDetailPage() {
           <h1 className="page-title">{worldBook.name}</h1>
           <p className="page-description">维护世界观基础设定和结构化条目，并在需要时加载到短剧项目生成独立快照。</p>
         </div>
-        <button className="button secondary" type="button" onClick={leaveToList}>
+        <Button className="button secondary" type="button" onClick={leaveToList}>
           返回列表
-        </button>
+        </Button>
       </header>
 
       <form className="grid-2 detail-layout" onSubmit={saveWorldBook}>
@@ -294,7 +299,7 @@ export default function WorldBookDetailPage() {
           <div className="section-heading">
             <h2>世界观设定</h2>
             <div className="meta-line">
-              <span className={`status-badge status-${form.status}`}>{worldBookStatusLabel(form.status)}</span>
+              <Badge className={`status-badge status-${form.status}`}>{worldBookStatusLabel(form.status)}</Badge>
               <span>v{worldBook.version}</span>
               {hasUnsavedChanges ? <span className="warning-text">有未保存修改</span> : null}
             </div>
@@ -310,28 +315,32 @@ export default function WorldBookDetailPage() {
               <InputField label="条目标题" value={entryForm.title} disabled={isArchived} onChange={(value) => updateEntryField("title", value)} placeholder="例如：雾港登记法、沈氏顶层会议室" />
               <div className="field">
                 <label>条目类型</label>
-                <select disabled={isArchived} value={entryForm.entry_type} onChange={(event) => updateEntryField("entry_type", event.target.value)}>
-                  {entryTypes.map((entryType) => (
-                    <option key={entryType} value={entryType}>
-                      {entryType}
-                    </option>
-                  ))}
-                </select>
+                <SimpleSelect
+                  disabled={isArchived}
+                  value={entryForm.entry_type}
+                  onValueChange={(value) => updateEntryField("entry_type", value)}
+                  options={entryTypes.map((entryType) => ({ label: entryType, value: entryType }))}
+                />
               </div>
               <InputField label="关键词" value={entryForm.keywords} disabled={isArchived} onChange={(value) => updateEntryField("keywords", value)} placeholder="例如：登记法、异能者、调查局" />
               <InputField label="适用范围" value={entryForm.applicable_scope} disabled={isArchived} onChange={(value) => updateEntryField("applicable_scope", value)} placeholder="例如：全局、女主线、第三幕" />
               <InputField label="优先级" value={entryForm.priority} disabled={isArchived} onChange={(value) => updateEntryField("priority", value)} placeholder="数字越大越优先" type="number" />
               <div className="field">
                 <label>条目状态</label>
-                <select disabled={isArchived} value={entryForm.status} onChange={(event) => updateEntryField("status", event.target.value)}>
-                  <option value="active">启用</option>
-                  <option value="disabled">停用</option>
-                </select>
+                <SimpleSelect
+                  disabled={isArchived}
+                  value={entryForm.status}
+                  onValueChange={(value) => updateEntryField("status", value)}
+                  options={[
+                    { label: "启用", value: "active" },
+                    { label: "停用", value: "disabled" }
+                  ]}
+                />
               </div>
             </div>
             <div className="field">
               <label>条目正文</label>
-              <textarea
+              <Textarea
                 disabled={isArchived}
                 value={entryForm.content}
                 onChange={(event) => updateEntryField("content", event.target.value)}
@@ -341,13 +350,13 @@ export default function WorldBookDetailPage() {
             {entryError ? <div className="error">{entryError}</div> : null}
             <div className="actions action-wrap">
               {editingEntryId ? (
-                <button className="button secondary" type="button" onClick={cancelEntryEdit}>
+                <Button className="button secondary" type="button" onClick={cancelEntryEdit}>
                   取消编辑
-                </button>
+                </Button>
               ) : null}
-              <button className="button secondary" type="button" onClick={saveEntry} disabled={isArchived || isSavingEntry}>
+              <Button className="button secondary" type="button" onClick={saveEntry} disabled={isArchived || isSavingEntry}>
                 {isSavingEntry ? "保存中..." : editingEntryId ? "保存条目" : "新增条目"}
-              </button>
+              </Button>
             </div>
 
             <div className="asset-list world-entry-list">
@@ -356,9 +365,9 @@ export default function WorldBookDetailPage() {
                 <article className="asset-card" key={entry.id}>
                   <div className="asset-card-title">
                     <strong>{entry.title}</strong>
-                    <span className={`status-badge status-${entry.status === "active" ? "active" : "archived"}`}>
+                    <Badge className={`status-badge status-${entry.status === "active" ? "active" : "archived"}`}>
                       {entry.status === "active" ? "启用" : "停用"}
-                    </span>
+                    </Badge>
                   </div>
                   <div className="hint">
                     {entry.entry_type} · 优先级 {entry.priority} · {entry.applicable_scope || "全局"} ·{" "}
@@ -367,12 +376,12 @@ export default function WorldBookDetailPage() {
                   {entry.keywords ? <p className="hint">关键词：{entry.keywords}</p> : null}
                   <p>{entry.content}</p>
                   <div className="asset-card-actions">
-                    <button className="button secondary" type="button" onClick={() => editEntry(entry)} disabled={isArchived}>
+                    <Button className="button secondary" type="button" onClick={() => editEntry(entry)} disabled={isArchived}>
                       编辑
-                    </button>
-                    <button className="button secondary" type="button" onClick={() => void toggleEntryStatus(entry)} disabled={isArchived}>
+                    </Button>
+                    <Button className="button secondary" type="button" onClick={() => void toggleEntryStatus(entry)} disabled={isArchived}>
                       {entry.status === "active" ? "停用" : "启用"}
-                    </button>
+                    </Button>
                   </div>
                 </article>
               ))}
@@ -384,15 +393,15 @@ export default function WorldBookDetailPage() {
           {statusMessage ? <div className="success">{statusMessage}</div> : null}
 
           <div className="actions action-wrap">
-            <button className="button secondary" type="button" onClick={setActiveAndSave} disabled={isArchived}>
+            <Button className="button secondary" type="button" onClick={setActiveAndSave} disabled={isArchived}>
               设为可加载
-            </button>
-            <button className="button danger" type="button" onClick={archiveBook} disabled={isArchived || isArchiving}>
+            </Button>
+            <Button className="button danger" type="button" onClick={archiveBook} disabled={isArchived || isArchiving}>
               {isArchiving ? "归档中..." : "归档"}
-            </button>
-            <button className="button" type="submit" disabled={isArchived || isSaving || Boolean(validationError)}>
+            </Button>
+            <Button className="button" type="submit" disabled={isArchived || isSaving || Boolean(validationError)}>
               {isSaving ? "保存中..." : "保存世界观"}
-            </button>
+            </Button>
           </div>
         </main>
 
@@ -401,24 +410,25 @@ export default function WorldBookDetailPage() {
             <h2>加载到项目</h2>
             <div className="field">
               <label>目标项目</label>
-              <select value={targetProjectId} onChange={(event) => setTargetProjectId(event.target.value)}>
-                {projects.length === 0 ? <option value="">暂无项目</option> : null}
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.title}
-                  </option>
-                ))}
-              </select>
+              <SimpleSelect
+                value={targetProjectId}
+                onValueChange={setTargetProjectId}
+                options={
+                  projects.length === 0
+                    ? [{ label: "暂无项目", value: "" }]
+                    : projects.map((project) => ({ label: project.title, value: project.id }))
+                }
+              />
             </div>
             <div className="summary-box">世界观会复制为项目内快照，只包含当前基础信息和启用条目。</div>
-            <button
+            <Button
               className="button"
               type="button"
               onClick={loadToProject}
               disabled={form.status !== "active" || hasUnsavedChanges || isLoadingToProject}
             >
               {isLoadingToProject ? "加载中..." : "加载到项目"}
-            </button>
+            </Button>
           </section>
 
           <section className="stack">
@@ -455,7 +465,7 @@ function InputField({
   return (
     <div className="field">
       <label>{label}</label>
-      <input disabled={disabled} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} type={type} />
+      <Input disabled={disabled} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} type={type} />
     </div>
   );
 }

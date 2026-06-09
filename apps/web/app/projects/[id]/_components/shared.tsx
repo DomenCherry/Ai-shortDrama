@@ -66,9 +66,9 @@ export function WorkspaceEntryCard({
   }
 
   return (
-    <button className={`workspace-entry-card ${isActive ? "active" : ""}`} type="button" onClick={onClick}>
+    <Button className={`workspace-entry-card ${isActive ? "active" : ""}`} type="button" variant="ghost" onClick={onClick}>
       {content}
-    </button>
+    </Button>
   );
 }
 
@@ -122,12 +122,12 @@ export function ProductionContextSummary({
           <Metric label="当前单集正文" value={artifactStatusLabel(episodeContentStatus)} />
         </div>
         <div className="actions">
-          <Link className="button secondary" href={`/projects/${projectId}/assets`}>
-            回到项目资料 / 资产
-          </Link>
-          <Link className="button secondary" href={`/projects/${projectId}/story-text?stage=content`}>
-            回到单集故事正文
-          </Link>
+          <Button className="button secondary" asChild>
+            <Link href={`/projects/${projectId}/assets`}>回到项目资料 / 资产</Link>
+          </Button>
+          <Button className="button secondary" asChild>
+            <Link href={`/projects/${projectId}/story-text?stage=content`}>回到单集故事正文</Link>
+          </Button>
         </div>
       </details>
       {hasNeedsReview ? <div className="warning-text">上游故事文本存在需要检查内容，建议确认后再继续短剧制作。</div> : null}

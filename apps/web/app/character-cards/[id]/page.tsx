@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import {
   archiveCharacterCard,
   CharacterCard,
@@ -279,9 +283,9 @@ export default function CharacterCardDetailPage() {
     return (
       <div className="stack">
         <div className="error">{error || "角色卡详情加载失败"}</div>
-        <Link className="button secondary" href="/character-cards">
-          返回列表
-        </Link>
+        <Button className="button secondary" asChild>
+          <Link href="/character-cards">返回列表</Link>
+        </Button>
       </div>
     );
   }
@@ -293,9 +297,9 @@ export default function CharacterCardDetailPage() {
           <h1 className="page-title">{card.name}</h1>
           <p className="page-description">维护角色卡完整设定，并在需要时加载到短剧项目生成独立角色快照。</p>
         </div>
-        <button className="button secondary" type="button" onClick={leaveToList}>
+        <Button className="button secondary" type="button" onClick={leaveToList}>
           返回列表
-        </button>
+        </Button>
       </header>
 
       <form className="grid-2 detail-layout" onSubmit={saveCard}>
@@ -303,7 +307,7 @@ export default function CharacterCardDetailPage() {
           <div className="section-heading">
             <h2>角色设定</h2>
             <div className="meta-line">
-              <span className={`status-badge status-${form.status}`}>{statusLabel(form.status)}</span>
+              <Badge className={`status-badge status-${form.status}`}>{statusLabel(form.status)}</Badge>
               <span>v{card.version}</span>
               {hasUnsavedChanges ? <span className="warning-text">有未保存修改</span> : null}
             </div>
@@ -319,7 +323,7 @@ export default function CharacterCardDetailPage() {
             <div className="grid-2">
               <div className="field">
                 <label>上传参考图</label>
-                <input
+                <Input
                   accept="image/png,image/jpeg,image/webp"
                   disabled={isArchived || isUploadingReference}
                   type="file"
@@ -352,28 +356,28 @@ export default function CharacterCardDetailPage() {
               )}
             </div>
             <div className="meta-line">
-              <span className={`status-badge status-${card.turnaround_status === "confirmed" ? "active" : "draft"}`}>
+              <Badge className={`status-badge status-${card.turnaround_status === "confirmed" ? "active" : "draft"}`}>
                 {turnaroundStatusLabel(card.turnaround_status)}
-              </span>
+              </Badge>
               <span>三视图版本 v{card.turnaround_version}</span>
             </div>
             <div className="actions action-wrap">
-              <button
+              <Button
                 className="button secondary"
                 disabled={isArchived || isGeneratingTurnaround || hasUnsavedChanges}
                 type="button"
                 onClick={generateTurnaround}
               >
                 {isGeneratingTurnaround ? "生成中..." : "生成人物三视图"}
-              </button>
-              <button
+              </Button>
+              <Button
                 className="button"
                 disabled={isArchived || isConfirmingTurnaround || !card.turnaround_image_url || card.turnaround_status === "confirmed"}
                 type="button"
                 onClick={confirmTurnaround}
               >
                 {isConfirmingTurnaround ? "确认中..." : "确认三视图"}
-              </button>
+              </Button>
             </div>
           </section>
 
@@ -382,15 +386,15 @@ export default function CharacterCardDetailPage() {
           {statusMessage ? <div className="success">{statusMessage}</div> : null}
 
           <div className="actions action-wrap">
-            <button className="button secondary" type="button" onClick={setActiveAndSave} disabled={isArchived}>
+            <Button className="button secondary" type="button" onClick={setActiveAndSave} disabled={isArchived}>
               设为可加载
-            </button>
-            <button className="button danger" type="button" onClick={archiveCard} disabled={isArchived || isArchiving}>
+            </Button>
+            <Button className="button danger" type="button" onClick={archiveCard} disabled={isArchived || isArchiving}>
               {isArchiving ? "归档中..." : "归档"}
-            </button>
-            <button className="button" type="submit" disabled={isArchived || isSaving || Boolean(validationError)}>
+            </Button>
+            <Button className="button" type="submit" disabled={isArchived || isSaving || Boolean(validationError)}>
               {isSaving ? "保存中..." : "保存角色卡"}
-            </button>
+            </Button>
           </div>
         </main>
 
@@ -399,24 +403,25 @@ export default function CharacterCardDetailPage() {
             <h2>加载到项目</h2>
             <div className="field">
               <label>目标项目</label>
-              <select value={targetProjectId} onChange={(event) => setTargetProjectId(event.target.value)}>
-                {projects.length === 0 ? <option value="">暂无项目</option> : null}
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.title}
-                  </option>
-                ))}
-              </select>
+              <SimpleSelect
+                value={targetProjectId}
+                onValueChange={setTargetProjectId}
+                options={
+                  projects.length === 0
+                    ? [{ label: "暂无项目", value: "" }]
+                    : projects.map((project) => ({ label: project.title, value: project.id }))
+                }
+              />
             </div>
             <div className="summary-box">角色卡会复制为项目内快照，项目内修改不会影响原始角色卡。</div>
-            <button
+            <Button
               className="button"
               type="button"
               onClick={loadToProject}
               disabled={form.status !== "active" || hasUnsavedChanges || isLoadingToProject}
             >
               {isLoadingToProject ? "加载中..." : "加载到项目"}
-            </button>
+            </Button>
           </section>
 
           <section className="stack">

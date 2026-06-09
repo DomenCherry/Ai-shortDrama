@@ -4,6 +4,10 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { SimpleSelect } from "@/components/ui/simple-select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   assistProjectStoryOutline,
   getProject,
@@ -158,9 +162,9 @@ export default function StoryOutlineAssistPage() {
             {isLoading ? "正在加载项目与 AI 引导..." : `${project?.title ?? "项目"} · 通过对话补齐故事核心层和结构规划层。`}
           </p>
         </div>
-        <Link className="button secondary" href={`/projects/${projectId}/story-text`}>
-          返回故事大纲
-        </Link>
+        <Button className="button secondary" asChild>
+          <Link href={`/projects/${projectId}/story-text`}>返回故事大纲</Link>
+        </Button>
       </header>
 
       {error ? <div className="error">{error}</div> : null}
@@ -170,9 +174,9 @@ export default function StoryOutlineAssistPage() {
         <aside className="assist-outline-panel panel stack">
           <div className="section-heading">
             <h2>字段草稿</h2>
-            <span className={`status-badge ${completion.is_complete ? "status-active" : "status-review"}`}>
+            <Badge className={`status-badge ${completion.is_complete ? "status-active" : "status-review"}`}>
               {completion.completed_fields.length}/{completion.required_fields.length} 必填
-            </span>
+            </Badge>
           </div>
           <div className="assist-completion">
             {completion.is_complete ? "必填字段已完成，可以确认保存。" : `待补充：${completion.missing_fields.map(fieldLabel).join("、")}`}
@@ -211,9 +215,9 @@ export default function StoryOutlineAssistPage() {
               <h2>对话引导</h2>
               <p>AI 会根据你的回答更新左侧草稿；确认前不会写入正式故事大纲。</p>
             </div>
-            <button className="button" type="button" disabled={!completion.is_complete || isSaving} onClick={() => void confirmSave()}>
+            <Button className="button" type="button" disabled={!completion.is_complete || isSaving} onClick={() => void confirmSave()}>
               {isSaving ? "保存中..." : "确认保存"}
-            </button>
+            </Button>
           </div>
 
           <div className="assist-chat-messages" aria-live="polite">
@@ -241,15 +245,15 @@ export default function StoryOutlineAssistPage() {
           ) : null}
 
           <form className="assist-input-row" onSubmit={sendReply}>
-            <textarea
+            <Textarea
               value={replyText}
               placeholder="回复 AI 的问题，或直接描述你想要的故事方向。"
               onChange={(event) => setReplyText(event.target.value)}
               rows={4}
             />
-            <button className="button" type="submit" disabled={isLoading || isSending}>
+            <Button className="button" type="submit" disabled={isLoading || isSending}>
               {isSending ? "发送中..." : "发送"}
-            </button>
+            </Button>
           </form>
         </section>
       </div>
@@ -276,7 +280,7 @@ function AssistTextArea({
         {field.label}
         <span className={`assist-field-tag ${isRequired ? "required" : "optional"}`}>{isRequired ? "必填" : "建议"}</span>
       </label>
-      <textarea value={value} placeholder={`${field.description}\n${field.example}`} onChange={(event) => onChange(event.target.value)} rows={3} />
+      <Textarea value={value} placeholder={`${field.description}\n${field.example}`} onChange={(event) => onChange(event.target.value)} rows={3} />
     </div>
   );
 }
@@ -285,11 +289,15 @@ function StatusSelect({ value, onChange }: { value: ProjectArtifactStatus; onCha
   return (
     <div className="field compact-field">
       <label>状态</label>
-      <select value={value} onChange={(event) => onChange(event.target.value as ProjectArtifactStatus)}>
-        <option value="draft">草稿</option>
-        <option value="confirmed">已确认</option>
-        <option value="needs_review">需要检查</option>
-      </select>
+      <SimpleSelect
+        value={value}
+        onValueChange={(nextValue) => onChange(nextValue as ProjectArtifactStatus)}
+        options={[
+          { label: "草稿", value: "draft" },
+          { label: "已确认", value: "confirmed" },
+          { label: "需要检查", value: "needs_review" }
+        ]}
+      />
     </div>
   );
 }

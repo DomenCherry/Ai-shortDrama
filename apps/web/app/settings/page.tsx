@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   listModelConfigs,
   deleteModelConfig,
@@ -141,9 +143,9 @@ function ConfigList({
     <div className="panel stack">
       <div className="section-heading">
         <h2>{title}</h2>
-        <button className="button" onClick={onNew}>
+        <Button className="button" onClick={onNew}>
           新建配置
-        </button>
+        </Button>
       </div>
 
       {loading ? (
@@ -157,11 +159,11 @@ function ConfigList({
                   <strong>{config.provider_name}</strong>
                   <span className="hint">{config.model_name}</span>
                   {config.enabled ? (
-                    <span className="status-badge status-active">已启用</span>
+                    <Badge className="status-badge status-active">已启用</Badge>
                   ) : (
-                    <span className="status-badge status-draft">未启用</span>
+                    <Badge className="status-badge status-draft">未启用</Badge>
                   )}
-                  <span
+                  <Badge
                     className="status-badge"
                     style={{
                       background:
@@ -179,7 +181,7 @@ function ConfigList({
                     }}
                   >
                     {testStatusLabel(config.last_test_status)}
-                  </span>
+                  </Badge>
                 </div>
                 <div className="meta-line">
                   <span className="hint">
@@ -189,28 +191,28 @@ function ConfigList({
               </div>
               <div className="asset-card-actions">
                 {!config.enabled ? (
-                  <button
+                  <Button
                     className="button secondary"
                     style={{ padding: "6px 10px", fontSize: 13 }}
                     onClick={() => onEnable(config)}
                   >
                     设为启用
-                  </button>
+                  </Button>
                 ) : null}
-                <button
+                <Button
                   className="button secondary"
                   style={{ padding: "6px 10px", fontSize: 13 }}
                   onClick={() => onEdit(config.id)}
                 >
                   编辑
-                </button>
-                <button
+                </Button>
+                <Button
                   className="button danger"
                   style={{ padding: "6px 10px", fontSize: 13 }}
                   onClick={() => onDelete(config)}
                 >
                   删除
-                </button>
+                </Button>
               </div>
             </div>
           ))}

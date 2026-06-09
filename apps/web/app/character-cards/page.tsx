@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { activateCharacterCard, archiveCharacterCard, CharacterCard, CharacterGender, listCharacterCards } from "@/lib/api";
 import { genderOptions, roleTypes, statuses, statusLabel } from "./_components/CharacterCardForm";
 
@@ -85,9 +89,9 @@ export default function CharacterCardsPage() {
             管理可复用人物资产。角色卡只保存跨项目稳定的人设、口吻和视觉素材，具体剧情在项目内塑造。
           </p>
         </div>
-        <Link className="button" href="/character-cards/new">
-          新建角色卡
-        </Link>
+        <Button className="button" asChild>
+          <Link href="/character-cards/new">新建角色卡</Link>
+        </Button>
       </header>
 
       <section className="panel stack">
@@ -99,44 +103,32 @@ export default function CharacterCardsPage() {
         <div className="filter-bar">
           <div className="field">
             <label>搜索角色名</label>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="输入角色名或身份摘要" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="输入角色名或身份摘要" />
           </div>
           <div className="field">
             <label>性别</label>
-            <select value={genderFilter} onChange={(event) => setGenderFilter(event.target.value as "" | CharacterGender)}>
-              <option value="">全部性别</option>
-              {genderOptions.map((gender) => (
-                <option key={gender} value={gender}>
-                  {gender}
-                </option>
-              ))}
-            </select>
+            <SimpleSelect
+              value={genderFilter}
+              onValueChange={(value) => setGenderFilter(value as "" | CharacterGender)}
+              options={[{ label: "全部性别", value: "" }, ...genderOptions.map((gender) => ({ label: gender, value: gender }))]}
+            />
           </div>
           <div className="field">
             <label>人物原型</label>
-            <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
-              <option value="">全部原型</option>
-              {roleFilterOptions.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
+            <SimpleSelect
+              value={roleFilter}
+              onValueChange={setRoleFilter}
+              options={[{ label: "全部原型", value: "" }, ...roleFilterOptions.map((role) => ({ label: role, value: role }))]}
+            />
           </div>
           <div className="field">
             <label>状态</label>
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              {statuses.map((status) => (
-                <option key={status.label} value={status.value}>
-                  {status.label}
-                </option>
-              ))}
-            </select>
+            <SimpleSelect value={statusFilter} onValueChange={setStatusFilter} options={statuses} />
           </div>
           <div className="filter-actions">
-            <button className="button secondary" type="button" onClick={refreshCards} disabled={isLoading}>
+            <Button className="button secondary" type="button" onClick={refreshCards} disabled={isLoading}>
               筛选
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -147,9 +139,9 @@ export default function CharacterCardsPage() {
           {cards.length === 0 && !isLoading ? (
             <div className="empty-state">
               <p>还没有角色卡。</p>
-              <Link className="button" href="/character-cards/new">
-                新建第一个角色卡
-              </Link>
+              <Button className="button" asChild>
+                <Link href="/character-cards/new">新建第一个角色卡</Link>
+              </Button>
             </div>
           ) : null}
 
@@ -158,7 +150,7 @@ export default function CharacterCardsPage() {
               <Link className="asset-card-main" href={`/character-cards/${card.id}`}>
                 <div className="asset-card-title">
                   <strong>{card.name}</strong>
-                  <span className={`status-badge status-${card.status}`}>{statusLabel(card.status)}</span>
+                  <Badge className={`status-badge status-${card.status}`}>{statusLabel(card.status)}</Badge>
                 </div>
                 <div className="hint">
                   {card.gender} · {card.role_type} · v{card.version} · {new Date(card.updated_at).toLocaleString()}
@@ -168,27 +160,27 @@ export default function CharacterCardsPage() {
                 <p className="hint">{card.image_keywords || "未设置形象关键词"}</p>
               </Link>
               <div className="asset-card-actions">
-                <Link className="button secondary" href={`/character-cards/${card.id}`}>
-                  查看详情
-                </Link>
+                <Button className="button secondary" asChild>
+                  <Link href={`/character-cards/${card.id}`}>查看详情</Link>
+                </Button>
                 {card.status !== "active" && (
-                  <button
+                  <Button
                     className="button"
                     type="button"
                     onClick={() => void activateCard(card)}
                     disabled={activatingCardId === card.id}
                   >
                     {activatingCardId === card.id ? "启用中..." : "设为可加载"}
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   className="button danger"
                   type="button"
                   onClick={() => archiveCard(card)}
                   disabled={card.status === "archived" || archivingCardId === card.id}
                 >
                   {archivingCardId === card.id ? "归档中..." : "归档"}
-                </button>
+                </Button>
               </div>
             </article>
           ))}

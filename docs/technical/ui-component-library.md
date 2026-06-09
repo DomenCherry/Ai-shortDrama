@@ -50,12 +50,14 @@ apps/web
 | Sheet | `apps/web/components/ui/sheet.tsx` | 抽屉、侧边选择器、轻量配置面板 |
 | Tabs | `apps/web/components/ui/tabs.tsx` | 同级内容切换 |
 | Tooltip | `apps/web/components/ui/tooltip.tsx` | 图标按钮、紧凑操作的悬浮说明 |
+| SimpleSelect | `apps/web/components/ui/simple-select.tsx` | 项目表单常用选择器，兼容空字符串“全部 / 未选择”选项 |
 
 导入示例：
 
 ```tsx
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { cn } from "@/lib/utils";
 ```
 

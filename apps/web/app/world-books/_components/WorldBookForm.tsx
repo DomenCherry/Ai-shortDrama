@@ -1,5 +1,8 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/simple-select";
+import { Textarea } from "@/components/ui/textarea";
 import { WorldBook, WorldBookPayload, WorldBookStatus } from "@/lib/api";
 
 export type WorldBookForm = {
@@ -65,13 +68,12 @@ export function WorldBookFormView({ form, onChange, disabled = false, hideStatus
           />
           <div className="field">
             <label>题材类型</label>
-            <select disabled={disabled} value={form.genre} onChange={(event) => onChange("genre", event.target.value)}>
-              {genreOptions.map((genre) => (
-                <option key={genre} value={genre}>
-                  {genre}
-                </option>
-              ))}
-            </select>
+            <SimpleSelect
+              disabled={disabled}
+              value={form.genre}
+              onValueChange={(value) => onChange("genre", value)}
+              options={genreOptions.map((genre) => ({ label: genre, value: genre }))}
+            />
             <span className="field-hint">用于列表筛选和生成时的题材方向。</span>
           </div>
         </div>
@@ -87,11 +89,16 @@ export function WorldBookFormView({ form, onChange, disabled = false, hideStatus
         {!hideStatusField && (
           <div className="field">
             <label>状态</label>
-            <select disabled={disabled} value={form.status} onChange={(event) => onChange("status", event.target.value)}>
-              <option value="draft">草稿</option>
-              <option value="active">可加载</option>
-              <option value="archived">已归档</option>
-            </select>
+            <SimpleSelect
+              disabled={disabled}
+              value={form.status}
+              onValueChange={(value) => onChange("status", value)}
+              options={[
+                { label: "草稿", value: "draft" },
+                { label: "可加载", value: "active" },
+                { label: "已归档", value: "archived" }
+              ]}
+            />
             <span className="field-hint">只有可加载状态的世界观可以加入项目。</span>
           </div>
         )}
@@ -139,7 +146,7 @@ function TextAreaField({
   return (
     <div className="field">
       <label>{label}</label>
-      <textarea disabled={disabled} value={form[field]} onChange={(event) => onChange(field, event.target.value)} placeholder={placeholder} />
+      <Textarea disabled={disabled} value={form[field]} onChange={(event) => onChange(field, event.target.value)} placeholder={placeholder} />
       {hint ? <span className="field-hint">{hint}</span> : null}
     </div>
   );
@@ -165,7 +172,7 @@ function InputField({
   return (
     <div className="field">
       <label>{label}</label>
-      <input disabled={disabled} value={form[field]} onChange={(event) => onChange(field, event.target.value)} placeholder={placeholder} />
+      <Input disabled={disabled} value={form[field]} onChange={(event) => onChange(field, event.target.value)} placeholder={placeholder} />
       {hint ? <span className="field-hint">{hint}</span> : null}
     </div>
   );

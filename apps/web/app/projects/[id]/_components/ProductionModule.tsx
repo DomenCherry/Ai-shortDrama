@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import {
   setCopyFormValue,
@@ -44,9 +45,9 @@ function EpisodeScriptPanel({ workbench }: { workbench: ProjectWorkbenchState })
       </div>
       <StatusSelect value={workbench.scriptForm.status} onChange={(value) => setScriptFormValue("status", value, workbench.setScriptForm)} />
       <div className="actions">
-        <button className="button" type="submit" disabled={workbench.isSaving}>
+        <Button className="button" type="submit" disabled={workbench.isSaving}>
           {workbench.isSaving ? "保存中..." : "保存剧本"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -74,9 +75,9 @@ function StoryboardAndCopywritingPanel({ workbench }: { workbench: ProjectWorkbe
         <div className="stack">
           <div className="section-heading">
             <h3>镜头列表</h3>
-            <button className="button secondary" type="button" onClick={() => workbench.resetShotForm()}>
+            <Button className="button secondary" type="button" onClick={() => workbench.resetShotForm()}>
               新增镜头
-            </button>
+            </Button>
           </div>
           {workbench.storyboardShots.length === 0 ? (
             <div className="empty-state">当前集还没有分镜镜头。</div>
@@ -91,12 +92,12 @@ function StoryboardAndCopywritingPanel({ workbench }: { workbench: ProjectWorkbe
                   <p>{shot.scene || "未填写场景"}</p>
                   <p className="hint">{shot.visual_prompt || "未填写画面提示词"}</p>
                   <div className="asset-card-actions">
-                    <button className="button secondary" type="button" onClick={() => workbench.editShot(shot)}>
+                    <Button className="button secondary" type="button" onClick={() => workbench.editShot(shot)}>
                       编辑
-                    </button>
-                    <button className="button danger" type="button" onClick={() => void workbench.removeShot(shot)} disabled={workbench.removingShotId === shot.id}>
+                    </Button>
+                    <Button className="button danger" type="button" onClick={() => void workbench.removeShot(shot)} disabled={workbench.removingShotId === shot.id}>
                       {workbench.removingShotId === shot.id ? "删除中..." : "删除"}
-                    </button>
+                    </Button>
                   </div>
                 </article>
               ))}
@@ -116,12 +117,12 @@ function StoryboardAndCopywritingPanel({ workbench }: { workbench: ProjectWorkbe
           <TextArea label="对白或旁白" value={workbench.shotForm.dialogue_or_voiceover} onChange={(value) => setShotFormValue("dialogue_or_voiceover", value, workbench.setShotForm)} />
           <StatusSelect value={workbench.shotForm.status} onChange={(value) => setShotFormValue("status", value, workbench.setShotForm)} />
           <div className="actions">
-            <button className="button secondary" type="button" onClick={() => workbench.resetShotForm()}>
+            <Button className="button secondary" type="button" onClick={() => workbench.resetShotForm()}>
               清空
-            </button>
-            <button className="button" type="submit" disabled={workbench.isSaving || !Number.isFinite(Number(workbench.shotForm.shot_no))}>
+            </Button>
+            <Button className="button" type="submit" disabled={workbench.isSaving || !Number.isFinite(Number(workbench.shotForm.shot_no))}>
               {workbench.isSaving ? "保存中..." : "保存镜头"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -136,9 +137,9 @@ function StoryboardAndCopywritingPanel({ workbench }: { workbench: ProjectWorkbe
         </div>
         <StatusSelect value={workbench.copyForm.status} onChange={(value) => setCopyFormValue("status", value, workbench.setCopyForm)} />
         <div className="actions">
-          <button className="button" type="submit" disabled={workbench.isSaving}>
+          <Button className="button" type="submit" disabled={workbench.isSaving}>
             {workbench.isSaving ? "保存中..." : "保存文案"}
-          </button>
+          </Button>
         </div>
       </form>
     </section>

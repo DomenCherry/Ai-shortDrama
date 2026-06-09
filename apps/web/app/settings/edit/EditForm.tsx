@@ -2,6 +2,9 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import {
   getModelConfig,
   createModelConfig,
@@ -233,31 +236,25 @@ export default function SettingsEditPage() {
             {configType === "image" ? (
               <div className="field">
                 <label>配置方式</label>
-                <select
+                <SimpleSelect
                   value={form.provider_mode}
-                  onChange={(event) => updateProviderMode(event.target.value as ProviderMode)}
-                >
-                  <option value="custom">自定义供应商</option>
-                  <option value="preset">供应商预设</option>
-                </select>
+                  onValueChange={(value) => updateProviderMode(value as ProviderMode)}
+                  options={[
+                    { label: "自定义供应商", value: "custom" },
+                    { label: "供应商预设", value: "preset" }
+                  ]}
+                />
                 <span className="hint">预设用于快速填充常见供应商参数，自定义配置可接入其他图片模型。</span>
               </div>
             ) : null}
             {configType === "image" && form.provider_mode === "preset" ? (
               <div className="field">
                 <label>供应商预设</label>
-                <select
+                <SimpleSelect
                   value={form.provider_preset}
-                  onChange={(event) =>
-                    applyImagePreset(event.target.value as keyof typeof imageProviderPresets)
-                  }
-                >
-                  {Object.entries(imageProviderPresets).map(([key, preset]) => (
-                    <option key={key} value={key}>
-                      {preset.label}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={(value) => applyImagePreset(value as keyof typeof imageProviderPresets)}
+                  options={Object.entries(imageProviderPresets).map(([key, preset]) => ({ label: preset.label, value: key }))}
+                />
                 <span className="hint">
                   火山方舟 Seedream 支持角色三视图和参考图输入，模型名称仍需填写你实际开通的模型。
                 </span>
@@ -265,7 +262,7 @@ export default function SettingsEditPage() {
             ) : null}
             <div className="field">
               <label>供应商名称</label>
-              <input
+              <Input
                 value={form.provider_name}
                 onChange={(event) => updateField("provider_name", event.target.value)}
                 readOnly={configType === "image" && form.provider_mode === "preset"}
@@ -274,7 +271,7 @@ export default function SettingsEditPage() {
             </div>
             <div className="field">
               <label>API Base URL</label>
-              <input
+              <Input
                 value={form.api_base_url}
                 onChange={(event) => updateField("api_base_url", event.target.value)}
                 readOnly={configType === "image" && form.provider_mode === "preset"}
@@ -292,7 +289,7 @@ export default function SettingsEditPage() {
             </div>
             <div className="field">
               <label>API Key</label>
-              <input
+              <Input
                 type="password"
                 value={form.api_key}
                 onChange={(event) => updateField("api_key", event.target.value)}
@@ -302,7 +299,7 @@ export default function SettingsEditPage() {
             </div>
             <div className="field">
               <label>模型名称</label>
-              <input
+              <Input
                 value={form.model_name}
                 onChange={(event) => updateField("model_name", event.target.value)}
                 placeholder={configType === "text" ? "text-model" : "image-model"}
@@ -312,20 +309,21 @@ export default function SettingsEditPage() {
               <>
                 <div className="field">
                   <label>图片尺寸</label>
-                  <select
+                  <SimpleSelect
                     value={form.image_size}
-                    onChange={(event) => updateField("image_size", event.target.value)}
-                  >
-                    <option value="1024x1024">1024x1024</option>
-                    <option value="1024x1536">1024x1536</option>
-                    <option value="1536x1024">1536x1024</option>
-                    <option value="2K">2K</option>
-                    <option value="4K">4K</option>
-                  </select>
+                    onValueChange={(value) => updateField("image_size", value)}
+                    options={[
+                      { label: "1024x1024", value: "1024x1024" },
+                      { label: "1024x1536", value: "1024x1536" },
+                      { label: "1536x1024", value: "1536x1024" },
+                      { label: "2K", value: "2K" },
+                      { label: "4K", value: "4K" }
+                    ]}
+                  />
                 </div>
                 <div className="field">
                   <label>图片接口路径</label>
-                  <input
+                  <Input
                     value={form.endpoint_path}
                     onChange={(event) => updateField("endpoint_path", event.target.value)}
                     readOnly={form.provider_mode === "preset"}
@@ -346,7 +344,7 @@ export default function SettingsEditPage() {
             ) : null}
             <div className="field">
               <label>备注</label>
-              <input
+              <Input
                 value={form.remark}
                 onChange={(event) => updateField("remark", event.target.value)}
               />
@@ -356,25 +354,25 @@ export default function SettingsEditPage() {
             {error ? <div className="error">{error}</div> : null}
 
             <div className="actions">
-              <button
+              <Button
                 className="button secondary"
                 type="button"
                 onClick={testConnection}
                 disabled={isTesting}
               >
                 {isTesting ? "测试中..." : "测试连接"}
-              </button>
-              <button className="button" type="submit" disabled={isSaving}>
+              </Button>
+              <Button className="button" type="submit" disabled={isSaving}>
                 {isSaving ? "保存中..." : editingId ? "更新配置" : "保存配置"}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
 
         <div className="actions" style={{ justifyContent: "flex-start" }}>
-          <button className="button secondary" onClick={goBack}>
+          <Button className="button secondary" onClick={goBack}>
             ← 返回配置列表
-          </button>
+          </Button>
         </div>
       </div>
     </div>

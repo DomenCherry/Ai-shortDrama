@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { createProject } from "@/lib/api";
 
 type ProjectForm = {
@@ -87,15 +90,15 @@ export default function NewProjectPage() {
             先确定创意和项目体量。单集时长不能超过 2 分钟，总时长不能超过 240 分钟。
           </p>
         </div>
-        <Link className="button secondary" href="/">
-          返回项目管理
-        </Link>
+        <Button className="button secondary" asChild>
+          <Link href="/">返回项目管理</Link>
+        </Button>
       </header>
 
       <form className="panel stack" onSubmit={submitProject}>
         <div className="field">
           <label>创意描述</label>
-          <textarea
+          <Textarea
             value={form.idea}
             onChange={(event) => updateField("idea", event.target.value)}
             placeholder="例如：都市逆袭爽剧，女主被丈夫背叛后发现自己是豪门继承人。"
@@ -105,7 +108,7 @@ export default function NewProjectPage() {
         <div className="grid-2">
           <div className="field">
             <label>项目名称</label>
-            <input
+            <Input
               value={form.title}
               onChange={(event) => updateField("title", event.target.value)}
               placeholder="未填写时保存为未命名短剧"
@@ -113,11 +116,11 @@ export default function NewProjectPage() {
           </div>
           <div className="field">
             <label>目标平台</label>
-            <input value={form.target_platform} onChange={(event) => updateField("target_platform", event.target.value)} />
+            <Input value={form.target_platform} onChange={(event) => updateField("target_platform", event.target.value)} />
           </div>
           <div className="field">
             <label>题材类型</label>
-            <input
+            <Input
               value={form.genre}
               onChange={(event) => updateField("genre", event.target.value)}
               placeholder="都市逆袭、古装重生、悬疑反转"
@@ -125,7 +128,7 @@ export default function NewProjectPage() {
           </div>
           <div className="field">
             <label>目标受众</label>
-            <input
+            <Input
               value={form.target_audience}
               onChange={(event) => updateField("target_audience", event.target.value)}
               placeholder="例如 18-35 岁女性用户"
@@ -133,7 +136,7 @@ export default function NewProjectPage() {
           </div>
           <div className="field">
             <label>内容风格</label>
-            <input
+            <Input
               value={form.style}
               onChange={(event) => updateField("style", event.target.value)}
               placeholder="爽感强、节奏快、反转密集"
@@ -141,14 +144,14 @@ export default function NewProjectPage() {
           </div>
           <div className="field">
             <label>备注</label>
-            <input value={form.remark} onChange={(event) => updateField("remark", event.target.value)} />
+            <Input value={form.remark} onChange={(event) => updateField("remark", event.target.value)} />
           </div>
         </div>
 
         <div className="grid-2">
           <div className="field">
             <label>集数</label>
-            <input
+            <Input
               type="number"
               min="1"
               step="1"
@@ -158,7 +161,7 @@ export default function NewProjectPage() {
           </div>
           <div className="field">
             <label>单集时长（分钟）</label>
-            <input
+            <Input
               type="number"
               min="0.1"
               max="2"
@@ -182,12 +185,12 @@ export default function NewProjectPage() {
         {status ? <div className="success">{status}</div> : null}
 
         <div className="actions">
-          <Link className="button secondary" href="/">
-            取消
-          </Link>
-          <button className="button" type="submit" disabled={isSubmitting || Boolean(validationError)}>
+          <Button className="button secondary" asChild>
+            <Link href="/">取消</Link>
+          </Button>
+          <Button className="button" type="submit" disabled={isSubmitting || Boolean(validationError)}>
             {isSubmitting ? "创建中..." : "创建项目"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

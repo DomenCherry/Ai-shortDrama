@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { FormEvent, MouseEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { createCharacterCard, generateCharacterTurnaround, uploadCharacterReferenceImage } from "@/lib/api";
 import {
   buildTurnaroundPrompt,
@@ -162,9 +164,9 @@ export default function NewCharacterCardPage() {
           <h1 className="page-title">新建角色卡</h1>
           <p className="page-description">创建可在多个短剧项目中复用的人物资产。具体剧情目标、人物关系和冲突会在项目内塑造。</p>
         </div>
-        <Link className="button secondary" href="/character-cards" onClick={guardLeaveToList}>
-          返回列表
-        </Link>
+        <Button className="button secondary" asChild>
+          <Link href="/character-cards" onClick={guardLeaveToList}>返回列表</Link>
+        </Button>
       </header>
 
       <form className="panel stack form-page" onSubmit={saveCard}>
@@ -182,7 +184,7 @@ export default function NewCharacterCardPage() {
           </p>
           <div className="field">
             <label>上传参考图</label>
-            <input
+            <Input
               accept="image/png,image/jpeg,image/webp"
               disabled={isBusy}
               type="file"
@@ -200,12 +202,12 @@ export default function NewCharacterCardPage() {
           </p>
           <TurnaroundPromptField form={form} onChange={updateField} disabled={isBusy} />
           <div className="actions action-wrap">
-            <button className="button secondary" disabled={isBusy} type="button" onClick={generateTurnaroundPrompt}>
+            <Button className="button secondary" disabled={isBusy} type="button" onClick={generateTurnaroundPrompt}>
               生成提示词
-            </button>
-            <button className="button secondary" disabled={isBusy} type="button" onClick={generateTurnaroundFromNewCard}>
+            </Button>
+            <Button className="button secondary" disabled={isBusy} type="button" onClick={generateTurnaroundFromNewCard}>
               {isGeneratingTurnaround ? "生成中..." : "生成人物三视图"}
-            </button>
+            </Button>
           </div>
         </section>
 
@@ -213,12 +215,12 @@ export default function NewCharacterCardPage() {
         {error ? <div className="error">{error}</div> : null}
 
         <div className="actions action-wrap">
-          <Link className="button secondary" href="/character-cards" onClick={guardLeaveToList}>
-            取消
-          </Link>
-          <button className="button" type="submit" disabled={isBusy}>
+          <Button className="button secondary" asChild>
+            <Link href="/character-cards" onClick={guardLeaveToList}>取消</Link>
+          </Button>
+          <Button className="button" type="submit" disabled={isBusy}>
             {isSaving ? "保存中..." : "保存角色卡"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

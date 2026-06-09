@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import { episodeAiActions, productionAiActions } from "../_utils/workbenchTypes";
 
@@ -25,9 +26,9 @@ export function MissingProject({ error }: { error: string }) {
           <h1 className="page-title">项目工作台</h1>
           <p className="page-description">无法读取项目资料。</p>
         </div>
-        <Link className="button secondary" href="/">
-          返回项目管理
-        </Link>
+        <Button className="button secondary" asChild>
+          <Link href="/">返回项目管理</Link>
+        </Button>
       </header>
       {error ? <div className="error">{error}</div> : null}
     </div>
@@ -52,9 +53,9 @@ export function WorkbenchHeader({ workbench }: { workbench: ProjectWorkbenchStat
           </p>
         </div>
         <div className="actions">
-          <Link className="button secondary" href="/">
-            返回项目管理
-          </Link>
+          <Button className="button secondary" asChild>
+            <Link href="/">返回项目管理</Link>
+          </Button>
         </div>
       </header>
     );
@@ -72,30 +73,31 @@ export function WorkbenchHeader({ workbench }: { workbench: ProjectWorkbenchStat
           aria-label={`${workbench.currentWorkspaceGroup?.title ?? "模块"}内容导航`}
         >
           {workbench.visibleStages.map((stage) => (
-            <button
+            <Button
               className={`module-subnav-tab ${workbench.activeStage === stage.key ? "active" : ""}`}
               type="button"
+              variant="ghost"
               key={stage.key}
               onClick={() => workbench.setActiveStage(stage.key)}
             >
               {stage.label}
-            </button>
+            </Button>
           ))}
         </nav>
         {moduleFunctionActions.length > 0 ? (
           <div className="module-function-strip" aria-label="AI 功能入口">
             {moduleFunctionActions.map((action) => (
-              <button className="module-ai-action" type="button" key={action} onClick={() => workbench.showAiPlaceholder(action)}>
+              <Button className="module-ai-action" type="button" variant="ghost" key={action} onClick={() => workbench.showAiPlaceholder(action)}>
                 {action}
-              </button>
+              </Button>
             ))}
           </div>
         ) : null}
       </div>
       <div className="module-toolbar-actions">
-        <Link className="button secondary compact-button" href={`/projects/${workbench.projectId}`}>
-          工作台入口
-        </Link>
+        <Button className="button secondary compact-button" asChild>
+          <Link href={`/projects/${workbench.projectId}`}>工作台入口</Link>
+        </Button>
       </div>
     </header>
   );

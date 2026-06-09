@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import {
   characterSnapshotSummary,
@@ -29,9 +32,9 @@ function ProjectSettingsPanel({ workbench }: { workbench: ProjectWorkbenchState 
     <form className="panel stack" onSubmit={workbench.saveProject}>
       <div className="section-heading">
         <h2>项目设定</h2>
-        <button className="button secondary" type="button" onClick={workbench.resetProjectForm} disabled={workbench.isSaving}>
+        <Button className="button secondary" type="button" onClick={workbench.resetProjectForm} disabled={workbench.isSaving}>
           还原
-        </button>
+        </Button>
       </div>
       <TextArea label="创意描述" value={workbench.projectForm.idea} onChange={(value) => setProjectFormValue("idea", value, workbench.setProjectForm)} />
       <div className="grid-2">
@@ -56,9 +59,9 @@ function ProjectSettingsPanel({ workbench }: { workbench: ProjectWorkbenchState 
       {workbench.durationChanged ? <div className="warning-text">修改集数或单集时长会让故事文本和短剧制作已有内容进入需要检查状态。</div> : null}
       {workbench.validationError ? <div className="error">{workbench.validationError}</div> : null}
       <div className="actions">
-        <button className="button" type="submit" disabled={workbench.isSaving || Boolean(workbench.validationError)}>
+        <Button className="button" type="submit" disabled={workbench.isSaving || Boolean(workbench.validationError)}>
           {workbench.isSaving ? "保存中..." : "保存项目设定"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -94,24 +97,24 @@ function WorldSnapshotSection({ workbench }: { workbench: ProjectWorkbenchState 
           <div className="asset-card-main">
             <div className="asset-card-title">
               <strong>{snapshot.name}</strong>
-              <span className="status-badge status-active">已加载 v{snapshot.source_version}</span>
+              <Badge className="status-badge status-active">已加载 v{snapshot.source_version}</Badge>
             </div>
             <div className="hint">{snapshot.genre}</div>
             <p>{worldSnapshotSummary(snapshot)}</p>
             <p className="hint">加载时间：{new Date(snapshot.loaded_at).toLocaleString()}</p>
           </div>
           <div className="asset-card-actions">
-            <button className="button secondary" type="button" onClick={() => workbench.startEditingWorldSnapshot(snapshot)}>
+            <Button className="button secondary" type="button" onClick={() => workbench.startEditingWorldSnapshot(snapshot)}>
               编辑项目世界观
-            </button>
-            <button
+            </Button>
+            <Button
               className="button danger"
               type="button"
               onClick={() => void workbench.removeWorldSnapshot(snapshot)}
               disabled={workbench.removingSnapshotId === snapshot.id}
             >
               {workbench.removingSnapshotId === snapshot.id ? "移除中..." : "从项目移除"}
-            </button>
+            </Button>
           </div>
           {workbench.editingWorldSnapshotId === snapshot.id ? (
             <form className="form-section stack" onSubmit={workbench.saveWorldSnapshot}>
@@ -123,12 +126,12 @@ function WorldSnapshotSection({ workbench }: { workbench: ProjectWorkbenchState 
                 <TextArea label="条目快照" value={workbench.worldSnapshotForm.entry_snapshot_content} onChange={(value) => setWorldSnapshotFormValue("entry_snapshot_content", value, workbench.setWorldSnapshotForm)} />
               </div>
               <div className="actions">
-                <button className="button secondary" type="button" onClick={workbench.cancelWorldSnapshotEdit} disabled={workbench.savingSnapshotId === snapshot.id}>
+                <Button className="button secondary" type="button" onClick={workbench.cancelWorldSnapshotEdit} disabled={workbench.savingSnapshotId === snapshot.id}>
                   取消
-                </button>
-                <button className="button" type="submit" disabled={workbench.savingSnapshotId === snapshot.id}>
+                </Button>
+                <Button className="button" type="submit" disabled={workbench.savingSnapshotId === snapshot.id}>
                   {workbench.savingSnapshotId === snapshot.id ? "保存中..." : "保存项目世界观"}
-                </button>
+                </Button>
               </div>
             </form>
           ) : null}
@@ -154,7 +157,7 @@ function CharacterSnapshotSection({ workbench }: { workbench: ProjectWorkbenchSt
           <div className="asset-card-main">
             <div className="asset-card-title">
               <strong>{snapshot.name}</strong>
-              <span className="status-badge status-active">已加载 v{snapshot.source_version}</span>
+              <Badge className="status-badge status-active">已加载 v{snapshot.source_version}</Badge>
             </div>
             <div className="hint">
               {snapshot.gender} · {snapshot.role_type}
@@ -163,17 +166,17 @@ function CharacterSnapshotSection({ workbench }: { workbench: ProjectWorkbenchSt
             <p className="hint">加载时间：{new Date(snapshot.loaded_at).toLocaleString()}</p>
           </div>
           <div className="asset-card-actions">
-            <button className="button secondary" type="button" onClick={() => workbench.startEditingCharacterSnapshot(snapshot)}>
+            <Button className="button secondary" type="button" onClick={() => workbench.startEditingCharacterSnapshot(snapshot)}>
               编辑项目角色
-            </button>
-            <button
+            </Button>
+            <Button
               className="button danger"
               type="button"
               onClick={() => void workbench.removeCharacterSnapshot(snapshot)}
               disabled={workbench.removingSnapshotId === snapshot.id}
             >
               {workbench.removingSnapshotId === snapshot.id ? "移除中..." : "从项目移除"}
-            </button>
+            </Button>
           </div>
           {workbench.editingCharacterSnapshotId === snapshot.id ? (
             <form className="form-section stack" onSubmit={workbench.saveCharacterSnapshot}>
@@ -182,13 +185,14 @@ function CharacterSnapshotSection({ workbench }: { workbench: ProjectWorkbenchSt
                 <TextInput label="项目角色名" value={workbench.characterSnapshotForm.name} onChange={(value) => setCharacterSnapshotFormValue("name", value, workbench.setCharacterSnapshotForm)} />
                 <div className="field">
                   <label>性别</label>
-                  <select
+                  <SimpleSelect
                     value={workbench.characterSnapshotForm.gender}
-                    onChange={(event) => setCharacterSnapshotFormValue("gender", event.target.value as "男" | "女", workbench.setCharacterSnapshotForm)}
-                  >
-                    <option value="女">女</option>
-                    <option value="男">男</option>
-                  </select>
+                    onValueChange={(value) => setCharacterSnapshotFormValue("gender", value as "男" | "女", workbench.setCharacterSnapshotForm)}
+                    options={[
+                      { label: "女", value: "女" },
+                      { label: "男", value: "男" }
+                    ]}
+                  />
                 </div>
                 <TextInput label="人物原型 / 项目定位" value={workbench.characterSnapshotForm.role_type} onChange={(value) => setCharacterSnapshotFormValue("role_type", value, workbench.setCharacterSnapshotForm)} />
                 <TextArea label="项目角色设定快照" value={workbench.characterSnapshotForm.snapshot_content} onChange={(value) => setCharacterSnapshotFormValue("snapshot_content", value, workbench.setCharacterSnapshotForm)} />
@@ -197,12 +201,12 @@ function CharacterSnapshotSection({ workbench }: { workbench: ProjectWorkbenchSt
                 <TextInput label="参考图本地路径" value={workbench.characterSnapshotForm.reference_local_path} onChange={(value) => setCharacterSnapshotFormValue("reference_local_path", value, workbench.setCharacterSnapshotForm)} />
               </div>
               <div className="actions">
-                <button className="button secondary" type="button" onClick={workbench.cancelCharacterSnapshotEdit} disabled={workbench.savingSnapshotId === snapshot.id}>
+                <Button className="button secondary" type="button" onClick={workbench.cancelCharacterSnapshotEdit} disabled={workbench.savingSnapshotId === snapshot.id}>
                   取消
-                </button>
-                <button className="button" type="submit" disabled={workbench.savingSnapshotId === snapshot.id}>
+                </Button>
+                <Button className="button" type="submit" disabled={workbench.savingSnapshotId === snapshot.id}>
                   {workbench.savingSnapshotId === snapshot.id ? "保存中..." : "保存项目角色"}
-                </button>
+                </Button>
               </div>
             </form>
           ) : null}
@@ -220,9 +224,9 @@ function WorldPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState }) 
       ) : workbench.availableWorlds.length === 0 ? (
         <div className="empty-state">
           没有可用的世界观。
-          <Link href="/world-books/new" className="button secondary" style={{ marginTop: "0.5rem", display: "inline-block" }}>
-            创建世界观
-          </Link>
+          <Button className="button secondary" style={{ marginTop: "0.5rem", display: "inline-flex" }} asChild>
+            <Link href="/world-books/new">创建世界观</Link>
+          </Button>
         </div>
       ) : (
         <>
@@ -252,11 +256,11 @@ function WorldPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState }) 
                     />
                     <strong>{wb.name}</strong>
                     {isLoaded ? (
-                      <span className="status-badge status-active">已加载</span>
+                      <Badge className="status-badge status-active">已加载</Badge>
                     ) : hasProjectWorld ? (
-                      <span className="status-badge status-draft">不可加载</span>
+                      <Badge className="status-badge status-draft">不可加载</Badge>
                     ) : (
-                      <span className="status-badge status-draft">可用</span>
+                      <Badge className="status-badge status-draft">可用</Badge>
                     )}
                   </div>
                   <div className="hint">{wb.genre} · v{wb.version}</div>
@@ -269,17 +273,17 @@ function WorldPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState }) 
       )}
       {!workbench.isLoadingPicker && workbench.availableWorlds.length > 0 && (
         <div className="asset-drawer-footer">
-          <button className="button secondary" type="button" onClick={() => workbench.setShowWorldPicker(false)}>
+          <Button className="button secondary" type="button" onClick={() => workbench.setShowWorldPicker(false)}>
             取消
-          </button>
-          <button
+          </Button>
+          <Button
             className="button"
             type="button"
             disabled={!workbench.selectedWorldId || workbench.loadingAssetId !== "" || workbench.worldSnapshots.length > 0}
             onClick={() => void workbench.handleLoadWorld()}
           >
             {workbench.loadingAssetId ? "加载中..." : `加载${workbench.selectedWorldId ? "" : "世界观"}`}
-          </button>
+          </Button>
         </div>
       )}
       <div className="hint" style={{ textAlign: "center" }}>
@@ -297,9 +301,9 @@ function CharacterPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState
       ) : workbench.availableCharacters.length === 0 ? (
         <div className="empty-state">
           没有可用的角色卡。
-          <Link href="/character-cards/new" className="button secondary" style={{ marginTop: "0.5rem", display: "inline-block" }}>
-            创建角色卡
-          </Link>
+          <Button className="button secondary" style={{ marginTop: "0.5rem", display: "inline-flex" }} asChild>
+            <Link href="/character-cards/new">创建角色卡</Link>
+          </Button>
         </div>
       ) : (
         <>
@@ -335,9 +339,9 @@ function CharacterPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState
                     />
                     <strong>{cc.name}</strong>
                     {isLoaded ? (
-                      <span className="status-badge status-active">已加载</span>
+                      <Badge className="status-badge status-active">已加载</Badge>
                     ) : (
-                      <span className="status-badge status-draft">可用</span>
+                      <Badge className="status-badge status-draft">可用</Badge>
                     )}
                   </div>
                   <div className="hint">{cc.gender} · {cc.role_type} · v{cc.version}</div>
@@ -350,17 +354,17 @@ function CharacterPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState
       )}
       {!workbench.isLoadingPicker && workbench.availableCharacters.length > 0 && (
         <div className="asset-drawer-footer">
-          <button className="button secondary" type="button" onClick={() => workbench.setShowCharacterPicker(false)}>
+          <Button className="button secondary" type="button" onClick={() => workbench.setShowCharacterPicker(false)}>
             取消
-          </button>
-          <button
+          </Button>
+          <Button
             className="button"
             type="button"
             disabled={workbench.selectedCharacterIds.size === 0 || workbench.isBatchLoading}
             onClick={() => void workbench.handleLoadCharacters()}
           >
             {workbench.isBatchLoading ? "加载中..." : `加载${workbench.selectedCharacterIds.size > 0 ? ` (${workbench.selectedCharacterIds.size})` : ""}`}
-          </button>
+          </Button>
         </div>
       )}
       <div className="hint" style={{ textAlign: "center" }}>

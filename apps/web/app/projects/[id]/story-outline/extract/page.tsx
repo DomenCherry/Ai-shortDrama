@@ -4,6 +4,11 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { SimpleSelect } from "@/components/ui/simple-select";
+import { Textarea } from "@/components/ui/textarea";
 import {
   extractReferenceStoryStructure,
   getProject,
@@ -173,9 +178,9 @@ export default function StoryOutlineExtractPage() {
             {isLoadingProject ? "正在加载项目资料..." : `${project?.title ?? "项目"} · 上传参考故事后抽取去具体化的大纲预览。`}
           </p>
         </div>
-        <Link className="button secondary" href={`/projects/${projectId}/story-text`}>
-          返回故事大纲
-        </Link>
+        <Button className="button secondary" asChild>
+          <Link href={`/projects/${projectId}/story-text`}>返回故事大纲</Link>
+        </Button>
       </header>
 
       {error ? <div className="error">{error}</div> : null}
@@ -185,25 +190,25 @@ export default function StoryOutlineExtractPage() {
         <div className="section-heading">
           <h2>参考故事输入</h2>
           {draft ? (
-            <span className={`status-badge ${draft.validation_status === "passed" ? "status-active" : "status-review"}`}>
+            <Badge className={`status-badge ${draft.validation_status === "passed" ? "status-active" : "status-review"}`}>
               {referenceValidationLabel(draft.validation_status)}
-            </span>
+            </Badge>
           ) : null}
         </div>
         <div className="field">
           <label>上传参考故事（txt / md）</label>
-          <input type="file" accept=".txt,.md,text/plain,text/markdown" onChange={(event) => void handleReferenceFileChange(event.target.files?.[0] ?? null)} />
+          <Input type="file" accept=".txt,.md,text/plain,text/markdown" onChange={(event) => void handleReferenceFileChange(event.target.files?.[0] ?? null)} />
         </div>
         {referenceInputForm.source_filename ? <div className="hint">已选择：{referenceInputForm.source_filename}</div> : null}
         <TextArea label="参考故事文本" value={referenceInputForm.source_text} onChange={(value) => updateReferenceInput({ source_text: value, source_filename: "" }, setReferenceInputForm, setDraft, setPreviewForm, setStatus)} />
         <TextArea label="抽取补充要求" value={referenceInputForm.user_requirements} onChange={(value) => updateReferenceInput({ user_requirements: value }, setReferenceInputForm, setDraft, setPreviewForm, setStatus)} />
         <div className="actions">
-          <button className="button secondary" type="button" onClick={() => clearReferenceInput(setReferenceInputForm, setDraft, setPreviewForm, setStatus)} disabled={isExtracting}>
+          <Button className="button secondary" type="button" onClick={() => clearReferenceInput(setReferenceInputForm, setDraft, setPreviewForm, setStatus)} disabled={isExtracting}>
             清空
-          </button>
-          <button className="button" type="button" onClick={() => void extractStoryOutline()} disabled={isExtracting}>
+          </Button>
+          <Button className="button" type="button" onClick={() => void extractStoryOutline()} disabled={isExtracting}>
             {isExtracting ? "提取中..." : "开始提取"}
-          </button>
+          </Button>
         </div>
         {draft?.validation_notes ? <div className="hint">{draft.validation_notes}</div> : null}
       </section>
@@ -211,7 +216,7 @@ export default function StoryOutlineExtractPage() {
       <section className="panel stack">
         <div className="section-heading">
           <h2>故事大纲预览</h2>
-          <span className={`status-badge ${artifactStatusClass(previewForm.status)}`}>{artifactStatusLabel(previewForm.status)}</span>
+          <Badge className={`status-badge ${artifactStatusClass(previewForm.status)}`}>{artifactStatusLabel(previewForm.status)}</Badge>
         </div>
         <form className="stack" onSubmit={confirmStoryOutline}>
           <div className="outline-field-groups">
@@ -241,12 +246,12 @@ export default function StoryOutlineExtractPage() {
             ))}
           </div>
           <div className="actions">
-            <Link className="button secondary" href={`/projects/${projectId}/story-text`}>
-              取消
-            </Link>
-            <button className="button" type="submit" disabled={!draft || draft.validation_status !== "passed" || isSaving}>
+            <Button className="button secondary" asChild>
+              <Link href={`/projects/${projectId}/story-text`}>取消</Link>
+            </Button>
+            <Button className="button" type="submit" disabled={!draft || draft.validation_status !== "passed" || isSaving}>
               {isSaving ? "确认中..." : "确认并返回工作台"}
-            </button>
+            </Button>
           </div>
         </form>
       </section>
@@ -268,7 +273,7 @@ function TextArea({
   return (
     <div className="field">
       <label>{label}</label>
-      <textarea value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} rows={4} />
+      <Textarea value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} rows={4} />
     </div>
   );
 }
@@ -277,11 +282,15 @@ function StatusSelect({ value, onChange }: { value: ProjectArtifactStatus; onCha
   return (
     <div className="field">
       <label>状态</label>
-      <select value={value} onChange={(event) => onChange(event.target.value as ProjectArtifactStatus)}>
-        <option value="draft">草稿</option>
-        <option value="confirmed">已确认</option>
-        <option value="needs_review">需要检查</option>
-      </select>
+      <SimpleSelect
+        value={value}
+        onValueChange={(nextValue) => onChange(nextValue as ProjectArtifactStatus)}
+        options={[
+          { label: "草稿", value: "draft" },
+          { label: "已确认", value: "confirmed" },
+          { label: "需要检查", value: "needs_review" }
+        ]}
+      />
     </div>
   );
 }

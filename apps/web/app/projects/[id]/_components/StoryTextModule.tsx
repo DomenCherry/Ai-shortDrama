@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import type { ProjectArtifactStatus } from "@/lib/api";
 import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import {
@@ -34,12 +36,12 @@ function StoryOutlinePanel({ workbench }: { workbench: ProjectWorkbenchState }) 
           <ArtifactStatusBadge status={workbench.storyOutline?.status ?? workbench.storyForm.status} />
         </div>
         <div className="story-outline-header-actions">
-          <Link className="button secondary compact-button" href={`/projects/${workbench.projectId}/story-outline/assist`}>
-            AI协助
-          </Link>
-          <Link className="button secondary compact-button" href={`/projects/${workbench.projectId}/story-outline/extract`}>
-            AI提取
-          </Link>
+          <Button className="button secondary compact-button" asChild>
+            <Link href={`/projects/${workbench.projectId}/story-outline/assist`}>AI协助</Link>
+          </Button>
+          <Button className="button secondary compact-button" asChild>
+            <Link href={`/projects/${workbench.projectId}/story-outline/extract`}>AI提取</Link>
+          </Button>
         </div>
       </div>
       <form className="stack" onSubmit={workbench.saveStoryOutline}>
@@ -70,9 +72,9 @@ function StoryOutlinePanel({ workbench }: { workbench: ProjectWorkbenchState }) 
           ))}
         </div>
         <div className="actions">
-          <button className="button" type="submit" disabled={workbench.isSaving}>
+          <Button className="button" type="submit" disabled={workbench.isSaving}>
             {workbench.isSaving ? "保存中..." : "保存整体大纲"}
-          </button>
+          </Button>
         </div>
       </form>
     </section>
@@ -91,9 +93,10 @@ function EpisodeOutlinePanel({ workbench }: { workbench: ProjectWorkbenchState }
           <EpisodePicker episodeCount={project.episode_count} value={workbench.selectedEpisodeNo} onChange={workbench.setSelectedEpisodeNo} />
           <div className="episode-index-list">
             {workbench.episodeRows.map((row) => (
-              <button
+              <Button
                 className={`episode-index-item ${workbench.selectedEpisodeNo === row.episodeNo ? "active" : ""}`}
                 type="button"
+                variant="ghost"
                 key={row.episodeNo}
                 onClick={() => workbench.setSelectedEpisodeNo(row.episodeNo)}
                 aria-current={workbench.selectedEpisodeNo === row.episodeNo ? "true" : undefined}
@@ -105,7 +108,7 @@ function EpisodeOutlinePanel({ workbench }: { workbench: ProjectWorkbenchState }
                   </span>
                 </span>
                 <span className="episode-index-title">{row.outline?.title || "未填写标题"}</span>
-              </button>
+              </Button>
             ))}
           </div>
         </aside>
@@ -126,9 +129,9 @@ function EpisodeOutlinePanel({ workbench }: { workbench: ProjectWorkbenchState }
           </div>
           <StatusSelect value={workbench.episodeForm.status} onChange={(value) => setEpisodeFormValue("status", value, workbench.setEpisodeForm)} />
           <div className="actions">
-            <button className="button" type="submit" disabled={workbench.isSaving}>
+            <Button className="button" type="submit" disabled={workbench.isSaving}>
               {workbench.isSaving ? "保存中..." : "保存分集大纲"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -150,9 +153,10 @@ function EpisodeContentPanel({ workbench }: { workbench: ProjectWorkbenchState }
             <EpisodePicker episodeCount={project.episode_count} value={workbench.selectedEpisodeNo} onChange={workbench.setSelectedEpisodeNo} />
             <div className="episode-index-list">
               {workbench.episodeRows.map((row) => (
-                <button
+                <Button
                   className={`episode-index-item ${workbench.selectedEpisodeNo === row.episodeNo ? "active" : ""}`}
                   type="button"
+                  variant="ghost"
                   key={row.episodeNo}
                   onClick={() => workbench.setSelectedEpisodeNo(row.episodeNo)}
                   aria-current={workbench.selectedEpisodeNo === row.episodeNo ? "true" : undefined}
@@ -168,7 +172,7 @@ function EpisodeContentPanel({ workbench }: { workbench: ProjectWorkbenchState }
                     </span>
                   </span>
                   <span className="episode-index-title">{row.outline?.title || "未填写标题"}</span>
-                </button>
+                </Button>
               ))}
             </div>
           </aside>
@@ -218,18 +222,19 @@ function EpisodeContentPanel({ workbench }: { workbench: ProjectWorkbenchState }
               </div>
               <div className="paper-editor-actions">
                 <span className="word-count-row">{workbench.contentWordCount} 字</span>
-                <select
+                <SimpleSelect
                   aria-label="正文状态"
                   value={workbench.contentForm.status}
-                  onChange={(event) => setContentFormValue("status", event.target.value as ProjectArtifactStatus, workbench.setContentForm)}
-                >
-                  <option value="draft">草稿</option>
-                  <option value="confirmed">已确认</option>
-                  <option value="needs_review">需要检查</option>
-                </select>
-                <button className="button" type="submit" disabled={workbench.isSaving}>
+                  onValueChange={(value) => setContentFormValue("status", value as ProjectArtifactStatus, workbench.setContentForm)}
+                  options={[
+                    { label: "草稿", value: "draft" },
+                    { label: "已确认", value: "confirmed" },
+                    { label: "需要检查", value: "needs_review" }
+                  ]}
+                />
+                <Button className="button" type="submit" disabled={workbench.isSaving}>
                   {workbench.isSaving ? "保存中..." : "保存"}
-                </button>
+                </Button>
               </div>
             </div>
             <TextArea label="正文内容" value={workbench.contentForm.detailed_content} onChange={(value) => setContentFormValue("detailed_content", value, workbench.setContentForm)} />
@@ -247,23 +252,24 @@ function WritingReferencePanel({ workbench }: { workbench: ProjectWorkbenchState
     <aside className="writing-reference-panel" aria-label="正文创作参考面板">
       <div className="reference-tabs" role="tablist" aria-label="参考面板">
         {referenceTabs.map((tab) => (
-          <button
+          <Button
             className={`reference-tab ${workbench.activeReferenceTab === tab.key ? "active" : ""}`}
             type="button"
+            variant="ghost"
             key={tab.key}
             onClick={() => workbench.setActiveReferenceTab(tab.key)}
           >
             {tab.label}
-          </button>
+          </Button>
         ))}
       </div>
       <div className="reference-tab-panel">
         {workbench.activeReferenceTab === "settings" ? (
           <ReferenceCard title="世界观设定">
             <p>{workbench.worldSnapshots[0] ? worldSnapshotSummary(workbench.worldSnapshots[0]) : "尚未加载项目世界观。"}</p>
-            <button className="reference-link-button" type="button" onClick={() => workbench.showAiPlaceholder("设定参考")}>
+            <Button className="reference-link-button" type="button" variant="ghost" onClick={() => workbench.showAiPlaceholder("设定参考")}>
               设定参考
-            </button>
+            </Button>
           </ReferenceCard>
         ) : null}
         {workbench.activeReferenceTab === "characters" ? (
@@ -280,33 +286,33 @@ function WritingReferencePanel({ workbench }: { workbench: ProjectWorkbenchState
             ) : (
               <p>尚未加载项目角色。</p>
             )}
-            <button className="reference-link-button" type="button" onClick={() => workbench.showAiPlaceholder("角色参考")}>
+            <Button className="reference-link-button" type="button" variant="ghost" onClick={() => workbench.showAiPlaceholder("角色参考")}>
               角色参考
-            </button>
+            </Button>
           </ReferenceCard>
         ) : null}
         {workbench.activeReferenceTab === "style" ? (
           <ReferenceCard title="文风">
             <p>用于沉淀表达偏好、文风规则和参考资料摘要。本阶段只展示入口。</p>
-            <button className="reference-link-button" type="button" onClick={() => workbench.showAiPlaceholder("文风面板")}>
+            <Button className="reference-link-button" type="button" variant="ghost" onClick={() => workbench.showAiPlaceholder("文风面板")}>
               文风
-            </button>
+            </Button>
           </ReferenceCard>
         ) : null}
         {workbench.activeReferenceTab === "inspiration" ? (
           <ReferenceCard title="灵感">
             <p>用于沉淀可选桥段、冲突点、反转方向和短剧爽点。本阶段只展示入口。</p>
-            <button className="reference-link-button" type="button" onClick={() => workbench.showAiPlaceholder("灵感面板")}>
+            <Button className="reference-link-button" type="button" variant="ghost" onClick={() => workbench.showAiPlaceholder("灵感面板")}>
               灵感
-            </button>
+            </Button>
           </ReferenceCard>
         ) : null}
       </div>
       <ReferenceCard title="质检备注">
         <TextArea label="备注" value={workbench.contentForm.quality_check_notes} onChange={(value) => setContentFormValue("quality_check_notes", value, workbench.setContentForm)} />
-        <button className="reference-link-button" type="button" onClick={() => workbench.showAiPlaceholder("一致性质检")}>
+        <Button className="reference-link-button" type="button" variant="ghost" onClick={() => workbench.showAiPlaceholder("一致性质检")}>
           一致性质检
-        </button>
+        </Button>
       </ReferenceCard>
     </aside>
   );

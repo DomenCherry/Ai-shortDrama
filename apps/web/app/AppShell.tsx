@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ReactNode, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 const sidebarStorageKey = "ai-short-drama-sidebar-collapsed";
 
@@ -37,15 +38,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="brand-full">AI 短剧工作台</span>
             <span className="brand-short">AI</span>
           </div>
-          <button
+          <Button
             aria-expanded={!isSidebarCollapsed}
             aria-label={isSidebarCollapsed ? "展开左侧导航" : "收起左侧导航"}
             className="sidebar-toggle"
+            size="icon"
             type="button"
+            variant="ghost"
             onClick={toggleSidebar}
           >
             <span aria-hidden="true">{isSidebarCollapsed ? "›" : "‹"}</span>
-          </button>
+          </Button>
         </div>
         <nav className="nav" aria-label="工作台模块">
           {navItems.map((item) => (
