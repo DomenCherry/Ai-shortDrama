@@ -150,7 +150,7 @@ apps/web
 约定：
 
 - `app`：Next.js App Router 页面。
-- `components/ui`：shadcn/ui 生成的项目级通用 UI 组件。
+- `components/ui`：shadcn/ui 生成的项目级通用 UI 组件，具体清单见 [前端 UI 组件库规范](./ui-component-library.md)。
 - `lib/api.ts`：前端 API service 层，页面不直接散落复杂 fetch 逻辑。
 - `lib/utils.ts`：通用前端工具函数，当前包含 `cn()` className 合并工具。
 
@@ -169,7 +169,11 @@ apps/web/app/<route>/_utils
 - `_hooks`：只服务当前路由分组的状态和数据加载逻辑。
 - `_utils`：只服务当前路由分组的表单转换、常量和工具函数。
 
+新增或修改前端代码前，必须先检查 [前端 UI 组件库规范](./ui-component-library.md) 和 `components/ui` 是否已有可用基础组件，再检查当前路由 `_components` 是否已有业务组件。只有现有组件无法满足时，才新增基础 UI 或业务组件。
+
 新增通用 UI 时优先使用或扩展 `components/ui`，不要在页面内重复手写基础控件。业务组件仍放在对应路由的 `_components` 下，不把 shadcn 组件当黑盒库使用；组件代码进入项目后可按本项目风格调整。
+
+如果新增、删除或重命名 `components/ui` 下的组件，必须同步更新 [前端 UI 组件库规范](./ui-component-library.md) 的组件清单。
 
 ## 7. 后端接口 Spec
 

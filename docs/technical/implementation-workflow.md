@@ -198,10 +198,14 @@ docs/technical/spec-splitting-review.md
 - 页面放在 `apps/web/app`。
 - 前端 API 调用优先集中在 `apps/web/lib/api.ts`。
 - 页面风格遵守 `docs/technical/frontend-style-guide.md`。
+- 基础 UI 组件遵守 `docs/technical/ui-component-library.md`。
 - 编码和注释遵守 `docs/technical/coding-standards.md`。
 
 实现要求：
 
+- 写页面或组件前，先查 `apps/web/components/ui` 是否已有基础控件，再查当前路由 `_components` 是否已有业务组件。
+- 按钮、输入框、文本域、选择器、抽屉、标签、卡片、Tabs、Tooltip 等基础控件优先使用 `components/ui`，不要在页面内重复手写。
+- 新增、删除或重命名 `components/ui` 组件时，必须同步更新 `docs/technical/ui-component-library.md`。
 - 表单必须有前端校验。
 - 后端错误必须转换为用户可理解的中文提示。
 - 复杂状态必须显式展示，例如保存中、生成中、测试中、成功、失败。

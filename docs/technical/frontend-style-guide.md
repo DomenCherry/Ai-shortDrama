@@ -173,9 +173,12 @@ page
 
 ## 10. 前端实现约束
 
-- 不引入新的 UI 框架，除非已有功能明显无法维护。
+- 不引入第二套 UI 框架；基础控件优先使用当前 shadcn/ui 组件库。
+- 新增或修改前端代码前，先检查 [前端 UI 组件库规范](./ui-component-library.md) 和 `apps/web/components/ui`。
+- 按钮、输入框、文本域、选择器、抽屉、标签、卡片、Tabs、Tooltip 等基础控件不得在页面内重复手写。
 - 优先复用 `apps/web/app/globals.css` 中的通用类。
 - 当某类 UI 在三个以上页面重复出现时，再抽象为组件。
+- 新增、删除或重命名 `components/ui` 组件时，必须同步更新 [前端 UI 组件库规范](./ui-component-library.md)。
 - 组件命名应表达业务或 UI 角色，例如 `PageHeader`、`FormField`、`StatusMessage`。
 - 页面代码应保持类型清晰，API 入参和后端 schema 对齐。
 - 修改前端后至少运行：

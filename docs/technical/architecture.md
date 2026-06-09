@@ -13,7 +13,7 @@
 
 ## 2. 技术选型
 
-- 前端：Next.js + TypeScript。
+- 前端：Next.js + TypeScript + Tailwind CSS + shadcn/ui。
 - 后端：Python 3.11 + FastAPI + PostgreSQL。
 - 数据访问：SQLAlchemy。
 - 数据迁移：Alembic。
@@ -26,6 +26,7 @@
 apps
 ├── web
 │   ├── app
+│   ├── components
 │   └── lib
 └── api
     └── app
@@ -70,7 +71,7 @@ Projects 后端已做行为不变的结构性拆分：
 - `assets`：人物示意图和本地素材管理。
 - `workspace`：项目工作区目录和导出文件写入。
 
-前端继续保持 App Router 和集中 API service 层。页面复杂度上升后，再新增 `components`、`features`、`types` 等目录。
+前端继续保持 App Router、集中 API service 层和 shadcn/ui 基础组件层。`components/ui` 用于维护跨页面基础 UI，页面或业务模块新增基础控件前必须先检查 [前端 UI 组件库规范](./ui-component-library.md)。
 
 ## 5. 一期核心模块
 

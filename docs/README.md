@@ -27,7 +27,8 @@ docs
     ├── implementation-workflow.md
     ├── project-structure.md
     ├── skills-strategy.md
-    └── spec-splitting-review.md
+    ├── spec-splitting-review.md
+    └── ui-component-library.md
 ```
 
 仓库级配套目录：
@@ -102,3 +103,4 @@ docs
 - [项目结构约定](./technical/project-structure.md)
 - [Skill 分层策略](./technical/skills-strategy.md)
 - [前后端 Spec 拆分审查](./technical/spec-splitting-review.md)
+- [前端 UI 组件库规范](./technical/ui-component-library.md)
