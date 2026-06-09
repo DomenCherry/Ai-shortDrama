@@ -143,30 +143,33 @@ apps/api/app
 ```text
 apps/web
 ├── app
+├── components
 └── lib
 ```
 
 约定：
 
 - `app`：Next.js App Router 页面。
+- `components/ui`：shadcn/ui 生成的项目级通用 UI 组件。
 - `lib/api.ts`：前端 API service 层，页面不直接散落复杂 fetch 逻辑。
+- `lib/utils.ts`：通用前端工具函数，当前包含 `cn()` className 合并工具。
 
-后续当页面复杂度上升后，再新增：
+项目工作台等复杂页面可在路由目录下使用私有内部目录：
 
 ```text
-apps/web
-├── components
-├── features
-└── types
+apps/web/app/<route>/_components
+apps/web/app/<route>/_hooks
+apps/web/app/<route>/_utils
 ```
 
 使用规则：
 
-- `components`：跨页面复用的通用 UI。
-- `features`：按业务模块组织的组件和状态逻辑。
-- `types`：前端共享类型。
+- `components/ui`：按钮、输入框、选择器、抽屉、标签、卡片、Tabs、Tooltip 等跨页面基础 UI。
+- `_components`：只服务当前路由分组的业务组件。
+- `_hooks`：只服务当前路由分组的状态和数据加载逻辑。
+- `_utils`：只服务当前路由分组的表单转换、常量和工具函数。
 
-新增目录应以实际重复和复杂度为依据，不提前抽象。
+新增通用 UI 时优先使用或扩展 `components/ui`，不要在页面内重复手写基础控件。业务组件仍放在对应路由的 `_components` 下，不把 shadcn 组件当黑盒库使用；组件代码进入项目后可按本项目风格调整。
 
 ## 7. 后端接口 Spec
 

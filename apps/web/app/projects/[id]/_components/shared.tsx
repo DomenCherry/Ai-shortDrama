@@ -3,6 +3,22 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { ProjectArtifactStatus, ProjectCharacterSnapshot, ProjectEpisodeOutline, ProjectWorldSnapshot } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle
+} from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { artifactStatusClass, artifactStatusLabel, formatNumber } from "../_utils/workbenchForms";
 
 export function Metric({ label, value }: { label: string; value: string }) {
@@ -66,7 +82,7 @@ export function SectionTitle({ title, status }: { title: string; status: Project
 }
 
 export function ArtifactStatusBadge({ status }: { status: ProjectArtifactStatus }) {
-  return <span className={`status-badge ${artifactStatusClass(status)}`}>{artifactStatusLabel(status)}</span>;
+  return <Badge className={`status-badge ${artifactStatusClass(status)}`}>{artifactStatusLabel(status)}</Badge>;
 }
 
 export function ProductionContextSummary({
@@ -157,13 +173,13 @@ export function AssetSection({
         <h2>{title}</h2>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           {onPick && pickLabel ? (
-            <button className="button" type="button" onClick={onPick} disabled={pickDisabled}>
+            <Button className="button" type="button" onClick={onPick} disabled={pickDisabled}>
               {pickLabel}
-            </button>
+            </Button>
           ) : null}
-          <Link className="button secondary" href={linkHref}>
-            {linkLabel}
-          </Link>
+          <Button className="button secondary" asChild>
+            <Link href={linkHref}>{linkLabel}</Link>
+          </Button>
         </div>
       </div>
       {isLoading ? (
@@ -191,18 +207,19 @@ export function AssetDrawer({
   if (!isOpen) return null;
 
   return (
-    <div className="drawer-layer" role="presentation">
-      <button className="drawer-backdrop" type="button" aria-label="关闭选择抽屉" onClick={onClose} />
-      <aside className="asset-drawer" role="dialog" aria-modal="true" aria-labelledby="asset-drawer-title">
+    <Sheet open={isOpen} onOpenChange={(open) => {
+      if (!open) onClose();
+    }}>
+      <SheetContent className="w-[min(560px,calc(100vw-32px))] max-w-none gap-0 p-0 sm:max-w-none" showCloseButton={false}>
         <div className="asset-drawer-header">
-          <h3 id="asset-drawer-title">{title}</h3>
-          <button className="button secondary" type="button" onClick={onClose}>
+          <SheetTitle id="asset-drawer-title">{title}</SheetTitle>
+          <Button className="button secondary" type="button" onClick={onClose}>
             关闭
-          </button>
+          </Button>
         </div>
         <div className="asset-drawer-body">{children}</div>
-      </aside>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -210,13 +227,18 @@ export function EpisodePicker({ episodeCount, value, onChange }: { episodeCount:
   return (
     <div className="field compact-field">
       <label>当前集数</label>
-      <select value={value} onChange={(event) => onChange(Number(event.target.value))}>
+      <Select value={String(value)} onValueChange={(nextValue) => onChange(Number(nextValue))}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
         {Array.from({ length: episodeCount }, (_, index) => index + 1).map((episodeNo) => (
-          <option value={episodeNo} key={episodeNo}>
+          <SelectItem value={String(episodeNo)} key={episodeNo}>
             第 {episodeNo} 集
-          </option>
+          </SelectItem>
         ))}
-      </select>
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -225,7 +247,7 @@ export function TextInput({ label, value, onChange }: { label: string; value: st
   return (
     <div className="field">
       <label>{label}</label>
-      <input value={value} onChange={(event) => onChange(event.target.value)} />
+      <Input value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }
@@ -248,7 +270,7 @@ export function NumberInput({
   return (
     <div className="field">
       <label>{label}</label>
-      <input type="number" min={min} max={max} step={step} value={value} onChange={(event) => onChange(event.target.value)} />
+      <Input type="number" min={min} max={max} step={step} value={value} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }
@@ -267,7 +289,7 @@ export function TextArea({
   return (
     <div className="field">
       <label>{label}</label>
-      <textarea value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      <Textarea value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
 }
@@ -276,11 +298,16 @@ export function StatusSelect({ value, onChange }: { value: ProjectArtifactStatus
   return (
     <div className="field compact-field">
       <label>状态</label>
-      <select value={value} onChange={(event) => onChange(event.target.value as ProjectArtifactStatus)}>
-        <option value="draft">草稿</option>
-        <option value="confirmed">已确认</option>
-        <option value="needs_review">需要检查</option>
-      </select>
+      <Select value={value} onValueChange={(nextValue) => onChange(nextValue as ProjectArtifactStatus)}>
+        <SelectTrigger className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="draft">草稿</SelectItem>
+          <SelectItem value="confirmed">已确认</SelectItem>
+          <SelectItem value="needs_review">需要检查</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   );
 }
