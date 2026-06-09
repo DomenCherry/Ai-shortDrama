@@ -1,3 +1,4 @@
+"""接口 Schema 模块，定义 FastAPI 请求体与响应体的数据边界。"""
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
@@ -21,6 +22,7 @@ StoryOutlineAssistMessageRole = Literal["user", "assistant"]
 
 
 class ModelApiConfigCreate(BaseModel):
+    """ModelApiConfigCreate 创建请求体，用于约束接口数据结构。"""
     config_type: ConfigType
     provider_mode: ProviderMode = "custom"
     provider_preset: Optional[str] = None
@@ -47,6 +49,7 @@ class ModelApiConfigCreate(BaseModel):
     )
     @classmethod
     def normalize_config_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理模型配置文本字段，空字符串统一转为空值以便后续供应商规则校验。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -56,6 +59,7 @@ class ModelApiConfigCreate(BaseModel):
 
 
 class ModelApiConfigUpdate(BaseModel):
+    """ModelApiConfigUpdate 更新请求体，用于约束接口数据结构。"""
     provider_mode: ProviderMode = "custom"
     provider_preset: Optional[str] = None
     provider_name: Optional[str] = None
@@ -81,6 +85,7 @@ class ModelApiConfigUpdate(BaseModel):
     )
     @classmethod
     def normalize_config_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理模型配置更新字段，避免空白字符串覆盖有效配置。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -90,6 +95,7 @@ class ModelApiConfigUpdate(BaseModel):
 
 
 class ModelApiConfigResponse(BaseModel):
+    """ModelApiConfigResponse 响应体，用于约束接口数据结构。"""
     id: str
     config_type: ConfigType
     provider_mode: ProviderMode
@@ -111,6 +117,7 @@ class ModelApiConfigResponse(BaseModel):
 
 
 class ModelApiTestResponse(BaseModel):
+    """ModelApiTestResponse 响应体，用于约束接口数据结构。"""
     success: bool
     status: str
     message: str
@@ -119,6 +126,7 @@ class ModelApiTestResponse(BaseModel):
 
 
 class ProjectCreate(BaseModel):
+    """ProjectCreate 创建请求体，用于约束接口数据结构。"""
     title: Optional[str] = None
     idea: str
     target_platform: Optional[str] = "抖音"
@@ -132,6 +140,7 @@ class ProjectCreate(BaseModel):
     @field_validator("idea", mode="before")
     @classmethod
     def validate_idea(cls, value: Optional[str]) -> str:
+        """校验项目创意不能为空，这是后续 AI 生成流程的最小输入。"""
         if not isinstance(value, str) or not value.strip():
             raise ValueError("请先输入短剧创意描述")
         return value.strip()
@@ -139,6 +148,7 @@ class ProjectCreate(BaseModel):
     @field_validator("episode_count")
     @classmethod
     def validate_episode_count(cls, value: int) -> int:
+        """校验项目集数必须为正整数，防止生成无效分集结构。"""
         if value <= 0:
             raise ValueError("集数必须是大于 0 的整数")
         return value
@@ -146,6 +156,7 @@ class ProjectCreate(BaseModel):
     @field_validator("episode_duration")
     @classmethod
     def validate_episode_duration(cls, value: float) -> float:
+        """校验单集时长不能超过 2 分钟，和一期产品时长规则保持一致。"""
         if value <= 0:
             raise ValueError("单集时长必须大于 0 分钟")
         if value > 2:
@@ -154,10 +165,12 @@ class ProjectCreate(BaseModel):
 
 
 class ProjectUpdate(ProjectCreate):
+    """ProjectUpdate 更新请求体，用于约束接口数据结构。"""
     pass
 
 
 class ProjectResponse(BaseModel):
+    """ProjectResponse 响应体，用于约束接口数据结构。"""
     id: str
     title: str
     idea: str
@@ -175,6 +188,7 @@ class ProjectResponse(BaseModel):
 
 
 class CharacterCardBase(BaseModel):
+    """CharacterCardBase 数据结构，定义接口层使用的数据字段。"""
     name: str = Field(min_length=1, max_length=80)
     gender: CharacterGender
     role_type: str = Field(min_length=1, max_length=40)
@@ -221,6 +235,7 @@ class CharacterCardBase(BaseModel):
     )
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理角色卡文本字段，隐藏的历史剧情字段也保留兼容写入能力。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -231,6 +246,7 @@ class CharacterCardBase(BaseModel):
     @field_validator("gender", mode="before")
     @classmethod
     def validate_gender(cls, value: Optional[str]) -> str:
+        """校验角色性别只能是男或女，用于生成称谓和视觉方向。"""
         if not isinstance(value, str) or not value.strip():
             raise ValueError("性别不能为空")
         gender = value.strip()
@@ -240,14 +256,17 @@ class CharacterCardBase(BaseModel):
 
 
 class CharacterCardCreate(CharacterCardBase):
+    """CharacterCardCreate 创建请求体，用于约束接口数据结构。"""
     pass
 
 
 class CharacterCardUpdate(CharacterCardBase):
+    """CharacterCardUpdate 更新请求体，用于约束接口数据结构。"""
     pass
 
 
 class CharacterCardResponse(CharacterCardBase):
+    """CharacterCardResponse 响应体，用于约束接口数据结构。"""
     id: str
     version: int
     turnaround_image_url: Optional[str] = None
@@ -261,12 +280,14 @@ class CharacterCardResponse(CharacterCardBase):
 
 
 class CharacterReferenceImageUpload(BaseModel):
+    """CharacterReferenceImageUpload 数据结构，定义接口层使用的数据字段。"""
     filename: str = Field(min_length=1)
     content_type: str = Field(min_length=1)
     data_url: str = Field(min_length=1)
 
 
 class CharacterImageAssetResponse(BaseModel):
+    """CharacterImageAssetResponse 响应体，用于约束接口数据结构。"""
     character_card_id: str
     image_url: str
     local_path: str
@@ -274,10 +295,12 @@ class CharacterImageAssetResponse(BaseModel):
 
 
 class CharacterTurnaroundGenerate(BaseModel):
+    """CharacterTurnaroundGenerate 数据结构，定义接口层使用的数据字段。"""
     prompt: Optional[str] = None
 
 
 class CharacterTurnaroundResponse(BaseModel):
+    """CharacterTurnaroundResponse 响应体，用于约束接口数据结构。"""
     character_card_id: str
     image_url: Optional[str] = None
     local_path: Optional[str] = None
@@ -289,12 +312,14 @@ class CharacterTurnaroundResponse(BaseModel):
 
 
 class ProjectCharacterSnapshotCreate(BaseModel):
+    """ProjectCharacterSnapshotCreate 创建请求体，用于约束接口数据结构。"""
     source_character_card_id: str = Field(min_length=1)
     load_mode: Literal["new", "replace"] = "new"
     replace_snapshot_id: Optional[str] = None
 
 
 class ProjectCharacterSnapshotUpdate(BaseModel):
+    """ProjectCharacterSnapshotUpdate 更新请求体，用于约束接口数据结构。"""
     name: str = Field(min_length=1, max_length=80)
     gender: CharacterGender
     role_type: str = Field(min_length=1, max_length=40)
@@ -314,6 +339,7 @@ class ProjectCharacterSnapshotUpdate(BaseModel):
     )
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理项目角色快照文本字段，只影响当前项目副本。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -324,6 +350,7 @@ class ProjectCharacterSnapshotUpdate(BaseModel):
     @field_validator("gender", mode="before")
     @classmethod
     def validate_gender(cls, value: Optional[str]) -> str:
+        """校验项目角色快照性别只能是男或女，保持和角色卡资产一致。"""
         if not isinstance(value, str) or not value.strip():
             raise ValueError("性别不能为空")
         gender = value.strip()
@@ -333,6 +360,7 @@ class ProjectCharacterSnapshotUpdate(BaseModel):
 
 
 class ProjectCharacterSnapshotResponse(BaseModel):
+    """ProjectCharacterSnapshotResponse 响应体，用于约束接口数据结构。"""
     id: str
     project_id: str
     source_character_card_id: str
@@ -349,6 +377,7 @@ class ProjectCharacterSnapshotResponse(BaseModel):
 
 
 class WorldBookBase(BaseModel):
+    """WorldBookBase 数据结构，定义接口层使用的数据字段。"""
     name: str = Field(min_length=1, max_length=120)
     genre: str = Field(min_length=1, max_length=120)
     era_background: Optional[str] = None
@@ -376,6 +405,7 @@ class WorldBookBase(BaseModel):
     )
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理世界观资产文本字段，避免保存无意义空白。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -385,14 +415,17 @@ class WorldBookBase(BaseModel):
 
 
 class WorldBookCreate(WorldBookBase):
+    """WorldBookCreate 创建请求体，用于约束接口数据结构。"""
     pass
 
 
 class WorldBookUpdate(WorldBookBase):
+    """WorldBookUpdate 更新请求体，用于约束接口数据结构。"""
     pass
 
 
 class WorldBookResponse(WorldBookBase):
+    """WorldBookResponse 响应体，用于约束接口数据结构。"""
     id: str
     version: int
     entry_count: int = 0
@@ -402,6 +435,7 @@ class WorldBookResponse(WorldBookBase):
 
 
 class WorldEntryBase(BaseModel):
+    """WorldEntryBase 数据结构，定义接口层使用的数据字段。"""
     title: str = Field(min_length=1, max_length=120)
     entry_type: WorldEntryType = "世界规则"
     keywords: Optional[str] = None
@@ -413,6 +447,7 @@ class WorldEntryBase(BaseModel):
     @field_validator("title", "keywords", "content", "applicable_scope", mode="before")
     @classmethod
     def normalize_entry_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理世界观条目文本字段，保证关键词和内容可稳定进入项目快照。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -422,14 +457,17 @@ class WorldEntryBase(BaseModel):
 
 
 class WorldEntryCreate(WorldEntryBase):
+    """WorldEntryCreate 创建请求体，用于约束接口数据结构。"""
     pass
 
 
 class WorldEntryUpdate(WorldEntryBase):
+    """WorldEntryUpdate 更新请求体，用于约束接口数据结构。"""
     pass
 
 
 class WorldEntryResponse(WorldEntryBase):
+    """WorldEntryResponse 响应体，用于约束接口数据结构。"""
     id: str
     world_book_id: str
     created_at: str
@@ -437,12 +475,14 @@ class WorldEntryResponse(WorldEntryBase):
 
 
 class ProjectWorldSnapshotCreate(BaseModel):
+    """ProjectWorldSnapshotCreate 创建请求体，用于约束接口数据结构。"""
     source_world_book_id: str = Field(min_length=1)
     load_mode: Literal["new", "replace"] = "new"
     replace_snapshot_id: Optional[str] = None
 
 
 class ProjectWorldSnapshotUpdate(BaseModel):
+    """ProjectWorldSnapshotUpdate 更新请求体，用于约束接口数据结构。"""
     name: str = Field(min_length=1, max_length=120)
     genre: str = Field(min_length=1, max_length=120)
     snapshot_content: str = Field(min_length=1)
@@ -451,6 +491,7 @@ class ProjectWorldSnapshotUpdate(BaseModel):
     @field_validator("name", "genre", "snapshot_content", "entry_snapshot_content", mode="before")
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理项目世界观快照文本字段，只影响当前项目副本。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -460,6 +501,7 @@ class ProjectWorldSnapshotUpdate(BaseModel):
 
 
 class ProjectWorldSnapshotResponse(BaseModel):
+    """ProjectWorldSnapshotResponse 响应体，用于约束接口数据结构。"""
     id: str
     project_id: str
     source_world_book_id: str
@@ -473,11 +515,13 @@ class ProjectWorldSnapshotResponse(BaseModel):
 
 
 class ProjectArtifactBase(BaseModel):
+    """ProjectArtifactBase 数据结构，定义接口层使用的数据字段。"""
     status: ProjectArtifactStatus = "draft"
 
     @field_validator("status", mode="before")
     @classmethod
     def validate_status(cls, value: Optional[str]) -> str:
+        """校验项目产物状态，缺省回到 draft 并限制为固定流转值。"""
         if not isinstance(value, str) or not value.strip():
             return "draft"
         status = value.strip()
@@ -487,6 +531,7 @@ class ProjectArtifactBase(BaseModel):
 
 
 class ProjectStoryOutlinePayload(ProjectArtifactBase):
+    """ProjectStoryOutlinePayload 业务请求体，用于约束接口数据结构。"""
     logline: Optional[str] = None
     story_background: Optional[str] = None
     core_conflict: Optional[str] = None
@@ -521,6 +566,7 @@ class ProjectStoryOutlinePayload(ProjectArtifactBase):
     )
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理故事大纲字段，空白内容不参与后续生成上下文。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -530,6 +576,7 @@ class ProjectStoryOutlinePayload(ProjectArtifactBase):
 
 
 class ProjectStoryOutlineResponse(ProjectStoryOutlinePayload):
+    """ProjectStoryOutlineResponse 响应体，用于约束接口数据结构。"""
     id: str
     project_id: str
     created_at: str
@@ -537,6 +584,7 @@ class ProjectStoryOutlineResponse(ProjectStoryOutlinePayload):
 
 
 class StoryOutlineGeneratePayload(BaseModel):
+    """StoryOutlineGeneratePayload 业务请求体，用于约束接口数据结构。"""
     user_requirements: Optional[str] = None
     reference_draft_id: Optional[str] = None
     write_mode: StoryOutlineWriteMode = "preview"
@@ -544,6 +592,7 @@ class StoryOutlineGeneratePayload(BaseModel):
     @field_validator("user_requirements", "reference_draft_id", mode="before")
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理故事大纲生成参数，避免空白要求误导模型。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -553,6 +602,7 @@ class StoryOutlineGeneratePayload(BaseModel):
 
 
 class StoryOutlineGenerationResult(BaseModel):
+    """StoryOutlineGenerationResult 生成结果响应体，用于约束接口数据结构。"""
     outline: ProjectStoryOutlinePayload
     applied: bool
     saved_outline: Optional[ProjectStoryOutlineResponse] = None
@@ -560,6 +610,7 @@ class StoryOutlineGenerationResult(BaseModel):
 
 
 class StoryOutlineRewritePayload(BaseModel):
+    """StoryOutlineRewritePayload 业务请求体，用于约束接口数据结构。"""
     field: str = Field(min_length=1)
     current_value: str = Field(min_length=1)
     instruction: str = Field(min_length=1)
@@ -568,6 +619,7 @@ class StoryOutlineRewritePayload(BaseModel):
     @field_validator("field", "current_value", "instruction", mode="before")
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理故事大纲局部改写参数，确保字段和值可被模型明确处理。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -577,6 +629,7 @@ class StoryOutlineRewritePayload(BaseModel):
 
 
 class StoryOutlineRewriteResult(BaseModel):
+    """StoryOutlineRewriteResult 生成结果响应体，用于约束接口数据结构。"""
     field: str
     value: str
     applied: bool
@@ -584,12 +637,14 @@ class StoryOutlineRewriteResult(BaseModel):
 
 
 class StoryOutlineAssistMessage(BaseModel):
+    """StoryOutlineAssistMessage 对话消息结构，用于约束接口数据结构。"""
     role: StoryOutlineAssistMessageRole
     content: str = Field(min_length=1)
 
     @field_validator("content", mode="before")
     @classmethod
     def normalize_content(cls, value: Optional[str]) -> Optional[str]:
+        """清理故事大纲辅助问答消息，空白消息不进入模型上下文。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -599,6 +654,7 @@ class StoryOutlineAssistMessage(BaseModel):
 
 
 class StoryOutlineAssistPatch(BaseModel):
+    """StoryOutlineAssistPatch 局部更新结构，用于约束接口数据结构。"""
     logline: Optional[str] = None
     story_background: Optional[str] = None
     core_conflict: Optional[str] = None
@@ -633,6 +689,7 @@ class StoryOutlineAssistPatch(BaseModel):
     )
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理故事大纲补丁字段，只保留模型明确给出的有效内容。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -642,6 +699,7 @@ class StoryOutlineAssistPatch(BaseModel):
 
 
 class StoryOutlineAssistPayload(BaseModel):
+    """StoryOutlineAssistPayload 业务请求体，用于约束接口数据结构。"""
     action: StoryOutlineAssistAction
     current_outline: ProjectStoryOutlinePayload
     messages: list[StoryOutlineAssistMessage] = Field(default_factory=list)
@@ -650,6 +708,7 @@ class StoryOutlineAssistPayload(BaseModel):
     @field_validator("user_message", mode="before")
     @classmethod
     def normalize_user_message(cls, value: Optional[str]) -> Optional[str]:
+        """清理用户本轮问答内容，空白消息不触发无效辅助生成。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -659,6 +718,7 @@ class StoryOutlineAssistPayload(BaseModel):
 
 
 class StoryOutlineAssistCompletion(BaseModel):
+    """StoryOutlineAssistCompletion 完成度结构，用于约束接口数据结构。"""
     required_fields: list[str]
     completed_fields: list[str]
     missing_fields: list[str]
@@ -666,6 +726,7 @@ class StoryOutlineAssistCompletion(BaseModel):
 
 
 class StoryOutlineAssistResult(BaseModel):
+    """StoryOutlineAssistResult 生成结果响应体，用于约束接口数据结构。"""
     assistant_message: str
     outline_patch: StoryOutlineAssistPatch
     completion: StoryOutlineAssistCompletion
@@ -674,6 +735,7 @@ class StoryOutlineAssistResult(BaseModel):
 
 
 class ReferenceStoryStructureExtractPayload(BaseModel):
+    """ReferenceStoryStructureExtractPayload 业务请求体，用于约束接口数据结构。"""
     source_type: ReferenceStorySourceType
     source_filename: Optional[str] = None
     source_text: str = Field(min_length=1)
@@ -682,6 +744,7 @@ class ReferenceStoryStructureExtractPayload(BaseModel):
     @field_validator("source_filename", "source_text", "user_requirements", mode="before")
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理参考故事结构抽取字段，避免空白文件名或要求进入模型。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -692,6 +755,7 @@ class ReferenceStoryStructureExtractPayload(BaseModel):
     @field_validator("source_filename")
     @classmethod
     def validate_source_filename(cls, value: Optional[str], info) -> Optional[str]:
+        """校验上传参考故事文件名，第一期只允许 txt 或 md 文本。"""
         if info.data.get("source_type") == "uploaded":
             if not value:
                 raise ValueError("上传参考故事时必须提供文件名")
@@ -702,6 +766,7 @@ class ReferenceStoryStructureExtractPayload(BaseModel):
 
 
 class ReferenceStoryStructureDraftResponse(BaseModel):
+    """ReferenceStoryStructureDraftResponse 响应体，用于约束接口数据结构。"""
     id: str
     project_id: str
     source_type: ReferenceStorySourceType
@@ -727,12 +792,14 @@ class ReferenceStoryStructureDraftResponse(BaseModel):
 
 
 class ReferenceStoryStructureApplyPayload(BaseModel):
+    """ReferenceStoryStructureApplyPayload 业务请求体，用于约束接口数据结构。"""
     apply_mode: ReferenceStoryApplyMode = "fill_empty"
     user_requirements: Optional[str] = None
 
     @field_validator("user_requirements", mode="before")
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理参考结构应用要求，避免空白要求覆盖默认应用策略。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -742,6 +809,7 @@ class ReferenceStoryStructureApplyPayload(BaseModel):
 
 
 class ProjectEpisodeOutlinePayload(ProjectArtifactBase):
+    """ProjectEpisodeOutlinePayload 业务请求体，用于约束接口数据结构。"""
     title: Optional[str] = None
     synopsis: Optional[str] = None
     hook: Optional[str] = None
@@ -753,6 +821,7 @@ class ProjectEpisodeOutlinePayload(ProjectArtifactBase):
     @field_validator("title", "synopsis", "hook", "conflict", "reversal", "cliffhanger", mode="before")
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理分集大纲文本字段，空白字段不写入剧情上下文。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -763,12 +832,14 @@ class ProjectEpisodeOutlinePayload(ProjectArtifactBase):
     @field_validator("duration_minutes")
     @classmethod
     def validate_duration_minutes(cls, value: Optional[float]) -> Optional[float]:
+        """校验分集预计时长必须为正数，避免无效制作节奏数据。"""
         if value is not None and value <= 0:
             raise ValueError("预计时长必须大于 0 分钟")
         return value
 
 
 class ProjectEpisodeOutlineResponse(ProjectEpisodeOutlinePayload):
+    """ProjectEpisodeOutlineResponse 响应体，用于约束接口数据结构。"""
     id: str
     project_id: str
     episode_no: int
@@ -777,6 +848,7 @@ class ProjectEpisodeOutlineResponse(ProjectEpisodeOutlinePayload):
 
 
 class ProjectEpisodeContentPayload(ProjectArtifactBase):
+    """ProjectEpisodeContentPayload 业务请求体，用于约束接口数据结构。"""
     title: Optional[str] = None
     detailed_content: Optional[str] = None
     chapter_summary: Optional[str] = None
@@ -797,6 +869,7 @@ class ProjectEpisodeContentPayload(ProjectArtifactBase):
     )
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理单集正文字段，保证字数统计和上下文拼接基于有效内容。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -806,6 +879,7 @@ class ProjectEpisodeContentPayload(ProjectArtifactBase):
 
 
 class ProjectEpisodeContentResponse(ProjectEpisodeContentPayload):
+    """ProjectEpisodeContentResponse 响应体，用于约束接口数据结构。"""
     id: str
     project_id: str
     episode_no: int
@@ -815,6 +889,7 @@ class ProjectEpisodeContentResponse(ProjectEpisodeContentPayload):
 
 
 class ProjectEpisodeScriptPayload(ProjectArtifactBase):
+    """ProjectEpisodeScriptPayload 业务请求体，用于约束接口数据结构。"""
     scene_text: Optional[str] = None
     dialogue: Optional[str] = None
     action_notes: Optional[str] = None
@@ -823,6 +898,7 @@ class ProjectEpisodeScriptPayload(ProjectArtifactBase):
     @field_validator("scene_text", "dialogue", "action_notes", "voiceover", mode="before")
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理单集剧本文字段，避免空白对白或动作说明进入制作阶段。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -832,6 +908,7 @@ class ProjectEpisodeScriptPayload(ProjectArtifactBase):
 
 
 class ProjectEpisodeScriptResponse(ProjectEpisodeScriptPayload):
+    """ProjectEpisodeScriptResponse 响应体，用于约束接口数据结构。"""
     id: str
     project_id: str
     episode_no: int
@@ -840,6 +917,7 @@ class ProjectEpisodeScriptResponse(ProjectEpisodeScriptPayload):
 
 
 class ProjectStoryboardShotPayload(ProjectArtifactBase):
+    """ProjectStoryboardShotPayload 业务请求体，用于约束接口数据结构。"""
     shot_no: int = Field(ge=1)
     scene: Optional[str] = None
     visual_prompt: Optional[str] = None
@@ -850,6 +928,7 @@ class ProjectStoryboardShotPayload(ProjectArtifactBase):
     @field_validator("scene", "visual_prompt", "camera", "dialogue_or_voiceover", mode="before")
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理分镜文本字段，保证镜头提示词和对白信息可直接用于制作。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -860,12 +939,14 @@ class ProjectStoryboardShotPayload(ProjectArtifactBase):
     @field_validator("duration_seconds")
     @classmethod
     def validate_duration_seconds(cls, value: Optional[float]) -> Optional[float]:
+        """校验镜头时长必须为正数，避免生成无效分镜节奏。"""
         if value is not None and value <= 0:
             raise ValueError("镜头时长必须大于 0 秒")
         return value
 
 
 class ProjectStoryboardShotResponse(ProjectStoryboardShotPayload):
+    """ProjectStoryboardShotResponse 响应体，用于约束接口数据结构。"""
     id: str
     project_id: str
     episode_no: int
@@ -874,6 +955,7 @@ class ProjectStoryboardShotResponse(ProjectStoryboardShotPayload):
 
 
 class ProjectCopywritingPayload(ProjectArtifactBase):
+    """ProjectCopywritingPayload 业务请求体，用于约束接口数据结构。"""
     subtitles: Optional[str] = None
     platform_title: Optional[str] = None
     platform_description: Optional[str] = None
@@ -882,6 +964,7 @@ class ProjectCopywritingPayload(ProjectArtifactBase):
     @field_validator("subtitles", "platform_title", "platform_description", "publish_copy", mode="before")
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        """清理发布文案字段，空白字幕或文案不保存为有效内容。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -891,6 +974,7 @@ class ProjectCopywritingPayload(ProjectArtifactBase):
 
 
 class ProjectCopywritingResponse(ProjectCopywritingPayload):
+    """ProjectCopywritingResponse 响应体，用于约束接口数据结构。"""
     id: str
     project_id: str
     episode_no: int

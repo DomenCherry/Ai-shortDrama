@@ -1,8 +1,7 @@
-"""Compatibility facade for project services.
+"""项目服务兼容入口。
 
-The implementation is split by business domain under app.services.project.
-This module intentionally keeps the old public function names stable so callers
-can migrate gradually without changing API behavior.
+项目业务已经按领域拆分到 app.services.project 下。
+本模块保留旧的公开函数名，避免路由和其他 service 在重构期间被迫同步改动。
 """
 
 from app.services.project.assets import (

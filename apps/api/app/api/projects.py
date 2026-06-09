@@ -1,3 +1,4 @@
+"""项目路由聚合模块，统一挂载项目管理、资产、故事文本和制作阶段子路由。"""
 from fastapi import APIRouter
 
 from app.api.project_routes import (

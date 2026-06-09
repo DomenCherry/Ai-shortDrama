@@ -1,3 +1,4 @@
+"""核心配置模块，负责读取后端运行时环境配置。"""
 from functools import lru_cache
 from pydantic import BaseModel
 import os
@@ -6,6 +7,7 @@ from dotenv import load_dotenv
 
 
 class Settings(BaseModel):
+    """后端运行配置，集中描述应用名称、跨域来源和数据库连接。"""
     app_name: str = "AI Short Drama API"
     cors_origins: list[str] = [
         "http://localhost:3000",
@@ -21,6 +23,7 @@ class Settings(BaseModel):
 
 @lru_cache
 def get_settings() -> Settings:
+    """读取并缓存应用配置，避免每次请求重复解析环境变量。"""
     load_dotenv()
     default_origins = ",".join(Settings().cors_origins)
     origins = os.getenv("API_CORS_ORIGINS", default_origins)

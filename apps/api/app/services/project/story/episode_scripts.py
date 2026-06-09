@@ -1,3 +1,4 @@
+"""单集剧本服务模块，处理每集剧本文案保存、读取和制作阶段状态传播。"""
 from typing import Any
 from uuid import uuid4
 
@@ -15,6 +16,7 @@ from app.services.project.common import (
 
 
 def get_episode_script(project_id: str, episode_no: int) -> dict[str, Any] | None:
+    """读取指定集数剧本文案。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -31,6 +33,7 @@ def get_episode_script(project_id: str, episode_no: int) -> dict[str, Any] | Non
 
 
 def upsert_episode_script(project_id: str, episode_no: int, payload: ProjectEpisodeScriptPayload) -> dict[str, Any]:
+    """创建或更新指定集数剧本，并标记制作阶段需要复核。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:

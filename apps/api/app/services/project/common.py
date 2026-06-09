@@ -1,3 +1,4 @@
+"""项目通用服务模块，提供序列化、校验、时间和下游内容状态传播能力。"""
 from datetime import datetime, timezone
 from typing import Any
 
@@ -17,10 +18,12 @@ from app.models.db_models import (
 
 
 def now_utc() -> datetime:
+    """返回带 UTC 时区的当前时间，供项目模块统一写入时间字段。"""
     return datetime.now(timezone.utc)
 
 
 def project_to_response(project: Project) -> dict[str, Any]:
+    """将项目模型转换为 API 响应结构。"""
     return {
         "id": project.id,
         "title": project.title,
@@ -40,6 +43,7 @@ def project_to_response(project: Project) -> dict[str, Any]:
 
 
 def world_snapshot_to_response(snapshot: ProjectWorldSnapshot) -> dict[str, Any]:
+    """将项目世界观快照转换为 API 响应结构。"""
     return {
         "id": snapshot.id,
         "project_id": snapshot.project_id,
@@ -55,6 +59,7 @@ def world_snapshot_to_response(snapshot: ProjectWorldSnapshot) -> dict[str, Any]
 
 
 def character_snapshot_to_response(snapshot: ProjectCharacterSnapshot) -> dict[str, Any]:
+    """将项目角色卡快照转换为 API 响应结构。"""
     return {
         "id": snapshot.id,
         "project_id": snapshot.project_id,
@@ -73,6 +78,7 @@ def character_snapshot_to_response(snapshot: ProjectCharacterSnapshot) -> dict[s
 
 
 def story_outline_to_response(outline: ProjectStoryOutline) -> dict[str, Any]:
+    """将故事大纲模型转换为 API 响应结构。"""
     return {
         "id": outline.id,
         "project_id": outline.project_id,
@@ -97,6 +103,7 @@ def story_outline_to_response(outline: ProjectStoryOutline) -> dict[str, Any]:
 
 
 def episode_outline_to_response(outline: ProjectEpisodeOutline) -> dict[str, Any]:
+    """将分集大纲模型转换为 API 响应结构。"""
     return {
         "id": outline.id,
         "project_id": outline.project_id,
@@ -115,6 +122,7 @@ def episode_outline_to_response(outline: ProjectEpisodeOutline) -> dict[str, Any
 
 
 def episode_content_to_response(content: ProjectEpisodeContent) -> dict[str, Any]:
+    """将单集正文模型转换为 API 响应结构。"""
     return {
         "id": content.id,
         "project_id": content.project_id,
@@ -134,6 +142,7 @@ def episode_content_to_response(content: ProjectEpisodeContent) -> dict[str, Any
 
 
 def episode_script_to_response(script: ProjectEpisodeScript) -> dict[str, Any]:
+    """将单集剧本模型转换为 API 响应结构。"""
     return {
         "id": script.id,
         "project_id": script.project_id,
@@ -149,6 +158,7 @@ def episode_script_to_response(script: ProjectEpisodeScript) -> dict[str, Any]:
 
 
 def storyboard_shot_to_response(shot: ProjectStoryboardShot) -> dict[str, Any]:
+    """将分镜镜头模型转换为 API 响应结构。"""
     return {
         "id": shot.id,
         "project_id": shot.project_id,
@@ -166,6 +176,7 @@ def storyboard_shot_to_response(shot: ProjectStoryboardShot) -> dict[str, Any]:
 
 
 def copywriting_to_response(copywriting: ProjectCopywriting) -> dict[str, Any]:
+    """将发布文案模型转换为 API 响应结构。"""
     return {
         "id": copywriting.id,
         "project_id": copywriting.project_id,
@@ -181,6 +192,7 @@ def copywriting_to_response(copywriting: ProjectCopywriting) -> dict[str, Any]:
 
 
 def normalize_optional_text(value: str | None) -> str | None:
+    """把空字符串统一归一为 None，避免数据库保存无意义空白。"""
     if value is None:
         return None
     stripped = value.strip()
@@ -188,17 +200,20 @@ def normalize_optional_text(value: str | None) -> str | None:
 
 
 def validate_episode_no(project: Project, episode_no: int) -> None:
+    """校验集数编号是否在当前项目范围内。"""
     if episode_no <= 0 or episode_no > project.episode_count:
         raise ValueError("集数编号必须在项目集数范围内")
 
 
 def count_content_characters(content: str | None) -> int:
+    """统计非空白字符数量，用于正文规模评估。"""
     if not content:
         return 0
     return sum(1 for char in content if not char.isspace())
 
 
 def mark_project_downstream_for_review(session, project_id: str) -> None:
+    """项目基础设定变化后，标记所有下游内容需要复核。"""
     current_time = now_utc()
     for model in (
         ProjectStoryOutline,
@@ -216,6 +231,7 @@ def mark_project_downstream_for_review(session, project_id: str) -> None:
 
 
 def mark_story_downstream_for_review(session, project_id: str) -> None:
+    """故事大纲变化后，标记分集、正文、剧本和制作内容需要复核。"""
     current_time = now_utc()
     for model in (ProjectEpisodeOutline, ProjectEpisodeContent, ProjectEpisodeScript, ProjectStoryboardShot, ProjectCopywriting):
         session.execute(
@@ -226,6 +242,7 @@ def mark_story_downstream_for_review(session, project_id: str) -> None:
 
 
 def mark_episode_outline_downstream_for_review(session, project_id: str, episode_no: int) -> None:
+    """分集大纲变化后，标记对应单集的后续内容需要复核。"""
     current_time = now_utc()
     for model in (ProjectEpisodeContent, ProjectEpisodeScript, ProjectStoryboardShot, ProjectCopywriting):
         session.execute(
@@ -236,6 +253,7 @@ def mark_episode_outline_downstream_for_review(session, project_id: str, episode
 
 
 def mark_episode_content_downstream_for_review(session, project_id: str, episode_no: int) -> None:
+    """单集正文变化后，标记剧本和制作内容需要复核。"""
     current_time = now_utc()
     for model in (ProjectEpisodeScript, ProjectStoryboardShot, ProjectCopywriting):
         session.execute(
@@ -246,6 +264,7 @@ def mark_episode_content_downstream_for_review(session, project_id: str, episode
 
 
 def mark_script_downstream_for_review(session, project_id: str, episode_no: int) -> None:
+    """剧本变化后，标记分镜和发布文案需要复核。"""
     current_time = now_utc()
     for model in (ProjectStoryboardShot, ProjectCopywriting):
         session.execute(

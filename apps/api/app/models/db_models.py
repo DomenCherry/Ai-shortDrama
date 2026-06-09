@@ -1,3 +1,4 @@
+"""数据库模型模块，定义项目、资产库、生成内容和配置相关数据表。"""
 from __future__ import annotations
 
 from datetime import datetime
@@ -10,6 +11,7 @@ from app.core.db import Base
 
 
 class ModelApiConfig(Base):
+    """模型 API 配置表，保存文本和图片模型的调用参数。"""
     __tablename__ = "model_api_configs"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -36,6 +38,7 @@ class ModelApiConfig(Base):
 
 
 class ModelApiTestLog(Base):
+    """模型配置测试日志表，保留每次连通性测试结果。"""
     __tablename__ = "model_api_test_logs"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -52,6 +55,7 @@ class ModelApiTestLog(Base):
 
 
 class Project(Base):
+    """短剧项目表，保存项目基础设定和时长约束。"""
     __tablename__ = "projects"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -71,6 +75,7 @@ class Project(Base):
 
 
 class CharacterCard(Base):
+    """角色卡资产表，保存可跨项目复用的人物设定和视觉素材。"""
     __tablename__ = "character_cards"
     __table_args__ = (
         CheckConstraint("gender in ('男', '女')", name="ck_character_cards_gender"),
@@ -114,6 +119,7 @@ class CharacterCard(Base):
 
 
 class ProjectCharacterSnapshot(Base):
+    """项目角色快照表，保存角色卡加载到项目后的独立副本。"""
     __tablename__ = "project_character_snapshots"
     __table_args__ = (
         CheckConstraint("gender in ('男', '女')", name="ck_project_character_snapshots_gender"),
@@ -140,6 +146,7 @@ class ProjectCharacterSnapshot(Base):
 
 
 class WorldBook(Base):
+    """世界观资产表，保存可跨项目复用的世界设定。"""
     __tablename__ = "world_books"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -160,6 +167,7 @@ class WorldBook(Base):
 
 
 class WorldEntry(Base):
+    """世界观条目表，保存关键词触发的世界观局部信息。"""
     __tablename__ = "world_entries"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -176,6 +184,7 @@ class WorldEntry(Base):
 
 
 class ProjectWorldSnapshot(Base):
+    """项目世界观快照表，保存世界观加载到项目后的独立副本。"""
     __tablename__ = "project_world_snapshots"
     __table_args__ = (
         UniqueConstraint("project_id", name="uq_project_world_snapshots_project"),
@@ -196,6 +205,7 @@ class ProjectWorldSnapshot(Base):
 
 
 class ProjectStoryOutline(Base):
+    """项目故事大纲表，保存整体故事脉络和关键结构。"""
     __tablename__ = "project_story_outlines"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -220,6 +230,7 @@ class ProjectStoryOutline(Base):
 
 
 class ReferenceStoryStructureDraft(Base):
+    """参考故事结构草稿表，保存从样本文本抽取的可复用结构。"""
     __tablename__ = "project_story_structure_drafts"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -246,6 +257,7 @@ class ReferenceStoryStructureDraft(Base):
 
 
 class ProjectEpisodeOutline(Base):
+    """项目分集大纲表，保存单集剧情骨架。"""
     __tablename__ = "project_episode_outlines"
     __table_args__ = (
         UniqueConstraint("project_id", "episode_no", name="uq_project_episode_outlines_project_episode"),
@@ -267,6 +279,7 @@ class ProjectEpisodeOutline(Base):
 
 
 class ProjectEpisodeContent(Base):
+    """项目单集正文表，保存单集详细故事内容。"""
     __tablename__ = "project_episode_contents"
     __table_args__ = (
         UniqueConstraint("project_id", "episode_no", name="uq_project_episode_contents_project_episode"),
@@ -289,6 +302,7 @@ class ProjectEpisodeContent(Base):
 
 
 class ProjectEpisodeScript(Base):
+    """项目单集剧本表，保存场景、对白和动作提示。"""
     __tablename__ = "project_episode_scripts"
     __table_args__ = (
         UniqueConstraint("project_id", "episode_no", name="uq_project_episode_scripts_project_episode"),
@@ -307,6 +321,7 @@ class ProjectEpisodeScript(Base):
 
 
 class ProjectStoryboardShot(Base):
+    """项目分镜表，保存单集镜头级制作信息。"""
     __tablename__ = "project_storyboard_shots"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -324,6 +339,7 @@ class ProjectStoryboardShot(Base):
 
 
 class ProjectCopywriting(Base):
+    """项目发布文案表，保存字幕、标题、简介和发布文案。"""
     __tablename__ = "project_copywriting"
     __table_args__ = (
         UniqueConstraint("project_id", "episode_no", name="uq_project_copywriting_project_episode"),

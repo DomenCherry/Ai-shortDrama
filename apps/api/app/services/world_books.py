@@ -1,3 +1,4 @@
+"""世界观服务模块，封装世界观资产、世界条目、版本更新和项目快照加载。"""
 from __future__ import annotations
 
 import json
@@ -20,10 +21,12 @@ from app.services.projects import _mark_project_downstream_for_review
 
 
 def _now() -> datetime:
+    """返回带 UTC 时区的当前时间，保证审计字段格式一致。"""
     return datetime.now(timezone.utc)
 
 
 def _entry_counts(session, world_book_id: str) -> tuple[int, int]:
+    """统计世界观条目总数和启用数，供列表展示使用。"""
     entry_count = session.scalar(select(func.count()).select_from(WorldEntry).where(WorldEntry.world_book_id == world_book_id))
     active_entry_count = session.scalar(
         select(func.count()).select_from(WorldEntry).where(
@@ -35,6 +38,7 @@ def _entry_counts(session, world_book_id: str) -> tuple[int, int]:
 
 
 def _world_book_to_response(book: WorldBook, entry_count: int = 0, active_entry_count: int = 0) -> dict[str, Any]:
+    """序列化世界观资产响应。"""
     return {
         "id": book.id,
         "name": book.name,
@@ -57,6 +61,7 @@ def _world_book_to_response(book: WorldBook, entry_count: int = 0, active_entry_
 
 
 def _world_entry_to_response(entry: WorldEntry) -> dict[str, Any]:
+    """序列化世界观条目响应。"""
     return {
         "id": entry.id,
         "world_book_id": entry.world_book_id,
@@ -73,6 +78,7 @@ def _world_entry_to_response(entry: WorldEntry) -> dict[str, Any]:
 
 
 def _snapshot_to_response(snapshot: ProjectWorldSnapshot) -> dict[str, Any]:
+    """序列化项目快照响应，保留来源资产和版本信息。"""
     return {
         "id": snapshot.id,
         "project_id": snapshot.project_id,
@@ -88,6 +94,7 @@ def _snapshot_to_response(snapshot: ProjectWorldSnapshot) -> dict[str, Any]:
 
 
 def _payload_to_world_book_fields(payload: WorldBookCreate | WorldBookUpdate) -> dict[str, Any]:
+    """将世界观请求体转换为数据库字段。"""
     return {
         "name": payload.name,
         "genre": payload.genre,
@@ -104,6 +111,7 @@ def _payload_to_world_book_fields(payload: WorldBookCreate | WorldBookUpdate) ->
 
 
 def _payload_to_world_entry_fields(payload: WorldEntryCreate | WorldEntryUpdate) -> dict[str, Any]:
+    """将世界观条目请求体转换为数据库字段。"""
     return {
         "title": payload.title,
         "entry_type": payload.entry_type,
@@ -116,6 +124,7 @@ def _payload_to_world_entry_fields(payload: WorldEntryCreate | WorldEntryUpdate)
 
 
 def _bump_world_book_version(book: WorldBook) -> None:
+    """递增世界观版本，帮助项目快照识别来源是否更新。"""
     book.version += 1
     book.updated_at = _now()
 
@@ -125,6 +134,7 @@ def list_world_books(
     genre: Optional[str] = None,
     status: Optional[str] = None,
 ) -> list[dict[str, Any]]:
+    """读取世界观资产列表，并支持状态与关键词过滤。"""
     with get_session() as session:
         statement = select(WorldBook)
         if search:
@@ -150,6 +160,7 @@ def list_world_books(
 
 
 def create_world_book(payload: WorldBookCreate) -> dict[str, Any]:
+    """创建可复用世界观资产。"""
     now = _now()
     book = WorldBook(
         id=str(uuid4()),
@@ -166,6 +177,7 @@ def create_world_book(payload: WorldBookCreate) -> dict[str, Any]:
 
 
 def get_world_book(world_book_id: str) -> dict[str, Any]:
+    """读取单个世界观资产详情。"""
     with get_session() as session:
         book = session.get(WorldBook, world_book_id)
         if not book:
@@ -175,6 +187,7 @@ def get_world_book(world_book_id: str) -> dict[str, Any]:
 
 
 def update_world_book(world_book_id: str, payload: WorldBookUpdate) -> dict[str, Any]:
+    """更新世界观资产，并递增版本用于项目快照来源追踪。"""
     with get_session() as session:
         book = session.get(WorldBook, world_book_id)
         if not book:
@@ -195,6 +208,7 @@ def update_world_book(world_book_id: str, payload: WorldBookUpdate) -> dict[str,
 
 
 def archive_world_book(world_book_id: str) -> dict[str, Any]:
+    """归档世界观资产，保留历史项目引用。"""
     with get_session() as session:
         book = session.get(WorldBook, world_book_id)
         if not book:
@@ -209,6 +223,7 @@ def archive_world_book(world_book_id: str) -> dict[str, Any]:
 
 
 def activate_world_book(world_book_id: str) -> dict[str, Any]:
+    """恢复世界观资产为可加载状态。"""
     with get_session() as session:
         book = session.get(WorldBook, world_book_id)
         if not book:
@@ -223,6 +238,7 @@ def activate_world_book(world_book_id: str) -> dict[str, Any]:
 
 
 def list_world_entries(world_book_id: str) -> list[dict[str, Any]]:
+    """读取指定世界观下的条目列表。"""
     with get_session() as session:
         book = session.get(WorldBook, world_book_id)
         if not book:
@@ -237,6 +253,7 @@ def list_world_entries(world_book_id: str) -> list[dict[str, Any]]:
 
 
 def create_world_entry(world_book_id: str, payload: WorldEntryCreate) -> dict[str, Any]:
+    """创建世界观条目，并同步递增世界观版本。"""
     now = _now()
     with get_session() as session:
         book = session.get(WorldBook, world_book_id)
@@ -257,6 +274,7 @@ def create_world_entry(world_book_id: str, payload: WorldEntryCreate) -> dict[st
 
 
 def update_world_entry(world_book_id: str, entry_id: str, payload: WorldEntryUpdate) -> dict[str, Any]:
+    """更新世界观条目，并同步递增世界观版本。"""
     with get_session() as session:
         book = session.get(WorldBook, world_book_id)
         if not book:
@@ -278,14 +296,17 @@ def update_world_entry(world_book_id: str, entry_id: str, payload: WorldEntryUpd
 
 
 def disable_world_entry(world_book_id: str, entry_id: str) -> dict[str, Any]:
+    """停用世界观条目，保留条目用于后续恢复。"""
     return _set_world_entry_status(world_book_id, entry_id, "disabled")
 
 
 def enable_world_entry(world_book_id: str, entry_id: str) -> dict[str, Any]:
+    """启用世界观条目，使其可进入项目快照加载范围。"""
     return _set_world_entry_status(world_book_id, entry_id, "active")
 
 
 def _set_world_entry_status(world_book_id: str, entry_id: str, status: str) -> dict[str, Any]:
+    """切换世界观条目状态，并递增世界观版本。"""
     with get_session() as session:
         book = session.get(WorldBook, world_book_id)
         if not book:
@@ -303,6 +324,7 @@ def _set_world_entry_status(world_book_id: str, entry_id: str, status: str) -> d
 
 
 def load_world_book_to_project(project_id: str, payload: ProjectWorldSnapshotCreate) -> dict[str, Any]:
+    """把世界观和启用条目复制为项目内快照，后续编辑不回写资产库。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:

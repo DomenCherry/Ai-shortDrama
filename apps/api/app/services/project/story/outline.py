@@ -1,3 +1,4 @@
+"""故事大纲服务模块，处理整体故事大纲保存、AI 生成、局部改写和参考结构提取。"""
 import json
 import re
 from typing import Any
@@ -102,25 +103,30 @@ REWRITEABLE_STORY_FIELDS = {
 
 
 def outline_payload_dict(payload: ProjectStoryOutlinePayload) -> dict[str, Any]:
+    """将故事大纲 payload 转为普通字典，便于生成和改写流程复用。"""
     return {field: getattr(payload, field) for field in STORY_OUTLINE_FIELDS} | {"status": payload.status}
 
 
 def outline_model_to_payload(outline: ProjectStoryOutline) -> ProjectStoryOutlinePayload:
+    """将故事大纲数据库模型转换为可编辑 payload。"""
     return ProjectStoryOutlinePayload(**{field: getattr(outline, field) for field in STORY_OUTLINE_FIELDS}, status=outline.status)
 
 
 def set_outline_fields(outline: ProjectStoryOutline, payload: ProjectStoryOutlinePayload) -> None:
+    """把故事大纲 payload 写回数据库模型。"""
     for field in STORY_OUTLINE_FIELDS:
         setattr(outline, field, getattr(payload, field))
     outline.status = payload.status
 
 
 def generated_outline_payload(data: dict[str, Any]) -> ProjectStoryOutlinePayload:
+    """从模型生成结果构造故事大纲 payload，并补齐缺失字段。"""
     normalized = {field: normalize_optional_text(str(data.get(field))) if data.get(field) is not None else None for field in STORY_OUTLINE_FIELDS}
     return ProjectStoryOutlinePayload(**normalized, status="draft")
 
 
 def story_outline_assist_patch(data: dict[str, Any]) -> StoryOutlineAssistPatch:
+    """从辅助问答结果中解析可应用的故事大纲补丁。"""
     raw_patch = data.get("outline_patch")
     if not isinstance(raw_patch, dict):
         raw_patch = {}
@@ -132,6 +138,7 @@ def story_outline_assist_patch(data: dict[str, Any]) -> StoryOutlineAssistPatch:
 
 
 def merge_story_outline_patch(payload: ProjectStoryOutlinePayload, patch: StoryOutlineAssistPatch) -> ProjectStoryOutlinePayload:
+    """合并故事大纲补丁，只覆盖模型明确返回的新内容。"""
     values = outline_payload_dict(payload)
     for field in STORY_OUTLINE_FIELDS:
         value = getattr(patch, field)
@@ -141,6 +148,7 @@ def merge_story_outline_patch(payload: ProjectStoryOutlinePayload, patch: StoryO
 
 
 def story_outline_assist_completion(payload: ProjectStoryOutlinePayload) -> dict[str, Any]:
+    """计算故事大纲必填项完成度，帮助前端展示补全状态。"""
     completed_fields = [
         field
         for field in STORY_OUTLINE_ASSIST_REQUIRED_FIELDS
@@ -156,6 +164,7 @@ def story_outline_assist_completion(payload: ProjectStoryOutlinePayload) -> dict
 
 
 def story_outline_assist_notes(data: dict[str, Any]) -> dict[str, str]:
+    """整理辅助问答返回的分字段建议说明。"""
     raw_notes = data.get("field_notes")
     if not isinstance(raw_notes, dict):
         return {}
@@ -169,6 +178,7 @@ def story_outline_assist_notes(data: dict[str, Any]) -> dict[str, str]:
 
 
 def story_outline_assist_next_focus(data: dict[str, Any]) -> list[str]:
+    """整理下一步建议聚焦项，供作者继续完善大纲。"""
     raw_fields = data.get("next_focus_fields")
     if not isinstance(raw_fields, list):
         return []
@@ -180,15 +190,18 @@ def story_outline_assist_next_focus(data: dict[str, Any]) -> list[str]:
 
 
 def reference_draft_payload(data: dict[str, Any]) -> dict[str, str | None]:
+    """从模型提取结果中整理参考结构草稿字段。"""
     return {field: normalize_optional_text(str(data.get(field))) if data.get(field) is not None else None for field in REFERENCE_DRAFT_FIELDS}
 
 
 def source_excerpt(source_text: str) -> str:
+    """截取参考故事原文片段，避免响应和存储内容过大。"""
     normalized = " ".join(source_text.split())
     return normalized[:500]
 
 
 def reference_outline_preview(draft: ReferenceStoryStructureDraft, user_requirements: str | None = None) -> ProjectStoryOutlinePayload:
+    """把参考结构草稿转换成可预览的故事大纲内容。"""
     mapping = {
         "logline": draft.goal_model,
         "story_background": draft.story_type,
@@ -210,6 +223,7 @@ def reference_outline_preview(draft: ReferenceStoryStructureDraft, user_requirem
 
 
 def reference_draft_to_response(draft: ReferenceStoryStructureDraft) -> dict[str, Any]:
+    """序列化参考故事结构草稿响应。"""
     return {
         "id": draft.id,
         "project_id": draft.project_id,
@@ -242,6 +256,7 @@ def story_outline_assist_prompt(
     character_snapshots: list[ProjectCharacterSnapshot],
     payload: StoryOutlineAssistPayload,
 ) -> str:
+    """构建故事大纲辅助问答提示词，要求模型返回补丁和建议。"""
     completion = story_outline_assist_completion(payload.current_outline)
     context = {
         "action": payload.action,
@@ -263,6 +278,7 @@ def story_outline_assist_prompt(
 
 
 def protected_terms(source_text: str) -> set[str]:
+    """提取参考文本中的受保护词，避免改写时直接复刻专有表达。"""
     terms = set(re.findall(r"《([^》]{2,30})》", source_text))
     known_terms = {
         "西游记",
@@ -285,6 +301,7 @@ def protected_terms(source_text: str) -> set[str]:
 
 
 def validate_reference_structure(data: dict[str, Any], source_text: str) -> tuple[str, str]:
+    """校验参考结构抽取结果，防止输出抄袭式或信息不足的结构。"""
     missing = [
         field
         for field in REFERENCE_DRAFT_FIELDS
@@ -310,6 +327,7 @@ def apply_reference_to_outline(
     apply_mode: str,
     user_requirements: str | None,
 ) -> None:
+    """将参考结构按用户要求改写为当前项目的大纲预览。"""
     preview = reference_outline_preview(draft, user_requirements)
     for field in STORY_OUTLINE_FIELDS:
         normalized = normalize_optional_text(getattr(preview, field))
@@ -321,6 +339,7 @@ def apply_reference_to_outline(
 
 
 def get_story_outline(project_id: str) -> dict[str, Any] | None:
+    """读取项目故事大纲，未创建时返回空结果。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -331,6 +350,7 @@ def get_story_outline(project_id: str) -> dict[str, Any] | None:
 
 
 def upsert_story_outline(project_id: str, payload: ProjectStoryOutlinePayload) -> dict[str, Any]:
+    """创建或更新项目故事大纲，并标记下游内容需要复核。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -351,6 +371,7 @@ def upsert_story_outline(project_id: str, payload: ProjectStoryOutlinePayload) -
 
 
 async def generate_story_outline(project_id: str, payload: StoryOutlineGeneratePayload) -> dict[str, Any]:
+    """调用文本模型生成项目整体故事大纲。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -397,6 +418,7 @@ async def generate_story_outline(project_id: str, payload: StoryOutlineGenerateP
 
 
 async def rewrite_story_outline(project_id: str, payload: StoryOutlineRewritePayload) -> dict[str, Any]:
+    """调用文本模型局部改写故事大纲指定字段。"""
     if payload.field not in REWRITEABLE_STORY_FIELDS:
         raise ValueError("该故事大纲字段不支持局部改写")
 
@@ -434,6 +456,7 @@ async def rewrite_story_outline(project_id: str, payload: StoryOutlineRewritePay
 
 
 async def assist_story_outline(project_id: str, payload: StoryOutlineAssistPayload) -> dict[str, Any]:
+    """调用文本模型根据对话辅助补全故事大纲。"""
     if payload.action == "reply" and not payload.user_message:
         raise ValueError("请先输入回复内容")
 
@@ -463,6 +486,7 @@ async def assist_story_outline(project_id: str, payload: StoryOutlineAssistPaylo
 
 
 def list_reference_story_structure_drafts(project_id: str) -> list[dict[str, Any]]:
+    """列出项目内参考故事结构草稿。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -476,6 +500,7 @@ def list_reference_story_structure_drafts(project_id: str) -> list[dict[str, Any
 
 
 def get_reference_story_structure_draft(project_id: str, draft_id: str) -> dict[str, Any]:
+    """读取单个参考故事结构草稿。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -487,6 +512,7 @@ def get_reference_story_structure_draft(project_id: str, draft_id: str) -> dict[
 
 
 async def extract_reference_story_structure(project_id: str, payload: ReferenceStoryStructureExtractPayload) -> dict[str, Any]:
+    """从参考文本中抽取可复用故事结构草稿。"""
     if not normalize_optional_text(payload.source_text):
         raise ValueError("请先上传或粘贴参考故事文本")
 
@@ -534,6 +560,7 @@ def apply_reference_story_structure_draft(
     draft_id: str,
     payload: ReferenceStoryStructureApplyPayload,
 ) -> dict[str, Any]:
+    """把参考结构草稿应用为当前项目故事大纲。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -563,6 +590,7 @@ def apply_reference_story_structure_draft(
 
 
 def discard_reference_story_structure_draft(project_id: str, draft_id: str) -> dict[str, Any]:
+    """丢弃参考结构草稿，仅影响当前项目草稿状态。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:

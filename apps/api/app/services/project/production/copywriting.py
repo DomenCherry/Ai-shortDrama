@@ -1,3 +1,4 @@
+"""发布文案服务模块，处理字幕、平台标题、简介和发布文案的读取与保存。"""
 from typing import Any
 from uuid import uuid4
 
@@ -10,6 +11,7 @@ from app.services.project.common import copywriting_to_response, now_utc, valida
 
 
 def get_copywriting(project_id: str, episode_no: int) -> dict[str, Any] | None:
+    """读取指定集数的字幕和平台发布文案。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -26,6 +28,7 @@ def get_copywriting(project_id: str, episode_no: int) -> dict[str, Any] | None:
 
 
 def upsert_copywriting(project_id: str, episode_no: int, payload: ProjectCopywritingPayload) -> dict[str, Any]:
+    """创建或更新指定集数的字幕和平台发布文案。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:

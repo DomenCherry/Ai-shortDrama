@@ -1,3 +1,4 @@
+"""项目资产服务模块，处理项目内世界观与角色卡快照的读取、编辑和删除。"""
 from typing import Any
 
 from sqlalchemy import select
@@ -14,6 +15,7 @@ from app.services.project.common import (
 
 
 def list_project_world_snapshots(project_id: str) -> list[dict[str, Any]]:
+    """读取项目已加载的世界观快照。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -28,6 +30,7 @@ def list_project_world_snapshots(project_id: str) -> list[dict[str, Any]]:
 
 
 def delete_project_world_snapshot(project_id: str, snapshot_id: str) -> dict[str, bool]:
+    """删除项目内世界观快照，不影响资产库原始世界观。"""
     with get_session() as session:
         snapshot = session.get(ProjectWorldSnapshot, snapshot_id)
         if not snapshot or snapshot.project_id != project_id:
@@ -42,6 +45,7 @@ def update_project_world_snapshot(
     snapshot_id: str,
     payload: ProjectWorldSnapshotUpdate,
 ) -> dict[str, Any]:
+    """更新项目内世界观快照，并标记下游故事内容需要复核。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -63,6 +67,7 @@ def update_project_world_snapshot(
 
 
 def list_project_character_snapshots(project_id: str) -> list[dict[str, Any]]:
+    """读取项目已加载的角色卡快照。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -77,6 +82,7 @@ def list_project_character_snapshots(project_id: str) -> list[dict[str, Any]]:
 
 
 def delete_project_character_snapshot(project_id: str, snapshot_id: str) -> dict[str, bool]:
+    """删除项目内角色卡快照，不影响资产库原始角色卡。"""
     with get_session() as session:
         snapshot = session.get(ProjectCharacterSnapshot, snapshot_id)
         if not snapshot or snapshot.project_id != project_id:
@@ -91,6 +97,7 @@ def update_project_character_snapshot(
     snapshot_id: str,
     payload: ProjectCharacterSnapshotUpdate,
 ) -> dict[str, Any]:
+    """更新项目内角色卡快照，并标记下游故事内容需要复核。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:

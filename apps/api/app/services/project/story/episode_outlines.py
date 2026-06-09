@@ -1,3 +1,4 @@
+"""分集大纲服务模块，处理每集大纲的保存、读取和下游状态传播。"""
 from typing import Any
 from uuid import uuid4
 
@@ -15,6 +16,7 @@ from app.services.project.common import (
 
 
 def list_episode_outlines(project_id: str) -> list[dict[str, Any]]:
+    """读取项目全部分集大纲。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -29,6 +31,7 @@ def list_episode_outlines(project_id: str) -> list[dict[str, Any]]:
 
 
 def upsert_episode_outline(project_id: str, episode_no: int, payload: ProjectEpisodeOutlinePayload) -> dict[str, Any]:
+    """创建或更新指定集数大纲，并标记后续内容需要复核。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:

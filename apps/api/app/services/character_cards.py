@@ -1,3 +1,4 @@
+"""角色卡服务模块，封装人物资产管理、参考图上传、三视图生成和项目快照加载。"""
 from __future__ import annotations
 
 import base64
@@ -25,10 +26,12 @@ from app.services import model_configs
 
 
 def _now() -> datetime:
+    """返回带 UTC 时区的当前时间，保证审计字段格式一致。"""
     return datetime.now(timezone.utc)
 
 
 def _character_card_to_response(card: CharacterCard) -> dict[str, Any]:
+    """序列化角色卡响应，包含图片资产和确认状态。"""
     return {
         "id": card.id,
         "name": card.name,
@@ -65,6 +68,7 @@ def _character_card_to_response(card: CharacterCard) -> dict[str, Any]:
 
 
 def _snapshot_to_response(snapshot: ProjectCharacterSnapshot) -> dict[str, Any]:
+    """序列化项目快照响应，保留来源资产和版本信息。"""
     return {
         "id": snapshot.id,
         "project_id": snapshot.project_id,
@@ -85,6 +89,7 @@ def _snapshot_to_response(snapshot: ProjectCharacterSnapshot) -> dict[str, Any]:
 def _payload_to_card_fields(payload: CharacterCardCreate | CharacterCardUpdate) -> dict[str, Any]:
     # 角色卡库只维护跨项目稳定的人物资产。旧版剧情字段继续保留在数据库中用于历史兼容，
     # 但新建和编辑角色卡时不再写入，避免把具体项目剧情沉淀到可复用资产里。
+    """将角色卡请求体转换为数据库字段，隐藏剧情字段保持兼容。"""
     return {
         "name": payload.name,
         "gender": payload.gender,
@@ -105,21 +110,25 @@ def _payload_to_card_fields(payload: CharacterCardCreate | CharacterCardUpdate) 
 
 
 def _asset_root() -> Path:
+    """定位本地资产根目录，用于保存上传图和生成图。"""
     return Path(get_settings().asset_root)
 
 
 def _public_asset_url(local_path: Path) -> str:
+    """把本地资产路径转换成前端可访问的静态资源地址。"""
     relative_path = local_path.relative_to(_asset_root()).as_posix()
     return f"/api/assets/{relative_path}"
 
 
 def _character_asset_dir(card_id: str) -> Path:
+    """定位单个角色卡的资产目录，隔离不同角色素材。"""
     directory = _asset_root() / "character-cards" / card_id
     directory.mkdir(parents=True, exist_ok=True)
     return directory
 
 
 def _decode_data_url(data_url: str) -> bytes:
+    """解析前端上传的 data URL 图片内容。"""
     if "," not in data_url:
         raise ValueError("图片数据格式不正确")
     header, encoded = data_url.split(",", 1)
@@ -129,6 +138,7 @@ def _decode_data_url(data_url: str) -> bytes:
 
 
 def _image_extension(content_type: str, filename: str) -> str:
+    """根据文件类型和文件名判断允许保存的图片扩展名。"""
     allowed_types = {
         "image/png": ".png",
         "image/jpeg": ".jpg",
@@ -142,6 +152,7 @@ def _image_extension(content_type: str, filename: str) -> str:
 
 
 def _turnaround_prompt(card: CharacterCard, override_prompt: str | None = None) -> str:
+    """拼接三视图生成提示词，只使用可复用人物资产字段。"""
     parts = [
         "请生成同一角色的人物三视图，画面包含正面、侧面、背面，全身，统一服装，干净背景。",
         "输出应适合作为短剧人物视觉参考，不模仿任何特定现实人物。",
@@ -169,6 +180,7 @@ def _turnaround_prompt(card: CharacterCard, override_prompt: str | None = None) 
 
 
 def _reference_image_data_url(card: CharacterCard) -> str | None:
+    """读取角色参考图并转换为 data URL，供支持参考图的模型使用。"""
     if not card.reference_local_path:
         return None
 
@@ -192,6 +204,7 @@ def _reference_image_data_url(card: CharacterCard) -> str | None:
 
 
 def _turnaround_to_response(card: CharacterCard) -> dict[str, Any]:
+    """序列化角色三视图生成结果。"""
     return {
         "character_card_id": card.id,
         "image_url": card.turnaround_image_url,
@@ -210,6 +223,7 @@ def list_character_cards(
     role_type: Optional[str] = None,
     status: Optional[str] = None,
 ) -> list[dict[str, Any]]:
+    """读取角色卡列表，并支持状态与关键词过滤。"""
     with get_session() as session:
         statement = select(CharacterCard)
         if search:
@@ -232,6 +246,7 @@ def list_character_cards(
 
 
 def create_character_card(payload: CharacterCardCreate) -> dict[str, Any]:
+    """创建可复用角色卡资产。"""
     now = _now()
     card = CharacterCard(
         id=str(uuid4()),
@@ -250,6 +265,7 @@ def create_character_card(payload: CharacterCardCreate) -> dict[str, Any]:
 
 
 def get_character_card(card_id: str) -> dict[str, Any]:
+    """读取单个角色卡资产详情。"""
     with get_session() as session:
         card = session.get(CharacterCard, card_id)
         if not card:
@@ -258,6 +274,7 @@ def get_character_card(card_id: str) -> dict[str, Any]:
 
 
 def update_character_card(card_id: str, payload: CharacterCardUpdate) -> dict[str, Any]:
+    """更新角色卡资产，并递增版本用于项目快照来源追踪。"""
     with get_session() as session:
         card = session.get(CharacterCard, card_id)
         if not card:
@@ -277,6 +294,7 @@ def update_character_card(card_id: str, payload: CharacterCardUpdate) -> dict[st
 
 
 def archive_character_card(card_id: str) -> dict[str, Any]:
+    """归档角色卡资产，保留历史项目引用。"""
     with get_session() as session:
         card = session.get(CharacterCard, card_id)
         if not card:
@@ -292,6 +310,7 @@ def archive_character_card(card_id: str) -> dict[str, Any]:
 
 
 def activate_character_card(card_id: str) -> dict[str, Any]:
+    """恢复角色卡为可加载状态。"""
     with get_session() as session:
         card = session.get(CharacterCard, card_id)
         if not card:
@@ -306,6 +325,7 @@ def activate_character_card(card_id: str) -> dict[str, Any]:
 
 
 def load_character_card_to_project(project_id: str, payload: ProjectCharacterSnapshotCreate) -> dict[str, Any]:
+    """把角色卡复制为项目内快照，后续编辑不回写原始资产。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -373,6 +393,7 @@ def load_character_card_to_project(project_id: str, payload: ProjectCharacterSna
 
 
 def upload_reference_image(card_id: str, payload: CharacterReferenceImageUpload) -> dict[str, Any]:
+    """上传角色参考图并绑定到角色卡资产。"""
     image_bytes = _decode_data_url(payload.data_url)
     if len(image_bytes) > 10 * 1024 * 1024:
         raise ValueError("参考图不能超过 10MB")
@@ -401,6 +422,7 @@ def upload_reference_image(card_id: str, payload: CharacterReferenceImageUpload)
 
 
 async def generate_turnaround_image(card_id: str, payload: CharacterTurnaroundGenerate) -> dict[str, Any]:
+    """调用图片模型生成角色三视图，并记录生成结果。"""
     with get_session() as session:
         card = session.get(CharacterCard, card_id)
         if not card:
@@ -449,6 +471,7 @@ async def generate_turnaround_image(card_id: str, payload: CharacterTurnaroundGe
 
 
 def confirm_turnaround_image(card_id: str, image_id: str | None = None) -> dict[str, Any]:
+    """确认当前或指定三视图为后续视频生成参考素材。"""
     with get_session() as session:
         card = session.get(CharacterCard, card_id)
         if not card:
@@ -470,6 +493,7 @@ async def _call_image_generation_api(
     prompt: str,
     reference_image_data_url: str | None = None,
 ) -> dict[str, str]:
+    """调用外部图片生成接口，并兼容 OpenAI 风格响应结构。"""
     url = _join_api_url(config["api_base_url"], config.get("endpoint_path") or "/images/generations")
     payload = {
         "model": config["model_name"],
@@ -495,4 +519,5 @@ async def _call_image_generation_api(
 
 
 def _join_api_url(api_base_url: str, endpoint_path: str) -> str:
+    """拼接 API 基础地址和接口路径，避免重复或缺失斜杠。"""
     return f"{api_base_url.rstrip('/')}/{endpoint_path.lstrip('/')}"

@@ -1,3 +1,4 @@
+"""分镜服务模块，处理单集分镜镜头的列表、新增、编辑和删除。"""
 from typing import Any
 from uuid import uuid4
 
@@ -10,6 +11,7 @@ from app.services.project.common import now_utc, storyboard_shot_to_response, va
 
 
 def list_storyboard_shots(project_id: str, episode_no: int) -> list[dict[str, Any]]:
+    """读取指定集数的分镜镜头列表。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -25,6 +27,7 @@ def list_storyboard_shots(project_id: str, episode_no: int) -> list[dict[str, An
 
 
 def create_storyboard_shot(project_id: str, episode_no: int, payload: ProjectStoryboardShotPayload) -> dict[str, Any]:
+    """创建单个分镜镜头，并校验所属项目和集数。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -55,6 +58,7 @@ def create_storyboard_shot(project_id: str, episode_no: int, payload: ProjectSto
 def update_storyboard_shot(
     project_id: str, episode_no: int, shot_id: str, payload: ProjectStoryboardShotPayload
 ) -> dict[str, Any]:
+    """更新单个分镜镜头，确保镜头归属当前项目和集数。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -80,6 +84,7 @@ def update_storyboard_shot(
 
 
 def delete_storyboard_shot(project_id: str, episode_no: int, shot_id: str) -> dict[str, bool]:
+    """删除单个分镜镜头，只影响当前项目当前集。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:

@@ -1,3 +1,4 @@
+"""模型配置服务模块，封装模型配置存储、启用、软删除和外部接口测试逻辑。"""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -24,20 +25,24 @@ IMAGE_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
 
 
 def _now() -> datetime:
+    """返回带 UTC 时区的当前时间，保证审计字段格式一致。"""
     return datetime.now(timezone.utc)
 
 
 def _serialize_datetime(value: datetime | None) -> Optional[str]:
+    """将可选时间转为 ISO 字符串，便于 API 响应序列化。"""
     return value.isoformat() if value else None
 
 
 def _mask_api_key(api_key: str) -> str:
+    """脱敏 API Key，避免密钥明文返回前端。"""
     if len(api_key) <= 8:
         return "*" * len(api_key)
     return f"{api_key[:4]}{'*' * (len(api_key) - 8)}{api_key[-4:]}"
 
 
 def _config_to_response(config: ModelApiConfig) -> dict[str, Any]:
+    """序列化模型配置响应，并只返回脱敏后的密钥信息。"""
     return {
         "id": config.id,
         "config_type": config.config_type,
@@ -61,6 +66,7 @@ def _config_to_response(config: ModelApiConfig) -> dict[str, Any]:
 
 
 def list_configs() -> list[dict[str, Any]]:
+    """列出未软删除的模型配置，默认隐藏历史删除记录。"""
     with get_session() as session:
         configs = session.scalars(
             select(ModelApiConfig).where(ModelApiConfig.deleted_at.is_(None)).order_by(
@@ -72,6 +78,7 @@ def list_configs() -> list[dict[str, Any]]:
 
 
 def get_config(config_id: str) -> dict[str, Any]:
+    """读取单个未删除模型配置，删除后的配置对业务侧视为不存在。"""
     with get_session() as session:
         config = session.get(ModelApiConfig, config_id)
         if config is None or config.deleted_at is not None:
@@ -80,6 +87,7 @@ def get_config(config_id: str) -> dict[str, Any]:
 
 
 def _validate_url(value: str | None) -> str:
+    """校验 API 地址格式，避免把无效地址写入模型配置。"""
     if not value or not value.strip():
         raise ValueError("请填写 API 地址")
     normalized = value.strip().rstrip("/")
@@ -89,6 +97,7 @@ def _validate_url(value: str | None) -> str:
 
 
 def _image_endpoint_path(value: str | None) -> str:
+    """标准化图片生成接口路径，兼容用户是否填写前导斜杠。"""
     if not value:
         return "/images/generations"
     endpoint_path = value.strip()
@@ -96,6 +105,7 @@ def _image_endpoint_path(value: str | None) -> str:
 
 
 def _resolve_provider_fields(payload: ModelApiConfigCreate) -> dict[str, Any]:
+    """根据预设或自定义模式解析模型供应商字段。"""
     if payload.provider_mode == "preset":
         if payload.config_type != "image":
             raise ValueError("供应商预设目前仅用于图片模型配置")
@@ -126,6 +136,7 @@ def _resolve_provider_fields(payload: ModelApiConfigCreate) -> dict[str, Any]:
 
 
 def create_config(payload: ModelApiConfigCreate) -> dict[str, Any]:
+    """创建模型配置，并在启用时关闭同类型其他未删除配置。"""
     config_id = str(uuid4())
     now = _now()
     provider_fields = _resolve_provider_fields(payload)
@@ -163,6 +174,7 @@ def create_config(payload: ModelApiConfigCreate) -> dict[str, Any]:
 
 
 def get_enabled_config(config_type: str) -> Optional[dict[str, Any]]:
+    """读取指定类型当前启用的模型配置，供生成任务调用。"""
     with get_session() as session:
         config = session.scalars(
             select(ModelApiConfig)
@@ -193,6 +205,7 @@ def get_enabled_config(config_type: str) -> Optional[dict[str, Any]]:
 
 
 async def test_config(config_id: str) -> dict[str, Any]:
+    """测试模型配置连通性，并记录测试结果和失败原因。"""
     with get_session() as session:
         config = session.get(ModelApiConfig, config_id)
         if config is None or config.deleted_at is not None:
@@ -268,6 +281,7 @@ async def test_config(config_id: str) -> dict[str, Any]:
 
 
 async def _test_text_config(config: dict[str, Any]) -> str:
+    """调用文本模型测试接口，验证 API Key、地址和模型名可用。"""
     url = _text_chat_completions_url(config["api_base_url"])
     payload = {
         "model": config["model_name"],
@@ -292,6 +306,7 @@ async def _test_text_config(config: dict[str, Any]) -> str:
 
 
 async def _test_image_config(config: dict[str, Any]) -> str:
+    """调用图片模型测试接口，验证文生图配置可用。"""
     url = _join_api_url(config["api_base_url"], config.get("endpoint_path") or "/images/generations")
     payload = {
         "model": config["model_name"],
@@ -312,10 +327,12 @@ async def _test_image_config(config: dict[str, Any]) -> str:
 
 
 def _join_api_url(api_base_url: str, endpoint_path: str) -> str:
+    """拼接 API 基础地址和接口路径，避免重复或缺失斜杠。"""
     return f"{api_base_url.rstrip('/')}/{endpoint_path.lstrip('/')}"
 
 
 def _text_chat_completions_url(api_base_url: str) -> str:
+    """生成 OpenAI 兼容 chat completions 地址。"""
     normalized_base_url = api_base_url.rstrip("/")
     # 文本模型配置约定填写 Base URL，但兼容用户误填完整 chat completions 路径，避免重复拼接导致 404。
     if normalized_base_url.endswith("/chat/completions"):
@@ -324,6 +341,7 @@ def _text_chat_completions_url(api_base_url: str) -> str:
 
 
 def update_config(config_id: str, payload: ModelApiConfigUpdate) -> dict[str, Any]:
+    """更新未删除模型配置，必要时同步处理启用状态。"""
     with get_session() as session:
         config = session.get(ModelApiConfig, config_id)
         if config is None or config.deleted_at is not None:
@@ -361,6 +379,7 @@ def update_config(config_id: str, payload: ModelApiConfigUpdate) -> dict[str, An
 
 
 def _resolve_provider_fields_for_update(config_type: str, payload: ModelApiConfigUpdate) -> dict[str, Any]:
+    """更新配置时解析供应商字段，并保护预设配置的固定接口参数。"""
     if payload.provider_mode == "preset":
         if config_type != "image":
             raise ValueError("供应商预设目前仅用于图片模型配置")
@@ -391,6 +410,7 @@ def _resolve_provider_fields_for_update(config_type: str, payload: ModelApiConfi
 
 
 def delete_config(config_id: str) -> None:
+    """软删除模型配置，保留测试日志和历史排查信息。"""
     with get_session() as session:
         config = session.get(ModelApiConfig, config_id)
         if config is None or config.deleted_at is not None:
@@ -404,6 +424,7 @@ def delete_config(config_id: str) -> None:
 
 
 def enable_config(config_id: str) -> dict[str, Any]:
+    """启用指定模型配置，并关闭同类型其他未删除配置。"""
     with get_session() as session:
         config = session.get(ModelApiConfig, config_id)
         if config is None or config.deleted_at is not None:

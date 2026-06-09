@@ -1,3 +1,4 @@
+"""FastAPI 应用启动模块，负责装配中间件、路由和数据库初始化。"""
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -13,6 +14,7 @@ from app.core.config import get_settings
 
 
 def create_app() -> FastAPI:
+    """创建 FastAPI 应用实例，并挂载中间件、路由和数据库初始化事件。"""
     settings = get_settings()
 
     app = FastAPI(title=settings.app_name)

@@ -1,3 +1,4 @@
+"""AI 生成公共服务模块，封装规则读取、模型调用、JSON 解析和生成上下文拼接。"""
 import json
 import re
 from pathlib import Path
@@ -11,10 +12,12 @@ from app.services.project.common import character_snapshot_to_response, project_
 
 
 def rules_root() -> Path:
+    """定位项目 rules 目录，供 AI 生成任务读取创作规则。"""
     return Path(__file__).resolve().parents[5] / "rules"
 
 
 def read_rule(name: str) -> str:
+    """读取指定创作规则文件，缺失时返回空字符串以不中断流程。"""
     path = rules_root() / name
     if not path.exists():
         raise ValueError(f"规则文件不存在：{name}")
@@ -22,6 +25,7 @@ def read_rule(name: str) -> str:
 
 
 def text_chat_completions_url(api_base_url: str) -> str:
+    """根据用户配置拼接文本模型 chat completions 调用地址。"""
     normalized_base_url = api_base_url.rstrip("/")
     if normalized_base_url.endswith("/chat/completions"):
         return normalized_base_url
@@ -29,6 +33,7 @@ def text_chat_completions_url(api_base_url: str) -> str:
 
 
 def extract_json_object(text: str) -> dict[str, Any]:
+    """从模型返回文本中提取 JSON 对象，兼容前后带说明文字的响应。"""
     stripped = text.strip()
     if stripped.startswith("```"):
         stripped = re.sub(r"^```(?:json)?", "", stripped).strip()
@@ -46,6 +51,7 @@ def extract_json_object(text: str) -> dict[str, Any]:
 
 
 async def call_text_generation_api(system_prompt: str, user_prompt: str, *, max_tokens: int = 1600) -> dict[str, Any]:
+    """调用当前启用文本模型，并解析为结构化 JSON。"""
     text_config = model_configs.get_enabled_config("text")
     if not text_config or text_config["last_test_status"] != "success":
         raise ValueError("请先配置并测试成功文本生成模型 API")
@@ -83,6 +89,7 @@ def project_context_summary(
     character_snapshots: list[ProjectCharacterSnapshot],
     reference_draft: ReferenceStoryStructureDraft | None = None,
 ) -> str:
+    """拼接项目、世界观快照和角色快照，形成生成任务上下文。"""
     world_summary = "未加载世界观"
     if world_snapshots:
         world_summary = "；".join(snapshot.name for snapshot in world_snapshots)
@@ -108,6 +115,7 @@ def outline_generation_prompt(
     story_outline_fields: tuple[str, ...],
     reference_draft_to_response,
 ) -> str:
+    """构建故事大纲生成提示词，合并项目设定和用户补充要求。"""
     context = {
         "project": project_to_response(project),
         "world_snapshots": [world_snapshot_to_response(snapshot) for snapshot in world_snapshots],
@@ -125,6 +133,7 @@ def outline_generation_prompt(
 
 
 def rewrite_prompt(project: Project, field: str, current_value: str, instruction: str) -> str:
+    """构建故事大纲局部改写提示词，限制模型只返回指定字段。"""
     context = {
         "project": project_to_response(project),
         "field": field,
@@ -139,6 +148,7 @@ def rewrite_prompt(project: Project, field: str, current_value: str, instruction
 
 
 def reference_extraction_prompt(project: Project, payload, retry_notes: str | None = None) -> str:
+    """构建参考故事结构提取提示词，用于从样本文本抽象结构。"""
     context = {
         "project": project_to_response(project),
         "source_type": payload.source_type,

@@ -1,3 +1,4 @@
+"""单集正文服务模块，处理每集详细故事正文保存、读取和字数统计。"""
 from typing import Any
 from uuid import uuid4
 
@@ -16,6 +17,7 @@ from app.services.project.common import (
 
 
 def get_episode_content(project_id: str, episode_no: int) -> dict[str, Any] | None:
+    """读取指定集数的详细故事正文。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -32,6 +34,7 @@ def get_episode_content(project_id: str, episode_no: int) -> dict[str, Any] | No
 
 
 def upsert_episode_content(project_id: str, episode_no: int, payload: ProjectEpisodeContentPayload) -> dict[str, Any]:
+    """创建或更新指定集数正文，并同步字数和下游复核状态。"""
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
