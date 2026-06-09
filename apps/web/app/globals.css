@@ -1247,6 +1247,33 @@ select {
   font-size: 18px;
 }
 
+.story-outline-header {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 40px;
+}
+
+.story-outline-header h2 {
+  font-size: 18px;
+  margin: 0;
+}
+
+.story-outline-header-meta {
+  align-items: center;
+  display: flex;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.story-outline-header-actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .form-section {
   border-top: 1px solid var(--line);
   padding-top: 20px;

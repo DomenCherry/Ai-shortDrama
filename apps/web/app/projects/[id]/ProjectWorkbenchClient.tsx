@@ -1337,15 +1337,19 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
 
       {!isLandingMode && activeStage === "story" ? (
         <section className="panel stack">
-          <div className="section-heading">
+          <div className="story-outline-header">
             <h2>整体故事大纲</h2>
-            <ArtifactStatusBadge status={storyOutline?.status ?? storyForm.status} />
-            <Link className="button secondary" href={`/projects/${projectId}/story-outline/assist`}>
-              AI协助
-            </Link>
-            <Link className="button secondary" href={`/projects/${projectId}/story-outline/extract`}>
-              AI提取
-            </Link>
+            <div className="story-outline-header-meta">
+              <ArtifactStatusBadge status={storyOutline?.status ?? storyForm.status} />
+            </div>
+            <div className="story-outline-header-actions">
+              <Link className="button secondary compact-button" href={`/projects/${projectId}/story-outline/assist`}>
+                AI协助
+              </Link>
+              <Link className="button secondary compact-button" href={`/projects/${projectId}/story-outline/extract`}>
+                AI提取
+              </Link>
+            </div>
           </div>
           <form className="stack" onSubmit={saveStoryOutline}>
             <div className="outline-field-groups">
