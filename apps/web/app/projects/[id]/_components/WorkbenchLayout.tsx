@@ -1,0 +1,115 @@
+"use client";
+
+import Link from "next/link";
+import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
+import { episodeAiActions, productionAiActions } from "../_utils/workbenchTypes";
+
+export function LoadingWorkbench() {
+  return (
+    <div className="stack">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">项目工作台</h1>
+          <p className="page-description">正在加载项目资料...</p>
+        </div>
+      </header>
+    </div>
+  );
+}
+
+export function MissingProject({ error }: { error: string }) {
+  return (
+    <div className="stack">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">项目工作台</h1>
+          <p className="page-description">无法读取项目资料。</p>
+        </div>
+        <Link className="button secondary" href="/">
+          返回项目管理
+        </Link>
+      </header>
+      {error ? <div className="error">{error}</div> : null}
+    </div>
+  );
+}
+
+export function WorkbenchHeader({ workbench }: { workbench: ProjectWorkbenchState }) {
+  const project = workbench.project;
+  if (!project) return null;
+
+  const showEpisodeAiActions = workbench.currentWorkspaceGroup?.key === "storyText" && workbench.activeStage === "content";
+  const showProductionAiActions = workbench.currentWorkspaceGroup?.key === "production";
+  const moduleFunctionActions = showEpisodeAiActions ? episodeAiActions : showProductionAiActions ? productionAiActions : [];
+
+  if (workbench.isLandingMode) {
+    return (
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">{project.title}</h1>
+          <p className="page-description">
+            先维护项目资料和资产，再完成故事文本，最后把单集故事正文转换为短剧制作文本。上游变更后，下游内容会提示需要检查。
+          </p>
+        </div>
+        <div className="actions">
+          <Link className="button secondary" href="/">
+            返回项目管理
+          </Link>
+        </div>
+      </header>
+    );
+  }
+
+  return (
+    <header className="module-toolbar">
+      <div className="module-toolbar-title">
+        <h1>{workbench.currentWorkspaceGroup?.title}</h1>
+        <span title={workbench.currentWorkspaceGroup?.description}>当前项目：{project.title}</span>
+      </div>
+      <div className={`module-toolbar-center ${moduleFunctionActions.length > 0 ? "has-functions" : ""}`}>
+        <nav
+          className="module-subnav module-stage-switcher"
+          aria-label={`${workbench.currentWorkspaceGroup?.title ?? "模块"}内容导航`}
+        >
+          {workbench.visibleStages.map((stage) => (
+            <button
+              className={`module-subnav-tab ${workbench.activeStage === stage.key ? "active" : ""}`}
+              type="button"
+              key={stage.key}
+              onClick={() => workbench.setActiveStage(stage.key)}
+            >
+              {stage.label}
+            </button>
+          ))}
+        </nav>
+        {moduleFunctionActions.length > 0 ? (
+          <div className="module-function-strip" aria-label="AI 功能入口">
+            {moduleFunctionActions.map((action) => (
+              <button className="module-ai-action" type="button" key={action} onClick={() => workbench.showAiPlaceholder(action)}>
+                {action}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div className="module-toolbar-actions">
+        <Link className="button secondary compact-button" href={`/projects/${workbench.projectId}`}>
+          工作台入口
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+export function WorkbenchStatusStrip({ workbench }: { workbench: ProjectWorkbenchState }) {
+  if (!workbench.error && !workbench.status && !workbench.assetError && !workbench.artifactError) return null;
+
+  return (
+    <div className="module-status-strip">
+      {workbench.error ? <span className="error">{workbench.error}</span> : null}
+      {workbench.status ? <span className="success">{workbench.status}</span> : null}
+      {workbench.assetError ? <span className="error">{workbench.assetError}</span> : null}
+      {workbench.artifactError ? <span className="error">{workbench.artifactError}</span> : null}
+    </div>
+  );
+}
