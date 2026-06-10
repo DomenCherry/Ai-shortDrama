@@ -45,17 +45,25 @@ apps/web
 | Input | `apps/web/components/ui/input.tsx` | 单行文本、数字、密码等输入 |
 | Textarea | `apps/web/components/ui/textarea.tsx` | 长文本、提示词、故事内容输入 |
 | Select | `apps/web/components/ui/select.tsx` | 状态、类型、枚举值选择 |
+| Checkbox | `apps/web/components/ui/checkbox.tsx` | 布尔开关、列表多选、能力勾选 |
+| RadioGroup | `apps/web/components/ui/radio-group.tsx` | 单选项组，例如资产抽屉中选择一个世界观 |
+| Label | `apps/web/components/ui/label.tsx` | 表单控件标签，和 checkbox、radio、输入框组合使用 |
 | Badge | `apps/web/components/ui/badge.tsx` | 状态标签、类型标签、轻量标记 |
 | Card | `apps/web/components/ui/card.tsx` | 独立信息块、列表卡片、少量重复项 |
 | Sheet | `apps/web/components/ui/sheet.tsx` | 抽屉、侧边选择器、轻量配置面板 |
 | Tabs | `apps/web/components/ui/tabs.tsx` | 同级内容切换 |
 | Tooltip | `apps/web/components/ui/tooltip.tsx` | 图标按钮、紧凑操作的悬浮说明 |
+| Alert | `apps/web/components/ui/alert.tsx` | 错误、警告、说明类反馈信息 |
+| AlertDialog | `apps/web/components/ui/alert-dialog.tsx` | 需要用户确认的危险操作，例如删除、归档、离开未保存页面 |
+| DropdownMenu | `apps/web/components/ui/dropdown-menu.tsx` | 列表项或工具栏中的更多操作菜单 |
+| Skeleton | `apps/web/components/ui/skeleton.tsx` | 列表、详情、工作台加载中占位 |
 | SimpleSelect | `apps/web/components/ui/simple-select.tsx` | 项目表单常用选择器，兼容空字符串“全部 / 未选择”选项 |
 
 导入示例：
 
 ```tsx
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { cn } from "@/lib/utils";
@@ -70,7 +78,7 @@ import { cn } from "@/lib/utils";
 3. 查当前路由的 `_components`，确认是否已有业务组件可复用。
 4. 只有在现有组件无法满足时，才新增基础 UI 组件或业务组件。
 
-基础控件不得在页面文件中重复手写。例如按钮、输入框、文本域、选择器、抽屉、状态标签、卡片、Tabs、Tooltip 应优先使用 `components/ui`。
+基础控件不得在页面文件中重复手写。例如按钮、输入框、文本域、选择器、checkbox、radio、抽屉、状态标签、卡片、Tabs、Tooltip 应优先使用 `components/ui`。
 
 ## 6. 新增组件规则
 
@@ -83,6 +91,13 @@ import { cn } from "@/lib/utils";
 - 业务文案、业务校验、API 调用和数据转换不得进入 `components/ui`。
 
 如果只是某个页面的业务组合，例如项目资产抽屉、角色卡表单、故事大纲编辑器，应放在对应路由的 `_components`，不要放入 `components/ui`。
+
+checkbox 和 radio 的使用规则：
+
+- 单个布尔值使用 `Checkbox`。
+- 单选项组使用 `RadioGroup` 和 `RadioGroupItem`。
+- 不再直接手写 `<input type="checkbox">` 或 `<input type="radio">`，除非 shadcn 组件无法满足明确的浏览器原生行为。
+- `Checkbox` 的 `onCheckedChange` 需要显式处理 `checked === true`，避免把 indeterminate 状态误写入业务字段。
 
 ## 7. 维护规则
 

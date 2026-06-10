@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import {
@@ -235,7 +237,7 @@ function WorldPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState }) 
           ) : (
             <div className="drawer-selection-hint">请选择一个世界观，然后点击底部「加载」按钮。</div>
           )}
-          <div className="asset-list asset-drawer-list">
+          <RadioGroup className="asset-list asset-drawer-list" value={workbench.selectedWorldId} onValueChange={workbench.setSelectedWorldId}>
             {workbench.availableWorlds.map((wb) => {
               const hasProjectWorld = workbench.worldSnapshots.length > 0;
               const isLoaded = workbench.loadedWorldIds.has(wb.id);
@@ -247,12 +249,9 @@ function WorldPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState }) 
                   key={wb.id}
                 >
                   <div className="drawer-asset-item-header">
-                    <input
-                      type="radio"
-                      name="world-pick"
-                      checked={isSelected}
+                    <RadioGroupItem
+                      value={wb.id}
                       disabled={isDisabled}
-                      onChange={() => workbench.setSelectedWorldId(wb.id)}
                     />
                     <strong>{wb.name}</strong>
                     {isLoaded ? (
@@ -268,7 +267,7 @@ function WorldPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState }) 
                 </label>
               );
             })}
-          </div>
+          </RadioGroup>
         </>
       )}
       {!workbench.isLoadingPicker && workbench.availableWorlds.length > 0 && (
@@ -321,11 +320,10 @@ function CharacterPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState
                   key={cc.id}
                 >
                   <div className="drawer-asset-item-header">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       checked={isSelected || isLoaded}
                       disabled={isDisabled}
-                      onChange={() => {
+                      onCheckedChange={() => {
                         workbench.setSelectedCharacterIds((prev) => {
                           const next = new Set(prev);
                           if (next.has(cc.id)) {

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import {
@@ -332,11 +333,10 @@ export default function SettingsEditPage() {
                   <span className="hint">系统会将 API Base URL 和接口路径拼接后调用图片生成接口。</span>
                 </div>
                 <label className="checkbox-field">
-                  <input
+                  <Checkbox
                     checked={form.supports_reference_image}
                     disabled={form.provider_mode === "preset"}
-                    type="checkbox"
-                    onChange={(event) => updateField("supports_reference_image", event.target.checked)}
+                    onCheckedChange={(checked) => updateField("supports_reference_image", checked === true)}
                   />
                   <span>该图片模型支持参考图输入</span>
                 </label>
