@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, MouseEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { createCharacterCard, generateCharacterTurnaround, uploadCharacterReferenceImage } from "@/lib/api";
 import {
@@ -27,6 +28,8 @@ export default function NewCharacterCardPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [hasManualTurnaroundPromptChange, setHasManualTurnaroundPromptChange] = useState(false);
   const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
+  const [pendingLeaveHref, setPendingLeaveHref] = useState("");
+  const [isPromptOverwriteOpen, setIsPromptOverwriteOpen] = useState(false);
   const validationError = validateCharacterCard(form);
   const isBusy = isSaving || isUploadingReference || isGeneratingTurnaround;
 
@@ -41,9 +44,9 @@ export default function NewCharacterCardPage() {
 
   const guardLeaveToList = (event: MouseEvent<HTMLAnchorElement>) => {
     // 新建页允许直接回到列表，但有未保存内容时必须先让用户确认，避免误丢角色设定。
-    if (hasUnsavedChanges && !window.confirm("当前页面有未保存内容，确认离开吗？")) {
+    if (hasUnsavedChanges) {
       event.preventDefault();
-      return;
+      setPendingLeaveHref(event.currentTarget.getAttribute("href") || "/character-cards");
     }
   };
 
@@ -104,20 +107,7 @@ export default function NewCharacterCardPage() {
     }
   };
 
-  const generateTurnaroundPrompt = () => {
-    const promptError = validateTurnaroundPromptFields(form);
-    if (promptError) {
-      setError(promptError);
-      return;
-    }
-    if (
-      form.turnaround_prompt.trim() &&
-      hasManualTurnaroundPromptChange &&
-      !window.confirm("当前三视图提示词已有手动修改，确认覆盖吗？")
-    ) {
-      return;
-    }
-
+  const applyTurnaroundPrompt = () => {
     // 生成提示词只是本地文本辅助动作，不创建角色卡，也不调用图片模型。
     setForm((current) => ({
       ...current,
@@ -126,6 +116,20 @@ export default function NewCharacterCardPage() {
     setHasManualTurnaroundPromptChange(false);
     setHasUnsavedChanges(true);
     setError("");
+  };
+
+  const generateTurnaroundPrompt = () => {
+    const promptError = validateTurnaroundPromptFields(form);
+    if (promptError) {
+      setError(promptError);
+      return;
+    }
+    if (form.turnaround_prompt.trim() && hasManualTurnaroundPromptChange) {
+      setIsPromptOverwriteOpen(true);
+      return;
+    }
+
+    applyTurnaroundPrompt();
   };
 
   const generateTurnaroundFromNewCard = async () => {
@@ -159,6 +163,32 @@ export default function NewCharacterCardPage() {
 
   return (
     <div className="stack">
+      <ConfirmDialog
+        open={Boolean(pendingLeaveHref)}
+        title="离开当前页面？"
+        description="当前页面有未保存内容，离开后这些角色设定不会保存。"
+        confirmLabel="离开"
+        onOpenChange={(open) => {
+          if (!open) setPendingLeaveHref("");
+        }}
+        onConfirm={() => {
+          const href = pendingLeaveHref;
+          setPendingLeaveHref("");
+          router.push(href);
+        }}
+      />
+      <ConfirmDialog
+        destructive
+        open={isPromptOverwriteOpen}
+        title="覆盖三视图提示词？"
+        description="当前三视图提示词已有手动修改，覆盖后无法自动恢复。"
+        confirmLabel="覆盖"
+        onOpenChange={setIsPromptOverwriteOpen}
+        onConfirm={() => {
+          setIsPromptOverwriteOpen(false);
+          applyTurnaroundPrompt();
+        }}
+      />
       <header className="page-header">
         <div>
           <h1 className="page-title">新建角色卡</h1>

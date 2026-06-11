@@ -171,7 +171,7 @@ export function AssetSection({
     <section className="panel stack">
       <div className="section-heading">
         <h2>{title}</h2>
-        <div style={{ display: "flex", gap: "0.5rem" }}>
+        <div className="action-wrap">
           {onPick && pickLabel ? (
             <Button type="button" onClick={onPick} disabled={pickDisabled}>
               {pickLabel}

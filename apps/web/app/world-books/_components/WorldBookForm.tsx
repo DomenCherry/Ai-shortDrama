@@ -1,5 +1,6 @@
 "use client";
 
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,16 +67,14 @@ export function WorldBookFormView({ form, onChange, disabled = false, hideStatus
             placeholder="例如：雾港豪门、旧城异能局、云京权谋世界"
             hint="世界观在资产库中的主标识。"
           />
-          <div className="field">
-            <label>题材类型</label>
+          <Field label="题材类型" hint="用于列表筛选和生成时的题材方向。">
             <SimpleSelect
               disabled={disabled}
               value={form.genre}
               onValueChange={(value) => onChange("genre", value)}
               options={genreOptions.map((genre) => ({ label: genre, value: genre }))}
             />
-            <span className="field-hint">用于列表筛选和生成时的题材方向。</span>
-          </div>
+          </Field>
         </div>
         <TextAreaField
           disabled={disabled}
@@ -87,8 +86,7 @@ export function WorldBookFormView({ form, onChange, disabled = false, hideStatus
           hint="用于列表和项目加载预览。"
         />
         {!hideStatusField && (
-          <div className="field">
-            <label>状态</label>
+          <Field label="状态" hint="只有可加载状态的世界观可以加入项目。">
             <SimpleSelect
               disabled={disabled}
               value={form.status}
@@ -99,8 +97,7 @@ export function WorldBookFormView({ form, onChange, disabled = false, hideStatus
                 { label: "已归档", value: "archived" }
               ]}
             />
-            <span className="field-hint">只有可加载状态的世界观可以加入项目。</span>
-          </div>
+          </Field>
         )}
       </section>
 
@@ -144,11 +141,9 @@ function TextAreaField({
   hint?: string;
 }) {
   return (
-    <div className="field">
-      <label>{label}</label>
+    <Field label={label} hint={hint}>
       <Textarea disabled={disabled} value={form[field]} onChange={(event) => onChange(field, event.target.value)} placeholder={placeholder} />
-      {hint ? <span className="field-hint">{hint}</span> : null}
-    </div>
+    </Field>
   );
 }
 
@@ -170,11 +165,9 @@ function InputField({
   hint?: string;
 }) {
   return (
-    <div className="field">
-      <label>{label}</label>
+    <Field label={label} hint={hint}>
       <Input disabled={disabled} value={form[field]} onChange={(event) => onChange(field, event.target.value)} placeholder={placeholder} />
-      {hint ? <span className="field-hint">{hint}</span> : null}
-    </div>
+    </Field>
   );
 }
 

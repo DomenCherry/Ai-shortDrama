@@ -89,6 +89,14 @@ import type {
 } from "../_utils/workbenchTypes";
 import { workspaceGroups } from "../_utils/workbenchTypes";
 
+type PendingConfirmation = {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  destructive?: boolean;
+  onConfirm: () => void | Promise<void>;
+};
+
 export function useProjectWorkbench({
   projectId,
   mode,
@@ -142,6 +150,7 @@ export function useProjectWorkbench({
   const [savingSnapshotId, setSavingSnapshotId] = useState("");
   const [removingSnapshotId, setRemovingSnapshotId] = useState("");
   const [removingShotId, setRemovingShotId] = useState("");
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
 
   const [showWorldPicker, setShowWorldPicker] = useState(false);
   const [showCharacterPicker, setShowCharacterPicker] = useState(false);
@@ -597,10 +606,23 @@ export function useProjectWorkbench({
     }
   };
 
-  const removeWorldSnapshot = async (snapshot: ProjectWorldSnapshot) => {
-    if (!window.confirm(`确定从项目中移除世界观“${snapshot.name}”吗？资产库原始世界观不会被删除。`)) {
-      return;
-    }
+  const confirmPendingAction = async () => {
+    const action = pendingConfirmation?.onConfirm;
+    setPendingConfirmation(null);
+    await action?.();
+  };
+
+  const removeWorldSnapshot = (snapshot: ProjectWorldSnapshot) => {
+    setPendingConfirmation({
+      title: "移除项目世界观？",
+      description: `确定从项目中移除世界观“${snapshot.name}”吗？资产库原始世界观不会被删除。`,
+      confirmLabel: "移除",
+      destructive: true,
+      onConfirm: () => executeRemoveWorldSnapshot(snapshot)
+    });
+  };
+
+  const executeRemoveWorldSnapshot = async (snapshot: ProjectWorldSnapshot) => {
     setRemovingSnapshotId(snapshot.id);
     setError("");
     setStatus("");
@@ -619,10 +641,17 @@ export function useProjectWorkbench({
     }
   };
 
-  const removeCharacterSnapshot = async (snapshot: ProjectCharacterSnapshot) => {
-    if (!window.confirm(`确定从项目中移除角色“${snapshot.name}”吗？角色卡库原始角色不会被删除。`)) {
-      return;
-    }
+  const removeCharacterSnapshot = (snapshot: ProjectCharacterSnapshot) => {
+    setPendingConfirmation({
+      title: "移除项目角色？",
+      description: `确定从项目中移除角色“${snapshot.name}”吗？角色卡库原始角色不会被删除。`,
+      confirmLabel: "移除",
+      destructive: true,
+      onConfirm: () => executeRemoveCharacterSnapshot(snapshot)
+    });
+  };
+
+  const executeRemoveCharacterSnapshot = async (snapshot: ProjectCharacterSnapshot) => {
     setRemovingSnapshotId(snapshot.id);
     setError("");
     setStatus("");
@@ -727,10 +756,17 @@ export function useProjectWorkbench({
     setShotForm(shotToForm(shot));
   };
 
-  const removeShot = async (shot: ProjectStoryboardShot) => {
-    if (!window.confirm(`确定删除第 ${shot.shot_no} 个镜头？`)) {
-      return;
-    }
+  const removeShot = (shot: ProjectStoryboardShot) => {
+    setPendingConfirmation({
+      title: "删除分镜镜头？",
+      description: `确定删除第 ${shot.shot_no} 个镜头？删除后需要重新新增该镜头。`,
+      confirmLabel: "删除",
+      destructive: true,
+      onConfirm: () => executeRemoveShot(shot)
+    });
+  };
+
+  const executeRemoveShot = async (shot: ProjectStoryboardShot) => {
     setRemovingShotId(shot.id);
     setArtifactError("");
     setStatus("");
@@ -815,6 +851,9 @@ export function useProjectWorkbench({
     savingSnapshotId,
     removingSnapshotId,
     removingShotId,
+    pendingConfirmation,
+    setPendingConfirmation,
+    confirmPendingAction,
     showWorldPicker,
     setShowWorldPicker,
     showCharacterPicker,

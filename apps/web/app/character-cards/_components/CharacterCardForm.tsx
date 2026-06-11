@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { Textarea } from "@/components/ui/textarea";
@@ -89,26 +90,22 @@ export function CharacterCardFormView({ form, onChange, disabled = false, hideSt
             placeholder="例如：沈砚、林晚、顾知衡"
             hint="角色在资产库中的主标识，建议使用短剧中实际出现的名字。"
           />
-          <div className="field">
-            <label>性别</label>
+          <Field label="性别" hint="性别会用于人物设定、对白称谓和三视图生成，只支持男或女。">
             <SimpleSelect
               disabled={disabled}
               value={form.gender}
               onValueChange={(value) => onChange("gender", value)}
               options={[{ label: "请选择性别", value: "" }, ...genderOptions.map((gender) => ({ label: gender, value: gender }))]}
             />
-            <span className="field-hint">性别会用于人物设定、对白称谓和三视图生成，只支持男或女。</span>
-          </div>
-          <div className="field">
-            <label>人物原型</label>
+          </Field>
+          <Field label="人物原型" hint="选择跨项目稳定的人设原型，例如复仇者、守护者、操控者或成长型。">
             <SimpleSelect
               disabled={disabled}
               value={form.role_type}
               onValueChange={(value) => onChange("role_type", value)}
               options={roleOptions.map((role) => ({ label: role, value: role }))}
             />
-            <span className="field-hint">选择跨项目稳定的人设原型，例如复仇者、守护者、操控者或成长型。</span>
-          </div>
+          </Field>
         </div>
         <InputField
           disabled={disabled}
@@ -120,8 +117,7 @@ export function CharacterCardFormView({ form, onChange, disabled = false, hideSt
           hint="用一句话说明角色最核心的身份和戏剧张力。"
         />
         {!hideStatusField && (
-          <div className="field">
-            <label>状态</label>
+          <Field label="状态" hint="草稿用于未完成角色；可加载状态才能加入项目。">
             <SimpleSelect
               disabled={disabled}
               value={form.status}
@@ -132,8 +128,7 @@ export function CharacterCardFormView({ form, onChange, disabled = false, hideSt
                 { label: "已归档", value: "archived" }
               ]}
             />
-            <span className="field-hint">草稿用于未完成角色；可加载状态才能加入项目。</span>
-          </div>
+          </Field>
         )}
       </section>
 
@@ -178,11 +173,9 @@ function TextAreaField({
   hint?: string;
 }) {
   return (
-    <div className="field">
-      <label>{label}</label>
+    <Field label={label} hint={hint}>
       <Textarea disabled={disabled} value={form[field]} onChange={(event) => onChange(field, event.target.value)} placeholder={placeholder} />
-      {hint ? <span className="field-hint">{hint}</span> : null}
-    </div>
+    </Field>
   );
 }
 
@@ -204,11 +197,9 @@ function InputField({
   hint?: string;
 }) {
   return (
-    <div className="field">
-      <label>{label}</label>
+    <Field label={label} hint={hint}>
       <Input disabled={disabled} value={form[field]} onChange={(event) => onChange(field, event.target.value)} placeholder={placeholder} />
-      {hint ? <span className="field-hint">{hint}</span> : null}
-    </div>
+    </Field>
   );
 }
 
@@ -245,18 +236,18 @@ export function TurnaroundPromptField({
   disabled?: boolean;
 }) {
   return (
-    <div className="field turnaround-prompt-field">
-      <label>三视图提示词</label>
+    <Field
+      className="turnaround-prompt-field"
+      label="三视图提示词"
+      hint="可先点击“生成提示词”自动拼接，再手动补充年龄、体型、发型、服装、气质、色彩和风格；不要指定模仿现实人物。"
+    >
       <Textarea
         disabled={disabled}
         value={form.turnaround_prompt}
         onChange={(event) => onChange("turnaround_prompt", event.target.value)}
         placeholder="例如：全身角色设计，正面、侧面、背面，统一服装，干净背景，短剧人物设定图。"
       />
-      <span className="field-hint">
-        可先点击“生成提示词”自动拼接，再手动补充年龄、体型、发型、服装、气质、色彩和风格；不要指定模仿现实人物。
-      </span>
-    </div>
+    </Field>
   );
 }
 

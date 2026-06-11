@@ -5,8 +5,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/simple-select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   archiveCharacterCard,
   CharacterCard,
@@ -49,6 +51,8 @@ export default function CharacterCardDetailPage() {
   const [isConfirmingTurnaround, setIsConfirmingTurnaround] = useState(false);
   const [isLoadingToProject, setIsLoadingToProject] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const validationError = validateCharacterCard(form);
   const isArchived = form.status === "archived";
 
@@ -110,10 +114,6 @@ export default function CharacterCardDetailPage() {
   };
 
   const archiveCard = async () => {
-    if (!window.confirm("归档后，该角色卡不再作为新项目可选项。确认归档？")) {
-      return;
-    }
-
     setIsArchiving(true);
     setError("");
     setStatusMessage("");
@@ -269,14 +269,21 @@ export default function CharacterCardDetailPage() {
   };
 
   const leaveToList = () => {
-    if (hasUnsavedChanges && !window.confirm("当前页面有未保存内容，确认离开吗？")) {
+    if (hasUnsavedChanges) {
+      setIsLeaveConfirmOpen(true);
       return;
     }
     router.push("/character-cards");
   };
 
   if (isLoading) {
-    return <div className="panel">角色卡详情加载中...</div>;
+    return (
+      <div className="panel stack" aria-label="角色卡详情加载中">
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-4 w-80 max-w-full" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
   }
 
   if (!card) {
@@ -292,6 +299,29 @@ export default function CharacterCardDetailPage() {
 
   return (
     <div className="stack">
+      <ConfirmDialog
+        destructive
+        open={isArchiveConfirmOpen}
+        title="归档角色卡？"
+        description="归档后，该角色卡不再作为新项目可选项。已有项目快照不会被删除。"
+        confirmLabel="归档"
+        onOpenChange={setIsArchiveConfirmOpen}
+        onConfirm={() => {
+          setIsArchiveConfirmOpen(false);
+          void archiveCard();
+        }}
+      />
+      <ConfirmDialog
+        open={isLeaveConfirmOpen}
+        title="离开当前页面？"
+        description="当前页面有未保存内容，离开后这些角色卡修改不会保存。"
+        confirmLabel="离开"
+        onOpenChange={setIsLeaveConfirmOpen}
+        onConfirm={() => {
+          setIsLeaveConfirmOpen(false);
+          router.push("/character-cards");
+        }}
+      />
       <header className="page-header">
         <div>
           <h1 className="page-title">{card.name}</h1>
@@ -389,7 +419,7 @@ export default function CharacterCardDetailPage() {
             <Button variant="secondary" type="button" onClick={setActiveAndSave} disabled={isArchived}>
               设为可加载
             </Button>
-            <Button variant="destructive" type="button" onClick={archiveCard} disabled={isArchived || isArchiving}>
+            <Button variant="destructive" type="button" onClick={() => setIsArchiveConfirmOpen(true)} disabled={isArchived || isArchiving}>
               {isArchiving ? "归档中..." : "归档"}
             </Button>
             <Button type="submit" disabled={isArchived || isSaving || Boolean(validationError)}>

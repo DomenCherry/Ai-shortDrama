@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams, useSearchParams } from "next/navigation";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { LandingModule } from "./_components/LandingModule";
 import { ProductionModule } from "./_components/ProductionModule";
 import { ProjectAssetsModule } from "./_components/ProjectAssetsModule";
@@ -26,6 +27,17 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
 
   return (
     <div className={`stack ${!workbench.isLandingMode ? "module-workbench" : ""}`}>
+      <ConfirmDialog
+        destructive={workbench.pendingConfirmation?.destructive}
+        open={Boolean(workbench.pendingConfirmation)}
+        title={workbench.pendingConfirmation?.title ?? ""}
+        description={workbench.pendingConfirmation?.description ?? ""}
+        confirmLabel={workbench.pendingConfirmation?.confirmLabel}
+        onOpenChange={(open) => {
+          if (!open) workbench.setPendingConfirmation(null);
+        }}
+        onConfirm={() => void workbench.confirmPendingAction()}
+      />
       <WorkbenchHeader workbench={workbench} />
       <LandingModule workbench={workbench} />
       <WorkbenchStatusStrip workbench={workbench} />

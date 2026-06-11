@@ -285,7 +285,7 @@ function WorldPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState }) 
           </Button>
         </div>
       )}
-      <div className="hint" style={{ textAlign: "center" }}>
+      <div className="hint text-center">
         <Link href="/world-books">前往世界观库管理</Link>
       </div>
     </AssetDrawer>
@@ -365,7 +365,7 @@ function CharacterPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState
           </Button>
         </div>
       )}
-      <div className="hint" style={{ textAlign: "center" }}>
+      <div className="hint text-center">
         <Link href="/character-cards">前往角色卡库管理</Link>
       </div>
     </AssetDrawer>

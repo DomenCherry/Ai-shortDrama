@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, MouseEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createWorldBook } from "@/lib/api";
 import {
   emptyWorldBookForm,
@@ -20,6 +21,7 @@ export default function NewWorldBookPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [hasTriedSubmit, setHasTriedSubmit] = useState(false);
+  const [pendingLeaveHref, setPendingLeaveHref] = useState("");
   const validationError = validateWorldBook(form);
 
   const updateField = (field: keyof WorldBookForm, value: string) => {
@@ -29,8 +31,9 @@ export default function NewWorldBookPage() {
   };
 
   const guardLeaveToList = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (hasUnsavedChanges && !window.confirm("当前页面有未保存内容，确认离开吗？")) {
+    if (hasUnsavedChanges) {
       event.preventDefault();
+      setPendingLeaveHref(event.currentTarget.getAttribute("href") || "/world-books");
     }
   };
 
@@ -57,6 +60,20 @@ export default function NewWorldBookPage() {
 
   return (
     <div className="stack">
+      <ConfirmDialog
+        open={Boolean(pendingLeaveHref)}
+        title="离开当前页面？"
+        description="当前页面有未保存内容，离开后这些世界观设定不会保存。"
+        confirmLabel="离开"
+        onOpenChange={(open) => {
+          if (!open) setPendingLeaveHref("");
+        }}
+        onConfirm={() => {
+          const href = pendingLeaveHref;
+          setPendingLeaveHref("");
+          router.push(href);
+        }}
+      />
       <header className="page-header">
         <div>
           <h1 className="page-title">新建世界观</h1>

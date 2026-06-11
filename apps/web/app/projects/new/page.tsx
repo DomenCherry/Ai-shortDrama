@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createProject } from "@/lib/api";
@@ -96,61 +97,53 @@ export default function NewProjectPage() {
       </header>
 
       <form className="panel stack" onSubmit={submitProject}>
-        <div className="field">
-          <label>创意描述</label>
+        <Field label="创意描述">
           <Textarea
             value={form.idea}
             onChange={(event) => updateField("idea", event.target.value)}
             placeholder="例如：都市逆袭爽剧，女主被丈夫背叛后发现自己是豪门继承人。"
           />
-        </div>
+        </Field>
 
         <div className="grid-2">
-          <div className="field">
-            <label>项目名称</label>
+          <Field label="项目名称">
             <Input
               value={form.title}
               onChange={(event) => updateField("title", event.target.value)}
               placeholder="未填写时保存为未命名短剧"
             />
-          </div>
-          <div className="field">
-            <label>目标平台</label>
+          </Field>
+          <Field label="目标平台">
             <Input value={form.target_platform} onChange={(event) => updateField("target_platform", event.target.value)} />
-          </div>
-          <div className="field">
-            <label>题材类型</label>
+          </Field>
+          <Field label="题材类型">
             <Input
               value={form.genre}
               onChange={(event) => updateField("genre", event.target.value)}
               placeholder="都市逆袭、古装重生、悬疑反转"
             />
-          </div>
-          <div className="field">
-            <label>目标受众</label>
+          </Field>
+          <Field label="目标受众">
             <Input
               value={form.target_audience}
               onChange={(event) => updateField("target_audience", event.target.value)}
               placeholder="例如 18-35 岁女性用户"
             />
-          </div>
-          <div className="field">
-            <label>内容风格</label>
+          </Field>
+          <Field label="内容风格">
             <Input
               value={form.style}
               onChange={(event) => updateField("style", event.target.value)}
               placeholder="爽感强、节奏快、反转密集"
             />
-          </div>
-          <div className="field">
-            <label>备注</label>
+          </Field>
+          <Field label="备注">
             <Input value={form.remark} onChange={(event) => updateField("remark", event.target.value)} />
-          </div>
+          </Field>
         </div>
 
         <div className="grid-2">
-          <div className="field">
-            <label>集数</label>
+          <Field label="集数">
             <Input
               type="number"
               min="1"
@@ -158,9 +151,8 @@ export default function NewProjectPage() {
               value={form.episode_count}
               onChange={(event) => updateField("episode_count", event.target.value)}
             />
-          </div>
-          <div className="field">
-            <label>单集时长（分钟）</label>
+          </Field>
+          <Field label="单集时长（分钟）">
             <Input
               type="number"
               min="0.1"
@@ -169,7 +161,7 @@ export default function NewProjectPage() {
               value={form.episode_duration}
               onChange={(event) => updateField("episode_duration", event.target.value)}
             />
-          </div>
+          </Field>
         </div>
 
         <div className="summary-box">

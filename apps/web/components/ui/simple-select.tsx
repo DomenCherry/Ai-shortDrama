@@ -21,6 +21,9 @@ type SimpleSelectProps = {
   options: SimpleSelectOption[];
   onValueChange: (value: string) => void;
   disabled?: boolean;
+  id?: string;
+  "aria-describedby"?: string;
+  "aria-labelledby"?: string;
   placeholder?: string;
   className?: string;
 };
@@ -30,12 +33,15 @@ export function SimpleSelect({
   options,
   onValueChange,
   disabled = false,
+  id,
+  "aria-describedby": ariaDescribedBy,
+  "aria-labelledby": ariaLabelledBy,
   placeholder = "请选择",
   className
 }: SimpleSelectProps) {
   return (
     <Select disabled={disabled} value={toSelectValue(value)} onValueChange={(nextValue) => onValueChange(fromSelectValue(nextValue))}>
-      <SelectTrigger className={cn("w-full", className)}>
+      <SelectTrigger id={id} aria-describedby={ariaDescribedBy} aria-labelledby={ariaLabelledBy} className={cn("w-full", className)}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

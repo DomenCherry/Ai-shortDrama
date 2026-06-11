@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import { episodeAiActions, productionAiActions } from "../_utils/workbenchTypes";
 
@@ -14,6 +15,15 @@ export function LoadingWorkbench() {
           <p className="page-description">正在加载项目资料...</p>
         </div>
       </header>
+      <section className="panel stack" aria-label="项目工作台加载中">
+        <Skeleton className="h-5 w-52" />
+        <div className="metric-grid">
+          {Array.from({ length: 5 }, (_, index) => (
+            <Skeleton className="h-16" key={index} />
+          ))}
+        </div>
+        <Skeleton className="h-28 w-full" />
+      </section>
     </div>
   );
 }

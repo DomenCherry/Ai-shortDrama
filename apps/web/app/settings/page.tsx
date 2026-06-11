@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   listModelConfigs,
   deleteModelConfig,
@@ -32,6 +34,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
+  const [configPendingDelete, setConfigPendingDelete] = useState<ModelConfig | null>(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -54,15 +57,18 @@ export default function SettingsPage() {
     loadAll();
   }, []);
 
-  const handleDelete = async (config: ModelConfig) => {
-    if (!confirm(`确定删除「${config.provider_name} - ${config.model_name}」吗？删除后该配置将从列表移除，历史测试记录会保留。`)) {
-      return;
-    }
+  const handleDelete = (config: ModelConfig) => {
+    setConfigPendingDelete(config);
+  };
+
+  const confirmDelete = async () => {
+    if (!configPendingDelete) return;
     setError("");
     setStatusMessage("");
     try {
-      await deleteModelConfig(config.id);
+      await deleteModelConfig(configPendingDelete.id);
       setStatusMessage("配置已删除。");
+      setConfigPendingDelete(null);
       await loadAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "删除失败");
@@ -83,6 +89,21 @@ export default function SettingsPage() {
 
   return (
     <div className="stack">
+      <ConfirmDialog
+        destructive
+        open={Boolean(configPendingDelete)}
+        title="删除模型配置？"
+        description={
+          configPendingDelete
+            ? `确定删除「${configPendingDelete.provider_name} - ${configPendingDelete.model_name}」吗？删除后该配置将从列表移除，历史测试记录会保留。`
+            : ""
+        }
+        confirmLabel="删除"
+        onOpenChange={(open) => {
+          if (!open) setConfigPendingDelete(null);
+        }}
+        onConfirm={() => void confirmDelete()}
+      />
       <header className="page-header">
         <div>
           <h1 className="page-title">模型 API 配置</h1>
@@ -149,9 +170,9 @@ function ConfigList({
       </div>
 
       {loading ? (
-        <p className="hint">加载中...</p>
+        <ConfigSkeleton />
       ) : configs.length > 0 ? (
-        <div className="stack" style={{ gap: 8 }}>
+        <div className="stack stack-compact">
           {configs.map((config) => (
             <div key={config.id} className="asset-card">
               <div className="asset-card-main">
@@ -163,23 +184,7 @@ function ConfigList({
                   ) : (
                     <Badge className="status-badge status-draft">未启用</Badge>
                   )}
-                  <Badge
-                    className="status-badge"
-                    style={{
-                      background:
-                        config.last_test_status === "success"
-                          ? "#e3f5ef"
-                          : config.last_test_status === "failed"
-                          ? "#f9e7e4"
-                          : "#edf0f2",
-                      color:
-                        config.last_test_status === "success"
-                          ? "var(--brand-strong)"
-                          : config.last_test_status === "failed"
-                          ? "var(--danger)"
-                          : "#3f474d",
-                    }}
-                  >
+                  <Badge className={`status-badge status-test-${config.last_test_status || "untested"}`}>
                     {testStatusLabel(config.last_test_status)}
                   </Badge>
                 </div>
@@ -220,6 +225,25 @@ function ConfigList({
       ) : (
         <div className="empty-state">暂无配置，点击上方按钮新建。</div>
       )}
+    </div>
+  );
+}
+
+function ConfigSkeleton() {
+  return (
+    <div className="stack stack-compact" aria-label="配置列表加载中">
+      {Array.from({ length: 2 }, (_, index) => (
+        <div className="asset-card" key={index}>
+          <div className="asset-card-main">
+            <Skeleton className="h-5 w-44" />
+            <Skeleton className="h-4 w-56 max-w-full" />
+          </div>
+          <div className="asset-card-actions">
+            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-9 w-14" />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

@@ -4,8 +4,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/simple-select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { activateWorldBook, archiveWorldBook, listWorldBooks, WorldBook } from "@/lib/api";
 import { worldBookGenres, worldBookStatuses, worldBookStatusLabel } from "./_components/WorldBookForm";
 
@@ -19,6 +22,7 @@ export default function WorldBooksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [archivingWorldBookId, setArchivingWorldBookId] = useState("");
   const [activatingWorldBookId, setActivatingWorldBookId] = useState("");
+  const [worldBookPendingArchive, setWorldBookPendingArchive] = useState<WorldBook | null>(null);
   const genreFilterOptions = Array.from(new Set([...worldBookGenres, ...worldBooks.map((book) => book.genre)]));
 
   useEffect(() => {
@@ -43,18 +47,20 @@ export default function WorldBooksPage() {
     }
   };
 
-  const archiveBook = async (book: WorldBook) => {
-    if (!window.confirm("归档后，该世界观不再作为新项目可选项。确认归档？")) {
-      return;
-    }
+  const archiveBook = (book: WorldBook) => {
+    setWorldBookPendingArchive(book);
+  };
 
-    setArchivingWorldBookId(book.id);
+  const confirmArchiveBook = async () => {
+    if (!worldBookPendingArchive) return;
+    setArchivingWorldBookId(worldBookPendingArchive.id);
     setError("");
     setStatusMessage("");
     try {
-      const archived = await archiveWorldBook(book.id);
+      const archived = await archiveWorldBook(worldBookPendingArchive.id);
       setWorldBooks((current) => current.map((item) => (item.id === archived.id ? archived : item)));
       setStatusMessage("世界观已归档。");
+      setWorldBookPendingArchive(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "世界观归档失败");
     } finally {
@@ -79,6 +85,17 @@ export default function WorldBooksPage() {
 
   return (
     <div className="stack">
+      <ConfirmDialog
+        destructive
+        open={Boolean(worldBookPendingArchive)}
+        title="归档世界观？"
+        description="归档后，该世界观不再作为新项目可选项。已有项目快照不会被删除。"
+        confirmLabel="归档"
+        onOpenChange={(open) => {
+          if (!open) setWorldBookPendingArchive(null);
+        }}
+        onConfirm={() => void confirmArchiveBook()}
+      />
       <header className="page-header">
         <div>
           <h1 className="page-title">世界观库</h1>
@@ -98,22 +115,19 @@ export default function WorldBooksPage() {
         </div>
 
         <div className="filter-bar filter-bar-compact">
-          <div className="field">
-            <label>搜索世界观</label>
+          <Field label="搜索世界观">
             <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="输入名称、题材或摘要" />
-          </div>
-          <div className="field">
-            <label>题材类型</label>
+          </Field>
+          <Field label="题材类型">
             <SimpleSelect
               value={genreFilter}
               onValueChange={setGenreFilter}
               options={[{ label: "全部题材", value: "" }, ...genreFilterOptions.map((genre) => ({ label: genre, value: genre }))]}
             />
-          </div>
-          <div className="field">
-            <label>状态</label>
+          </Field>
+          <Field label="状态">
             <SimpleSelect value={statusFilter} onValueChange={setStatusFilter} options={worldBookStatuses} />
-          </div>
+          </Field>
           <div className="filter-actions">
             <Button variant="secondary" type="button" onClick={refreshWorldBooks} disabled={isLoading}>
               筛选
@@ -125,6 +139,8 @@ export default function WorldBooksPage() {
         {statusMessage ? <div className="success">{statusMessage}</div> : null}
 
         <div className="asset-list asset-list-wide">
+          {isLoading ? <AssetListSkeleton /> : null}
+
           {worldBooks.length === 0 && !isLoading ? (
             <div className="empty-state">
               <p>还没有世界观。</p>
@@ -177,5 +193,25 @@ export default function WorldBooksPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function AssetListSkeleton() {
+  return (
+    <>
+      {Array.from({ length: 3 }, (_, index) => (
+        <div className="asset-card" key={index} aria-label="世界观加载中">
+          <div className="asset-card-main">
+            <Skeleton className="h-5 w-44" />
+            <Skeleton className="h-4 w-80 max-w-full" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+          <div className="asset-card-actions">
+            <Skeleton className="h-9 w-20" />
+            <Skeleton className="h-9 w-20" />
+          </div>
+        </div>
+      ))}
+    </>
   );
 }

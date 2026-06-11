@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { listProjects, ProjectSummary } from "@/lib/api";
 
 export default function ProjectManagementPage() {
@@ -49,7 +50,7 @@ export default function ProjectManagementPage() {
         {error ? (
           <div className="stack">
             <div className="error">{error}</div>
-            <div className="actions" style={{ justifyContent: "flex-start" }}>
+            <div className="actions actions-start">
               <Button variant="secondary" type="button" onClick={() => void refreshProjects()}>
                 重试
               </Button>
@@ -60,13 +61,15 @@ export default function ProjectManagementPage() {
         {!isLoading && !error && projects.length === 0 ? (
           <div className="empty-state stack">
             <p>还没有短剧项目。</p>
-            <div className="actions" style={{ justifyContent: "flex-start" }}>
+            <div className="actions actions-start">
               <Button asChild>
                 <Link href="/projects/new">创建第一个项目</Link>
               </Button>
             </div>
           </div>
         ) : null}
+
+        {isLoading ? <ListSkeleton /> : null}
 
         {projects.length > 0 ? (
           <div className="asset-list asset-list-wide">
@@ -96,6 +99,23 @@ export default function ProjectManagementPage() {
           </div>
         ) : null}
       </section>
+    </div>
+  );
+}
+
+function ListSkeleton() {
+  return (
+    <div className="asset-list asset-list-wide" aria-label="项目列表加载中">
+      {Array.from({ length: 3 }, (_, index) => (
+        <div className="asset-card project-card" key={index}>
+          <div className="asset-card-main">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-80 max-w-full" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+          <Skeleton className="h-10 w-24" />
+        </div>
+      ))}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import {
@@ -235,8 +236,7 @@ export default function SettingsEditPage() {
         <div className="panel stack">
           <form className="stack" onSubmit={saveConfig}>
             {configType === "image" ? (
-              <div className="field">
-                <label>配置方式</label>
+              <Field label="配置方式" hint="预设用于快速填充常见供应商参数，自定义配置可接入其他图片模型。">
                 <SimpleSelect
                   value={form.provider_mode}
                   onValueChange={(value) => updateProviderMode(value as ProviderMode)}
@@ -245,33 +245,32 @@ export default function SettingsEditPage() {
                     { label: "供应商预设", value: "preset" }
                   ]}
                 />
-                <span className="hint">预设用于快速填充常见供应商参数，自定义配置可接入其他图片模型。</span>
-              </div>
+              </Field>
             ) : null}
             {configType === "image" && form.provider_mode === "preset" ? (
-              <div className="field">
-                <label>供应商预设</label>
+              <Field
+                label="供应商预设"
+                hint="火山方舟 Seedream 支持角色三视图和参考图输入，模型名称仍需填写你实际开通的模型。"
+              >
                 <SimpleSelect
                   value={form.provider_preset}
                   onValueChange={(value) => applyImagePreset(value as keyof typeof imageProviderPresets)}
                   options={Object.entries(imageProviderPresets).map(([key, preset]) => ({ label: preset.label, value: key }))}
                 />
-                <span className="hint">
-                  火山方舟 Seedream 支持角色三视图和参考图输入，模型名称仍需填写你实际开通的模型。
-                </span>
-              </div>
+              </Field>
             ) : null}
-            <div className="field">
-              <label>供应商名称</label>
+            <Field label="供应商名称">
               <Input
                 value={form.provider_name}
                 onChange={(event) => updateField("provider_name", event.target.value)}
                 readOnly={configType === "image" && form.provider_mode === "preset"}
                 placeholder="例如 OpenAI-compatible"
               />
-            </div>
-            <div className="field">
-              <label>API Base URL</label>
+            </Field>
+            <Field
+              label="API Base URL"
+              hint={configType === "text" ? "文本模型只填写 Base URL，系统会自动调用 /chat/completions。" : undefined}
+            >
               <Input
                 value={form.api_base_url}
                 onChange={(event) => updateField("api_base_url", event.target.value)}
@@ -282,34 +281,25 @@ export default function SettingsEditPage() {
                     : "https://api.example.com/v1"
                 }
               />
-              {configType === "text" ? (
-                <span className="hint">
-                  文本模型只填写 Base URL，系统会自动调用 /chat/completions。
-                </span>
-              ) : null}
-            </div>
-            <div className="field">
-              <label>API Key</label>
+            </Field>
+            <Field label="API Key" hint="密钥不会出现在 Markdown 导出中。">
               <Input
                 type="password"
                 value={form.api_key}
                 onChange={(event) => updateField("api_key", event.target.value)}
                 placeholder={editingId ? "已保存，留空则保持不变" : "输入密钥"}
               />
-              <span className="hint">密钥不会出现在 Markdown 导出中。</span>
-            </div>
-            <div className="field">
-              <label>模型名称</label>
+            </Field>
+            <Field label="模型名称">
               <Input
                 value={form.model_name}
                 onChange={(event) => updateField("model_name", event.target.value)}
                 placeholder={configType === "text" ? "text-model" : "image-model"}
               />
-            </div>
+            </Field>
             {configType === "image" ? (
               <>
-                <div className="field">
-                  <label>图片尺寸</label>
+                <Field label="图片尺寸">
                   <SimpleSelect
                     value={form.image_size}
                     onValueChange={(value) => updateField("image_size", value)}
@@ -321,17 +311,15 @@ export default function SettingsEditPage() {
                       { label: "4K", value: "4K" }
                     ]}
                   />
-                </div>
-                <div className="field">
-                  <label>图片接口路径</label>
+                </Field>
+                <Field label="图片接口路径" hint="系统会将 API Base URL 和接口路径拼接后调用图片生成接口。">
                   <Input
                     value={form.endpoint_path}
                     onChange={(event) => updateField("endpoint_path", event.target.value)}
                     readOnly={form.provider_mode === "preset"}
                     placeholder="/images/generations"
                   />
-                  <span className="hint">系统会将 API Base URL 和接口路径拼接后调用图片生成接口。</span>
-                </div>
+                </Field>
                 <label className="checkbox-field">
                   <Checkbox
                     checked={form.supports_reference_image}
@@ -342,13 +330,12 @@ export default function SettingsEditPage() {
                 </label>
               </>
             ) : null}
-            <div className="field">
-              <label>备注</label>
+            <Field label="备注">
               <Input
                 value={form.remark}
                 onChange={(event) => updateField("remark", event.target.value)}
               />
-            </div>
+            </Field>
 
             {status ? <div className="success">{status}</div> : null}
             {error ? <div className="error">{error}</div> : null}
@@ -369,7 +356,7 @@ export default function SettingsEditPage() {
           </form>
         </div>
 
-        <div className="actions" style={{ justifyContent: "flex-start" }}>
+        <div className="actions actions-start">
           <Button variant="secondary" onClick={goBack}>
             ← 返回配置列表
           </Button>

@@ -5,8 +5,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/simple-select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
   archiveWorldBook,
@@ -78,6 +80,8 @@ export default function WorldBookDetailPage() {
   const [isSavingEntry, setIsSavingEntry] = useState(false);
   const [isLoadingToProject, setIsLoadingToProject] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
   const validationError = validateWorldBook(form);
   const isArchived = form.status === "archived";
 
@@ -156,10 +160,6 @@ export default function WorldBookDetailPage() {
   };
 
   const archiveBook = async () => {
-    if (!window.confirm("归档后，该世界观不再作为新项目可选项。确认归档？")) {
-      return;
-    }
-
     setIsArchiving(true);
     setError("");
     setStatusMessage("");
@@ -261,14 +261,21 @@ export default function WorldBookDetailPage() {
   };
 
   const leaveToList = () => {
-    if (hasUnsavedChanges && !window.confirm("当前页面有未保存内容，确认离开吗？")) {
+    if (hasUnsavedChanges) {
+      setIsLeaveConfirmOpen(true);
       return;
     }
     router.push("/world-books");
   };
 
   if (isLoading) {
-    return <div className="panel">世界观详情加载中...</div>;
+    return (
+      <div className="panel stack" aria-label="世界观详情加载中">
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-4 w-80 max-w-full" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
   }
 
   if (!worldBook) {
@@ -284,6 +291,29 @@ export default function WorldBookDetailPage() {
 
   return (
     <div className="stack">
+      <ConfirmDialog
+        destructive
+        open={isArchiveConfirmOpen}
+        title="归档世界观？"
+        description="归档后，该世界观不再作为新项目可选项。已有项目快照不会被删除。"
+        confirmLabel="归档"
+        onOpenChange={setIsArchiveConfirmOpen}
+        onConfirm={() => {
+          setIsArchiveConfirmOpen(false);
+          void archiveBook();
+        }}
+      />
+      <ConfirmDialog
+        open={isLeaveConfirmOpen}
+        title="离开当前页面？"
+        description="当前页面有未保存内容，离开后这些世界观修改不会保存。"
+        confirmLabel="离开"
+        onOpenChange={setIsLeaveConfirmOpen}
+        onConfirm={() => {
+          setIsLeaveConfirmOpen(false);
+          router.push("/world-books");
+        }}
+      />
       <header className="page-header">
         <div>
           <h1 className="page-title">{worldBook.name}</h1>
@@ -396,7 +426,7 @@ export default function WorldBookDetailPage() {
             <Button variant="secondary" type="button" onClick={setActiveAndSave} disabled={isArchived}>
               设为可加载
             </Button>
-            <Button variant="destructive" type="button" onClick={archiveBook} disabled={isArchived || isArchiving}>
+            <Button variant="destructive" type="button" onClick={() => setIsArchiveConfirmOpen(true)} disabled={isArchived || isArchiving}>
               {isArchiving ? "归档中..." : "归档"}
             </Button>
             <Button type="submit" disabled={isArchived || isSaving || Boolean(validationError)}>

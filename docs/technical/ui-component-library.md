@@ -45,6 +45,7 @@ apps/web
 | Input | `apps/web/components/ui/input.tsx` | 单行文本、数字、密码等输入 |
 | Textarea | `apps/web/components/ui/textarea.tsx` | 长文本、提示词、故事内容输入 |
 | Select | `apps/web/components/ui/select.tsx` | 状态、类型、枚举值选择 |
+| Field | `apps/web/components/ui/field.tsx` | 表单字段容器，统一生成 label、hint 和 aria 关联 |
 | Checkbox | `apps/web/components/ui/checkbox.tsx` | 布尔开关、列表多选、能力勾选 |
 | RadioGroup | `apps/web/components/ui/radio-group.tsx` | 单选项组，例如资产抽屉中选择一个世界观 |
 | Label | `apps/web/components/ui/label.tsx` | 表单控件标签，和 checkbox、radio、输入框组合使用 |
@@ -55,6 +56,7 @@ apps/web
 | Tooltip | `apps/web/components/ui/tooltip.tsx` | 图标按钮、紧凑操作的悬浮说明 |
 | Alert | `apps/web/components/ui/alert.tsx` | 错误、警告、说明类反馈信息 |
 | AlertDialog | `apps/web/components/ui/alert-dialog.tsx` | 需要用户确认的危险操作，例如删除、归档、离开未保存页面 |
+| ConfirmDialog | `apps/web/components/ui/confirm-dialog.tsx` | 基于 AlertDialog 的受控确认弹窗，用于删除、归档等确认操作 |
 | DropdownMenu | `apps/web/components/ui/dropdown-menu.tsx` | 列表项或工具栏中的更多操作菜单 |
 | Skeleton | `apps/web/components/ui/skeleton.tsx` | 列表、详情、工作台加载中占位 |
 | SimpleSelect | `apps/web/components/ui/simple-select.tsx` | 项目表单常用选择器，兼容空字符串“全部 / 未选择”选项 |
@@ -66,6 +68,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { SimpleSelect } from "@/components/ui/simple-select";
+import { Field } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 ```
 
@@ -78,7 +81,7 @@ import { cn } from "@/lib/utils";
 3. 查当前路由的 `_components`，确认是否已有业务组件可复用。
 4. 只有在现有组件无法满足时，才新增基础 UI 组件或业务组件。
 
-基础控件不得在页面文件中重复手写。例如按钮、输入框、文本域、选择器、checkbox、radio、抽屉、状态标签、卡片、Tabs、Tooltip 应优先使用 `components/ui`。
+基础控件不得在页面文件中重复手写。例如按钮、输入框、文本域、选择器、checkbox、radio、抽屉、状态标签、卡片、Tabs、Tooltip 应优先使用 `components/ui`。表单字段优先使用 `Field` 包裹控件，确保 label、hint 和 aria 关联一致。
 
 ## 6. 新增组件规则
 
