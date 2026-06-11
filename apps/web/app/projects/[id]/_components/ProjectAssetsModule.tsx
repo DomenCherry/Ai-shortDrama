@@ -34,7 +34,7 @@ function ProjectSettingsPanel({ workbench }: { workbench: ProjectWorkbenchState 
     <form className="panel stack" onSubmit={workbench.saveProject}>
       <div className="section-heading">
         <h2>项目设定</h2>
-        <Button className="button secondary" type="button" onClick={workbench.resetProjectForm} disabled={workbench.isSaving}>
+        <Button variant="secondary" type="button" onClick={workbench.resetProjectForm} disabled={workbench.isSaving}>
           还原
         </Button>
       </div>
@@ -61,7 +61,7 @@ function ProjectSettingsPanel({ workbench }: { workbench: ProjectWorkbenchState 
       {workbench.durationChanged ? <div className="warning-text">修改集数或单集时长会让故事文本和短剧制作已有内容进入需要检查状态。</div> : null}
       {workbench.validationError ? <div className="error">{workbench.validationError}</div> : null}
       <div className="actions">
-        <Button className="button" type="submit" disabled={workbench.isSaving || Boolean(workbench.validationError)}>
+        <Button type="submit" disabled={workbench.isSaving || Boolean(workbench.validationError)}>
           {workbench.isSaving ? "保存中..." : "保存项目设定"}
         </Button>
       </div>
@@ -106,11 +106,11 @@ function WorldSnapshotSection({ workbench }: { workbench: ProjectWorkbenchState 
             <p className="hint">加载时间：{new Date(snapshot.loaded_at).toLocaleString()}</p>
           </div>
           <div className="asset-card-actions">
-            <Button className="button secondary" type="button" onClick={() => workbench.startEditingWorldSnapshot(snapshot)}>
+            <Button variant="secondary" type="button" onClick={() => workbench.startEditingWorldSnapshot(snapshot)}>
               编辑项目世界观
             </Button>
             <Button
-              className="button danger"
+              variant="destructive"
               type="button"
               onClick={() => void workbench.removeWorldSnapshot(snapshot)}
               disabled={workbench.removingSnapshotId === snapshot.id}
@@ -128,10 +128,10 @@ function WorldSnapshotSection({ workbench }: { workbench: ProjectWorkbenchState 
                 <TextArea label="条目快照" value={workbench.worldSnapshotForm.entry_snapshot_content} onChange={(value) => setWorldSnapshotFormValue("entry_snapshot_content", value, workbench.setWorldSnapshotForm)} />
               </div>
               <div className="actions">
-                <Button className="button secondary" type="button" onClick={workbench.cancelWorldSnapshotEdit} disabled={workbench.savingSnapshotId === snapshot.id}>
+                <Button variant="secondary" type="button" onClick={workbench.cancelWorldSnapshotEdit} disabled={workbench.savingSnapshotId === snapshot.id}>
                   取消
                 </Button>
-                <Button className="button" type="submit" disabled={workbench.savingSnapshotId === snapshot.id}>
+                <Button type="submit" disabled={workbench.savingSnapshotId === snapshot.id}>
                   {workbench.savingSnapshotId === snapshot.id ? "保存中..." : "保存项目世界观"}
                 </Button>
               </div>
@@ -168,11 +168,11 @@ function CharacterSnapshotSection({ workbench }: { workbench: ProjectWorkbenchSt
             <p className="hint">加载时间：{new Date(snapshot.loaded_at).toLocaleString()}</p>
           </div>
           <div className="asset-card-actions">
-            <Button className="button secondary" type="button" onClick={() => workbench.startEditingCharacterSnapshot(snapshot)}>
+            <Button variant="secondary" type="button" onClick={() => workbench.startEditingCharacterSnapshot(snapshot)}>
               编辑项目角色
             </Button>
             <Button
-              className="button danger"
+              variant="destructive"
               type="button"
               onClick={() => void workbench.removeCharacterSnapshot(snapshot)}
               disabled={workbench.removingSnapshotId === snapshot.id}
@@ -203,10 +203,10 @@ function CharacterSnapshotSection({ workbench }: { workbench: ProjectWorkbenchSt
                 <TextInput label="参考图本地路径" value={workbench.characterSnapshotForm.reference_local_path} onChange={(value) => setCharacterSnapshotFormValue("reference_local_path", value, workbench.setCharacterSnapshotForm)} />
               </div>
               <div className="actions">
-                <Button className="button secondary" type="button" onClick={workbench.cancelCharacterSnapshotEdit} disabled={workbench.savingSnapshotId === snapshot.id}>
+                <Button variant="secondary" type="button" onClick={workbench.cancelCharacterSnapshotEdit} disabled={workbench.savingSnapshotId === snapshot.id}>
                   取消
                 </Button>
-                <Button className="button" type="submit" disabled={workbench.savingSnapshotId === snapshot.id}>
+                <Button type="submit" disabled={workbench.savingSnapshotId === snapshot.id}>
                   {workbench.savingSnapshotId === snapshot.id ? "保存中..." : "保存项目角色"}
                 </Button>
               </div>
@@ -226,7 +226,7 @@ function WorldPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState }) 
       ) : workbench.availableWorlds.length === 0 ? (
         <div className="empty-state">
           没有可用的世界观。
-          <Button className="button secondary" style={{ marginTop: "0.5rem", display: "inline-flex" }} asChild>
+          <Button className="empty-state-action" variant="secondary" asChild>
             <Link href="/world-books/new">创建世界观</Link>
           </Button>
         </div>
@@ -272,11 +272,11 @@ function WorldPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState }) 
       )}
       {!workbench.isLoadingPicker && workbench.availableWorlds.length > 0 && (
         <div className="asset-drawer-footer">
-          <Button className="button secondary" type="button" onClick={() => workbench.setShowWorldPicker(false)}>
+          <Button variant="secondary" type="button" onClick={() => workbench.setShowWorldPicker(false)}>
             取消
           </Button>
           <Button
-            className="button"
+
             type="button"
             disabled={!workbench.selectedWorldId || workbench.loadingAssetId !== "" || workbench.worldSnapshots.length > 0}
             onClick={() => void workbench.handleLoadWorld()}
@@ -300,7 +300,7 @@ function CharacterPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState
       ) : workbench.availableCharacters.length === 0 ? (
         <div className="empty-state">
           没有可用的角色卡。
-          <Button className="button secondary" style={{ marginTop: "0.5rem", display: "inline-flex" }} asChild>
+          <Button className="empty-state-action" variant="secondary" asChild>
             <Link href="/character-cards/new">创建角色卡</Link>
           </Button>
         </div>
@@ -352,11 +352,11 @@ function CharacterPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState
       )}
       {!workbench.isLoadingPicker && workbench.availableCharacters.length > 0 && (
         <div className="asset-drawer-footer">
-          <Button className="button secondary" type="button" onClick={() => workbench.setShowCharacterPicker(false)}>
+          <Button variant="secondary" type="button" onClick={() => workbench.setShowCharacterPicker(false)}>
             取消
           </Button>
           <Button
-            className="button"
+
             type="button"
             disabled={workbench.selectedCharacterIds.size === 0 || workbench.isBatchLoading}
             onClick={() => void workbench.handleLoadCharacters()}

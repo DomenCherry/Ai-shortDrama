@@ -26,7 +26,7 @@ export function MissingProject({ error }: { error: string }) {
           <h1 className="page-title">项目工作台</h1>
           <p className="page-description">无法读取项目资料。</p>
         </div>
-        <Button className="button secondary" asChild>
+        <Button variant="secondary" asChild>
           <Link href="/">返回项目管理</Link>
         </Button>
       </header>
@@ -53,7 +53,7 @@ export function WorkbenchHeader({ workbench }: { workbench: ProjectWorkbenchStat
           </p>
         </div>
         <div className="actions">
-          <Button className="button secondary" asChild>
+          <Button variant="secondary" asChild>
             <Link href="/">返回项目管理</Link>
           </Button>
         </div>
@@ -95,7 +95,7 @@ export function WorkbenchHeader({ workbench }: { workbench: ProjectWorkbenchStat
         ) : null}
       </div>
       <div className="module-toolbar-actions">
-        <Button className="button secondary compact-button" asChild>
+        <Button className="compact-action" variant="secondary" asChild>
           <Link href={`/projects/${workbench.projectId}`}>工作台入口</Link>
         </Button>
       </div>

@@ -35,7 +35,7 @@ export default function ProjectManagementPage() {
           <h1 className="page-title">项目管理</h1>
           <p className="page-description">查看已有短剧项目，继续编辑项目资料，或创建新的短剧项目。</p>
         </div>
-        <Button className="button" asChild>
+        <Button size="lg" asChild>
           <Link href="/projects/new">创建项目</Link>
         </Button>
       </header>
@@ -50,7 +50,7 @@ export default function ProjectManagementPage() {
           <div className="stack">
             <div className="error">{error}</div>
             <div className="actions" style={{ justifyContent: "flex-start" }}>
-              <Button className="button secondary" type="button" onClick={() => void refreshProjects()}>
+              <Button variant="secondary" type="button" onClick={() => void refreshProjects()}>
                 重试
               </Button>
             </div>
@@ -61,7 +61,7 @@ export default function ProjectManagementPage() {
           <div className="empty-state stack">
             <p>还没有短剧项目。</p>
             <div className="actions" style={{ justifyContent: "flex-start" }}>
-              <Button className="button" asChild>
+              <Button asChild>
                 <Link href="/projects/new">创建第一个项目</Link>
               </Button>
             </div>
@@ -71,7 +71,7 @@ export default function ProjectManagementPage() {
         {projects.length > 0 ? (
           <div className="asset-list asset-list-wide">
             {projects.map((project) => (
-              <article className="asset-card" key={project.id}>
+              <article className="asset-card project-card" key={project.id}>
                 <div className="asset-card-main">
                   <div className="asset-card-title">
                     <strong>{project.title}</strong>
@@ -86,8 +86,8 @@ export default function ProjectManagementPage() {
                   <p>{project.idea}</p>
                   <p className="hint">更新时间：{new Date(project.updated_at).toLocaleString()}</p>
                 </div>
-                <div className="asset-card-actions">
-                  <Button className="button secondary" asChild>
+                <div className="asset-card-actions project-card-actions">
+                  <Button variant="secondary" size="lg" asChild>
                     <Link href={`/projects/${project.id}`}>进入工作台</Link>
                   </Button>
                 </div>

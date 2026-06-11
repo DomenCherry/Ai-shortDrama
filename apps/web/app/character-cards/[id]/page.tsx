@@ -283,7 +283,7 @@ export default function CharacterCardDetailPage() {
     return (
       <div className="stack">
         <div className="error">{error || "角色卡详情加载失败"}</div>
-        <Button className="button secondary" asChild>
+        <Button variant="secondary" asChild>
           <Link href="/character-cards">返回列表</Link>
         </Button>
       </div>
@@ -297,7 +297,7 @@ export default function CharacterCardDetailPage() {
           <h1 className="page-title">{card.name}</h1>
           <p className="page-description">维护角色卡完整设定，并在需要时加载到短剧项目生成独立角色快照。</p>
         </div>
-        <Button className="button secondary" type="button" onClick={leaveToList}>
+        <Button variant="secondary" type="button" onClick={leaveToList}>
           返回列表
         </Button>
       </header>
@@ -363,7 +363,7 @@ export default function CharacterCardDetailPage() {
             </div>
             <div className="actions action-wrap">
               <Button
-                className="button secondary"
+                variant="secondary"
                 disabled={isArchived || isGeneratingTurnaround || hasUnsavedChanges}
                 type="button"
                 onClick={generateTurnaround}
@@ -371,7 +371,7 @@ export default function CharacterCardDetailPage() {
                 {isGeneratingTurnaround ? "生成中..." : "生成人物三视图"}
               </Button>
               <Button
-                className="button"
+
                 disabled={isArchived || isConfirmingTurnaround || !card.turnaround_image_url || card.turnaround_status === "confirmed"}
                 type="button"
                 onClick={confirmTurnaround}
@@ -386,13 +386,13 @@ export default function CharacterCardDetailPage() {
           {statusMessage ? <div className="success">{statusMessage}</div> : null}
 
           <div className="actions action-wrap">
-            <Button className="button secondary" type="button" onClick={setActiveAndSave} disabled={isArchived}>
+            <Button variant="secondary" type="button" onClick={setActiveAndSave} disabled={isArchived}>
               设为可加载
             </Button>
-            <Button className="button danger" type="button" onClick={archiveCard} disabled={isArchived || isArchiving}>
+            <Button variant="destructive" type="button" onClick={archiveCard} disabled={isArchived || isArchiving}>
               {isArchiving ? "归档中..." : "归档"}
             </Button>
-            <Button className="button" type="submit" disabled={isArchived || isSaving || Boolean(validationError)}>
+            <Button type="submit" disabled={isArchived || isSaving || Boolean(validationError)}>
               {isSaving ? "保存中..." : "保存角色卡"}
             </Button>
           </div>
@@ -415,7 +415,7 @@ export default function CharacterCardDetailPage() {
             </div>
             <div className="summary-box">角色卡会复制为项目内快照，项目内修改不会影响原始角色卡。</div>
             <Button
-              className="button"
+
               type="button"
               onClick={loadToProject}
               disabled={form.status !== "active" || hasUnsavedChanges || isLoadingToProject}

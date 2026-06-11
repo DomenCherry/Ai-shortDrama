@@ -122,10 +122,10 @@ export function ProductionContextSummary({
           <Metric label="当前单集正文" value={artifactStatusLabel(episodeContentStatus)} />
         </div>
         <div className="actions">
-          <Button className="button secondary" asChild>
+          <Button variant="secondary" asChild>
             <Link href={`/projects/${projectId}/assets`}>回到项目资料 / 资产</Link>
           </Button>
-          <Button className="button secondary" asChild>
+          <Button variant="secondary" asChild>
             <Link href={`/projects/${projectId}/story-text?stage=content`}>回到单集故事正文</Link>
           </Button>
         </div>
@@ -173,11 +173,11 @@ export function AssetSection({
         <h2>{title}</h2>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           {onPick && pickLabel ? (
-            <Button className="button" type="button" onClick={onPick} disabled={pickDisabled}>
+            <Button type="button" onClick={onPick} disabled={pickDisabled}>
               {pickLabel}
             </Button>
           ) : null}
-          <Button className="button secondary" asChild>
+          <Button variant="secondary" asChild>
             <Link href={linkHref}>{linkLabel}</Link>
           </Button>
         </div>
@@ -213,7 +213,7 @@ export function AssetDrawer({
       <SheetContent className="w-[min(560px,calc(100vw-32px))] max-w-none gap-0 p-0 sm:max-w-none" showCloseButton={false}>
         <div className="asset-drawer-header">
           <SheetTitle id="asset-drawer-title">{title}</SheetTitle>
-          <Button className="button secondary" type="button" onClick={onClose}>
+          <Button variant="secondary" type="button" onClick={onClose}>
             关闭
           </Button>
         </div>

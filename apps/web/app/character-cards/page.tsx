@@ -89,7 +89,7 @@ export default function CharacterCardsPage() {
             管理可复用人物资产。角色卡只保存跨项目稳定的人设、口吻和视觉素材，具体剧情在项目内塑造。
           </p>
         </div>
-        <Button className="button" asChild>
+        <Button asChild>
           <Link href="/character-cards/new">新建角色卡</Link>
         </Button>
       </header>
@@ -126,7 +126,7 @@ export default function CharacterCardsPage() {
             <SimpleSelect value={statusFilter} onValueChange={setStatusFilter} options={statuses} />
           </div>
           <div className="filter-actions">
-            <Button className="button secondary" type="button" onClick={refreshCards} disabled={isLoading}>
+            <Button variant="secondary" type="button" onClick={refreshCards} disabled={isLoading}>
               筛选
             </Button>
           </div>
@@ -139,7 +139,7 @@ export default function CharacterCardsPage() {
           {cards.length === 0 && !isLoading ? (
             <div className="empty-state">
               <p>还没有角色卡。</p>
-              <Button className="button" asChild>
+              <Button asChild>
                 <Link href="/character-cards/new">新建第一个角色卡</Link>
               </Button>
             </div>
@@ -160,12 +160,12 @@ export default function CharacterCardsPage() {
                 <p className="hint">{card.image_keywords || "未设置形象关键词"}</p>
               </Link>
               <div className="asset-card-actions">
-                <Button className="button secondary" asChild>
+                <Button variant="secondary" asChild>
                   <Link href={`/character-cards/${card.id}`}>查看详情</Link>
                 </Button>
                 {card.status !== "active" && (
                   <Button
-                    className="button"
+
                     type="button"
                     onClick={() => void activateCard(card)}
                     disabled={activatingCardId === card.id}
@@ -174,7 +174,7 @@ export default function CharacterCardsPage() {
                   </Button>
                 )}
                 <Button
-                  className="button danger"
+                  variant="destructive"
                   type="button"
                   onClick={() => archiveCard(card)}
                   disabled={card.status === "archived" || archivingCardId === card.id}

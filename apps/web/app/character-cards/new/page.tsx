@@ -164,7 +164,7 @@ export default function NewCharacterCardPage() {
           <h1 className="page-title">新建角色卡</h1>
           <p className="page-description">创建可在多个短剧项目中复用的人物资产。具体剧情目标、人物关系和冲突会在项目内塑造。</p>
         </div>
-        <Button className="button secondary" asChild>
+        <Button variant="secondary" asChild>
           <Link href="/character-cards" onClick={guardLeaveToList}>返回列表</Link>
         </Button>
       </header>
@@ -202,10 +202,10 @@ export default function NewCharacterCardPage() {
           </p>
           <TurnaroundPromptField form={form} onChange={updateField} disabled={isBusy} />
           <div className="actions action-wrap">
-            <Button className="button secondary" disabled={isBusy} type="button" onClick={generateTurnaroundPrompt}>
+            <Button variant="secondary" disabled={isBusy} type="button" onClick={generateTurnaroundPrompt}>
               生成提示词
             </Button>
-            <Button className="button secondary" disabled={isBusy} type="button" onClick={generateTurnaroundFromNewCard}>
+            <Button variant="secondary" disabled={isBusy} type="button" onClick={generateTurnaroundFromNewCard}>
               {isGeneratingTurnaround ? "生成中..." : "生成人物三视图"}
             </Button>
           </div>
@@ -215,10 +215,10 @@ export default function NewCharacterCardPage() {
         {error ? <div className="error">{error}</div> : null}
 
         <div className="actions action-wrap">
-          <Button className="button secondary" asChild>
+          <Button variant="secondary" asChild>
             <Link href="/character-cards" onClick={guardLeaveToList}>取消</Link>
           </Button>
-          <Button className="button" type="submit" disabled={isBusy}>
+          <Button type="submit" disabled={isBusy}>
             {isSaving ? "保存中..." : "保存角色卡"}
           </Button>
         </div>

@@ -86,7 +86,7 @@ export default function WorldBooksPage() {
             管理可复用故事世界设定。世界观加载到项目后会生成独立快照，项目内修改不会影响资产库原始内容。
           </p>
         </div>
-        <Button className="button" asChild>
+        <Button asChild>
           <Link href="/world-books/new">新建世界观</Link>
         </Button>
       </header>
@@ -115,7 +115,7 @@ export default function WorldBooksPage() {
             <SimpleSelect value={statusFilter} onValueChange={setStatusFilter} options={worldBookStatuses} />
           </div>
           <div className="filter-actions">
-            <Button className="button secondary" type="button" onClick={refreshWorldBooks} disabled={isLoading}>
+            <Button variant="secondary" type="button" onClick={refreshWorldBooks} disabled={isLoading}>
               筛选
             </Button>
           </div>
@@ -128,7 +128,7 @@ export default function WorldBooksPage() {
           {worldBooks.length === 0 && !isLoading ? (
             <div className="empty-state">
               <p>还没有世界观。</p>
-              <Button className="button" asChild>
+              <Button asChild>
                 <Link href="/world-books/new">新建第一个世界观</Link>
               </Button>
             </div>
@@ -150,12 +150,12 @@ export default function WorldBooksPage() {
                 <p className="hint">{book.tone_style || "未设置整体风格"}</p>
               </Link>
               <div className="asset-card-actions">
-                <Button className="button secondary" asChild>
+                <Button variant="secondary" asChild>
                   <Link href={`/world-books/${book.id}`}>查看详情</Link>
                 </Button>
                 {book.status !== "active" && (
                   <Button
-                    className="button"
+
                     type="button"
                     onClick={() => void activateBook(book)}
                     disabled={activatingWorldBookId === book.id}
@@ -164,7 +164,7 @@ export default function WorldBooksPage() {
                   </Button>
                 )}
                 <Button
-                  className="button danger"
+                  variant="destructive"
                   type="button"
                   onClick={() => archiveBook(book)}
                   disabled={book.status === "archived" || archivingWorldBookId === book.id}

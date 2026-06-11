@@ -90,7 +90,7 @@ export default function NewProjectPage() {
             先确定创意和项目体量。单集时长不能超过 2 分钟，总时长不能超过 240 分钟。
           </p>
         </div>
-        <Button className="button secondary" asChild>
+        <Button variant="secondary" asChild>
           <Link href="/">返回项目管理</Link>
         </Button>
       </header>
@@ -185,10 +185,10 @@ export default function NewProjectPage() {
         {status ? <div className="success">{status}</div> : null}
 
         <div className="actions">
-          <Button className="button secondary" asChild>
+          <Button variant="secondary" asChild>
             <Link href="/">取消</Link>
           </Button>
-          <Button className="button" type="submit" disabled={isSubmitting || Boolean(validationError)}>
+          <Button type="submit" disabled={isSubmitting || Boolean(validationError)}>
             {isSubmitting ? "创建中..." : "创建项目"}
           </Button>
         </div>

@@ -355,14 +355,14 @@ export default function SettingsEditPage() {
 
             <div className="actions">
               <Button
-                className="button secondary"
+                variant="secondary"
                 type="button"
                 onClick={testConnection}
                 disabled={isTesting}
               >
                 {isTesting ? "测试中..." : "测试连接"}
               </Button>
-              <Button className="button" type="submit" disabled={isSaving}>
+              <Button type="submit" disabled={isSaving}>
                 {isSaving ? "保存中..." : editingId ? "更新配置" : "保存配置"}
               </Button>
             </div>
@@ -370,7 +370,7 @@ export default function SettingsEditPage() {
         </div>
 
         <div className="actions" style={{ justifyContent: "flex-start" }}>
-          <Button className="button secondary" onClick={goBack}>
+          <Button variant="secondary" onClick={goBack}>
             ← 返回配置列表
           </Button>
         </div>

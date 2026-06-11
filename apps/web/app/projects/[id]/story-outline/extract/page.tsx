@@ -178,7 +178,7 @@ export default function StoryOutlineExtractPage() {
             {isLoadingProject ? "正在加载项目资料..." : `${project?.title ?? "项目"} · 上传参考故事后抽取去具体化的大纲预览。`}
           </p>
         </div>
-        <Button className="button secondary" asChild>
+        <Button variant="secondary" asChild>
           <Link href={`/projects/${projectId}/story-text`}>返回故事大纲</Link>
         </Button>
       </header>
@@ -203,10 +203,10 @@ export default function StoryOutlineExtractPage() {
         <TextArea label="参考故事文本" value={referenceInputForm.source_text} onChange={(value) => updateReferenceInput({ source_text: value, source_filename: "" }, setReferenceInputForm, setDraft, setPreviewForm, setStatus)} />
         <TextArea label="抽取补充要求" value={referenceInputForm.user_requirements} onChange={(value) => updateReferenceInput({ user_requirements: value }, setReferenceInputForm, setDraft, setPreviewForm, setStatus)} />
         <div className="actions">
-          <Button className="button secondary" type="button" onClick={() => clearReferenceInput(setReferenceInputForm, setDraft, setPreviewForm, setStatus)} disabled={isExtracting}>
+          <Button variant="secondary" type="button" onClick={() => clearReferenceInput(setReferenceInputForm, setDraft, setPreviewForm, setStatus)} disabled={isExtracting}>
             清空
           </Button>
-          <Button className="button" type="button" onClick={() => void extractStoryOutline()} disabled={isExtracting}>
+          <Button type="button" onClick={() => void extractStoryOutline()} disabled={isExtracting}>
             {isExtracting ? "提取中..." : "开始提取"}
           </Button>
         </div>
@@ -246,10 +246,10 @@ export default function StoryOutlineExtractPage() {
             ))}
           </div>
           <div className="actions">
-            <Button className="button secondary" asChild>
+            <Button variant="secondary" asChild>
               <Link href={`/projects/${projectId}/story-text`}>取消</Link>
             </Button>
-            <Button className="button" type="submit" disabled={!draft || draft.validation_status !== "passed" || isSaving}>
+            <Button type="submit" disabled={!draft || draft.validation_status !== "passed" || isSaving}>
               {isSaving ? "确认中..." : "确认并返回工作台"}
             </Button>
           </div>

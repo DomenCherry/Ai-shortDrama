@@ -162,7 +162,7 @@ export default function StoryOutlineAssistPage() {
             {isLoading ? "正在加载项目与 AI 引导..." : `${project?.title ?? "项目"} · 通过对话补齐故事核心层和结构规划层。`}
           </p>
         </div>
-        <Button className="button secondary" asChild>
+        <Button variant="secondary" asChild>
           <Link href={`/projects/${projectId}/story-text`}>返回故事大纲</Link>
         </Button>
       </header>
@@ -215,7 +215,7 @@ export default function StoryOutlineAssistPage() {
               <h2>对话引导</h2>
               <p>AI 会根据你的回答更新左侧草稿；确认前不会写入正式故事大纲。</p>
             </div>
-            <Button className="button" type="button" disabled={!completion.is_complete || isSaving} onClick={() => void confirmSave()}>
+            <Button type="button" disabled={!completion.is_complete || isSaving} onClick={() => void confirmSave()}>
               {isSaving ? "保存中..." : "确认保存"}
             </Button>
           </div>
@@ -251,7 +251,7 @@ export default function StoryOutlineAssistPage() {
               onChange={(event) => setReplyText(event.target.value)}
               rows={4}
             />
-            <Button className="button" type="submit" disabled={isLoading || isSending}>
+            <Button type="submit" disabled={isLoading || isSending}>
               {isSending ? "发送中..." : "发送"}
             </Button>
           </form>

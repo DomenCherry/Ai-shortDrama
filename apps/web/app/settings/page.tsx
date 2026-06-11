@@ -143,7 +143,7 @@ function ConfigList({
     <div className="panel stack">
       <div className="section-heading">
         <h2>{title}</h2>
-        <Button className="button" onClick={onNew}>
+        <Button onClick={onNew}>
           新建配置
         </Button>
       </div>
@@ -192,23 +192,23 @@ function ConfigList({
               <div className="asset-card-actions">
                 {!config.enabled ? (
                   <Button
-                    className="button secondary"
-                    style={{ padding: "6px 10px", fontSize: 13 }}
+                    variant="secondary"
+                    size="sm"
                     onClick={() => onEnable(config)}
                   >
                     设为启用
                   </Button>
                 ) : null}
                 <Button
-                  className="button secondary"
-                  style={{ padding: "6px 10px", fontSize: 13 }}
+                  variant="secondary"
+                  size="sm"
                   onClick={() => onEdit(config.id)}
                 >
                   编辑
                 </Button>
                 <Button
-                  className="button danger"
-                  style={{ padding: "6px 10px", fontSize: 13 }}
+                  variant="destructive"
+                  size="sm"
                   onClick={() => onDelete(config)}
                 >
                   删除

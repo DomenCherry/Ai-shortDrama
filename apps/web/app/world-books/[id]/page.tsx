@@ -275,7 +275,7 @@ export default function WorldBookDetailPage() {
     return (
       <div className="stack">
         <div className="error">{error || "世界观详情加载失败"}</div>
-        <Button className="button secondary" asChild>
+        <Button variant="secondary" asChild>
           <Link href="/world-books">返回列表</Link>
         </Button>
       </div>
@@ -289,7 +289,7 @@ export default function WorldBookDetailPage() {
           <h1 className="page-title">{worldBook.name}</h1>
           <p className="page-description">维护世界观基础设定和结构化条目，并在需要时加载到短剧项目生成独立快照。</p>
         </div>
-        <Button className="button secondary" type="button" onClick={leaveToList}>
+        <Button variant="secondary" type="button" onClick={leaveToList}>
           返回列表
         </Button>
       </header>
@@ -350,11 +350,11 @@ export default function WorldBookDetailPage() {
             {entryError ? <div className="error">{entryError}</div> : null}
             <div className="actions action-wrap">
               {editingEntryId ? (
-                <Button className="button secondary" type="button" onClick={cancelEntryEdit}>
+                <Button variant="secondary" type="button" onClick={cancelEntryEdit}>
                   取消编辑
                 </Button>
               ) : null}
-              <Button className="button secondary" type="button" onClick={saveEntry} disabled={isArchived || isSavingEntry}>
+              <Button variant="secondary" type="button" onClick={saveEntry} disabled={isArchived || isSavingEntry}>
                 {isSavingEntry ? "保存中..." : editingEntryId ? "保存条目" : "新增条目"}
               </Button>
             </div>
@@ -376,10 +376,10 @@ export default function WorldBookDetailPage() {
                   {entry.keywords ? <p className="hint">关键词：{entry.keywords}</p> : null}
                   <p>{entry.content}</p>
                   <div className="asset-card-actions">
-                    <Button className="button secondary" type="button" onClick={() => editEntry(entry)} disabled={isArchived}>
+                    <Button variant="secondary" type="button" onClick={() => editEntry(entry)} disabled={isArchived}>
                       编辑
                     </Button>
-                    <Button className="button secondary" type="button" onClick={() => void toggleEntryStatus(entry)} disabled={isArchived}>
+                    <Button variant="secondary" type="button" onClick={() => void toggleEntryStatus(entry)} disabled={isArchived}>
                       {entry.status === "active" ? "停用" : "启用"}
                     </Button>
                   </div>
@@ -393,13 +393,13 @@ export default function WorldBookDetailPage() {
           {statusMessage ? <div className="success">{statusMessage}</div> : null}
 
           <div className="actions action-wrap">
-            <Button className="button secondary" type="button" onClick={setActiveAndSave} disabled={isArchived}>
+            <Button variant="secondary" type="button" onClick={setActiveAndSave} disabled={isArchived}>
               设为可加载
             </Button>
-            <Button className="button danger" type="button" onClick={archiveBook} disabled={isArchived || isArchiving}>
+            <Button variant="destructive" type="button" onClick={archiveBook} disabled={isArchived || isArchiving}>
               {isArchiving ? "归档中..." : "归档"}
             </Button>
-            <Button className="button" type="submit" disabled={isArchived || isSaving || Boolean(validationError)}>
+            <Button type="submit" disabled={isArchived || isSaving || Boolean(validationError)}>
               {isSaving ? "保存中..." : "保存世界观"}
             </Button>
           </div>
@@ -422,7 +422,7 @@ export default function WorldBookDetailPage() {
             </div>
             <div className="summary-box">世界观会复制为项目内快照，只包含当前基础信息和启用条目。</div>
             <Button
-              className="button"
+
               type="button"
               onClick={loadToProject}
               disabled={form.status !== "active" || hasUnsavedChanges || isLoadingToProject}
