@@ -704,11 +704,12 @@ class StoryOutlineAssistPayload(BaseModel):
     current_outline: ProjectStoryOutlinePayload
     messages: list[StoryOutlineAssistMessage] = Field(default_factory=list)
     user_message: Optional[str] = None
+    client_request_id: Optional[str] = None
 
-    @field_validator("user_message", mode="before")
+    @field_validator("user_message", "client_request_id", mode="before")
     @classmethod
     def normalize_user_message(cls, value: Optional[str]) -> Optional[str]:
-        """清理用户本轮问答内容，空白消息不触发无效辅助生成。"""
+        """清理用户本轮问答内容和客户端请求编号。"""
         if value is None:
             return None
         if isinstance(value, str):
@@ -732,6 +733,9 @@ class StoryOutlineAssistResult(BaseModel):
     completion: StoryOutlineAssistCompletion
     field_notes: dict[str, str] = Field(default_factory=dict)
     next_focus_fields: list[str] = Field(default_factory=list)
+    request_id: Optional[str] = None
+    elapsed_ms: Optional[int] = None
+    stage_timings: dict[str, int] = Field(default_factory=dict)
 
 
 class ReferenceStoryStructureExtractPayload(BaseModel):

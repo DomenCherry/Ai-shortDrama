@@ -321,6 +321,7 @@ POST /api/projects/{project_id}/story-outline/assist
 - 接口必须聚合项目基础信息、世界观快照、角色快照、当前字段草稿、对话历史和用户当前回复。
 - `outline_patch` 只允许返回故事大纲文本字段，不允许返回 `status`、`id`、`project_id`、时间字段或下游字段。
 - 必填字段为故事核心层和结构规划层字段；执行辅助层字段不阻塞 `completion.is_complete`。
+- `completion` 只用于前端展示完成度和待补充字段，不作为正式故事大纲保存接口的硬性拦截条件。
 - 接口只返回草稿建议，不写入正式故事大纲，不触发下游 `needs_review`。
 
 ### 4.6 抽取参考故事结构

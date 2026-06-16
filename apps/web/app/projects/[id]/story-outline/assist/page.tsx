@@ -18,12 +18,20 @@ import {
   StoryOutlineAssistCompletion,
   StoryOutlineAssistMessage,
   StoryOutlineAssistPatch,
+  StoryOutlineAssistResult,
   updateProjectStoryOutline
 } from "@/lib/api";
 import { storyOutlineFieldGroups, StoryOutlineField, StoryOutlineTextFieldKey } from "../../storyOutlineFields";
 
 type StoryOutlineForm = Record<StoryOutlineTextFieldKey, string> & {
   status: ProjectArtifactStatus;
+};
+
+type AssistProcessStage = "idle" | "loading_context" | "calling_model" | "parsing" | "updating";
+
+type AssistRunMeta = {
+  requestId: string;
+  elapsedMs: number;
 };
 
 const storyOutlineTextFieldKeys = storyOutlineFieldGroups.flatMap((group) => group.fields.map((field) => field.key));
@@ -65,8 +73,27 @@ export default function StoryOutlineAssistPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [processStage, setProcessStage] = useState<AssistProcessStage>("loading_context");
+  const [processingStartedAt, setProcessingStartedAt] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [activeRequestId, setActiveRequestId] = useState("");
+  const [lastRunMeta, setLastRunMeta] = useState<AssistRunMeta | null>(null);
 
   const completion = useMemo(() => computeCompletion(assistForm), [assistForm]);
+  const hasSavableContent = useMemo(() => hasAnyStoryOutlineContent(assistForm), [assistForm]);
+  const isProcessing = isLoading || isSending;
+
+  useEffect(() => {
+    if (!processingStartedAt) return undefined;
+    const timer = window.setInterval(() => {
+      const nextElapsedSeconds = Math.floor((Date.now() - processingStartedAt) / 1000);
+      setElapsedSeconds(nextElapsedSeconds);
+      if (processStage === "loading_context" && nextElapsedSeconds >= 2) {
+        setProcessStage("calling_model");
+      }
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [processStage, processingStartedAt]);
 
   useEffect(() => {
     let active = true;
@@ -74,28 +101,38 @@ export default function StoryOutlineAssistPage() {
       setIsLoading(true);
       setError("");
       setStatus("");
+      const requestId = createClientRequestId();
+      startProcessing(requestId, "loading_context", setActiveRequestId, setProcessingStartedAt, setElapsedSeconds, setProcessStage, setLastRunMeta);
       try {
         const [projectResult, outline] = await Promise.all([getProject(projectId), getProjectStoryOutline(projectId)]);
         if (!active) return;
         const initialForm = storyPayloadToForm(outline ?? emptyStoryForm);
         setProject(projectResult);
         setAssistForm(initialForm);
+        setProcessStage("calling_model");
         const result = await assistProjectStoryOutline(projectId, {
           action: "start",
           current_outline: storyFormToPayload(initialForm),
           messages: [],
-          user_message: undefined
+          user_message: undefined,
+          client_request_id: requestId
         });
         if (!active) return;
+        setProcessStage("parsing");
         setMessages([{ role: "assistant", content: result.assistant_message }]);
         setFieldNotes(result.field_notes ?? {});
         const changedFields = changedPatchFields(initialForm, result.outline_patch);
         setLastChangedFields(changedFields);
+        setProcessStage("updating");
         setAssistForm((current) => mergePatchIntoForm(current, result.outline_patch));
+        setLastRunMeta(toRunMeta(result, requestId));
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : "AI 协助初始化失败");
       } finally {
-        if (active) setIsLoading(false);
+        if (active) {
+          setIsLoading(false);
+          stopProcessing(setProcessingStartedAt, setProcessStage, setActiveRequestId);
+        }
       }
     }
     void loadAndStart();
@@ -116,28 +153,38 @@ export default function StoryOutlineAssistPage() {
     setStatus("");
     const currentForm = assistForm;
     const currentMessages = messages;
+    const requestId = createClientRequestId();
+    startProcessing(requestId, "loading_context", setActiveRequestId, setProcessingStartedAt, setElapsedSeconds, setProcessStage, setLastRunMeta);
+    setMessages([...currentMessages, { role: "user", content: userMessage }]);
     try {
+      setProcessStage("calling_model");
       const result = await assistProjectStoryOutline(projectId, {
         action: "reply",
         current_outline: storyFormToPayload(currentForm),
         messages: currentMessages,
-        user_message: userMessage
+        user_message: userMessage,
+        client_request_id: requestId
       });
+      setProcessStage("parsing");
       setMessages([...currentMessages, { role: "user", content: userMessage }, { role: "assistant", content: result.assistant_message }]);
       setReplyText("");
       setFieldNotes(result.field_notes ?? {});
       setLastChangedFields(changedPatchFields(currentForm, result.outline_patch));
+      setProcessStage("updating");
       setAssistForm((current) => mergePatchIntoForm(current, result.outline_patch));
+      setLastRunMeta(toRunMeta(result, requestId));
     } catch (err) {
+      setMessages(currentMessages);
       setError(err instanceof Error ? err.message : "AI 协助失败");
     } finally {
       setIsSending(false);
+      stopProcessing(setProcessingStartedAt, setProcessStage, setActiveRequestId);
     }
   };
 
   const confirmSave = async () => {
-    if (!completion.is_complete) {
-      setError("请先完成故事核心层和结构规划层的必填字段。");
+    if (!hasSavableContent) {
+      setError("请先填写或通过 AI 生成至少一个故事大纲字段后再保存。");
       return;
     }
     setIsSaving(true);
@@ -179,7 +226,9 @@ export default function StoryOutlineAssistPage() {
             </Badge>
           </div>
           <div className="assist-completion">
-            {completion.is_complete ? "必填字段已完成，可以确认保存。" : `待补充：${completion.missing_fields.map(fieldLabel).join("、")}`}
+            {completion.is_complete
+              ? "必填字段已完成，可以保存或继续打磨。"
+              : `可先保存当前内容；待补充：${completion.missing_fields.map(fieldLabel).join("、")}`}
           </div>
 
           <div className="outline-field-groups">
@@ -213,24 +262,27 @@ export default function StoryOutlineAssistPage() {
           <div className="assist-chat-header">
             <div>
               <h2>对话引导</h2>
-              <p>AI 会根据你的回答更新左侧草稿；确认前不会写入正式故事大纲。</p>
+              <p>AI 会根据你的回答更新左侧草稿；你可以阶段性保存，不必等全部必填字段完成。</p>
             </div>
-            <Button type="button" disabled={!completion.is_complete || isSaving} onClick={() => void confirmSave()}>
-              {isSaving ? "保存中..." : "确认保存"}
+            <Button type="button" disabled={!hasSavableContent || isSaving} onClick={() => void confirmSave()}>
+              {isSaving ? "保存中..." : "保存当前内容"}
             </Button>
           </div>
 
           <div className="assist-chat-messages" aria-live="polite">
-            {messages.length === 0 ? (
-              <div className="assist-empty-message">{isLoading ? "AI 正在准备第一个问题..." : "暂无对话。"}</div>
-            ) : (
-              messages.map((message, index) => (
-                <div className={`assist-message ${message.role}`} key={`${message.role}-${index}`}>
-                  <span>{message.role === "assistant" ? "AI" : "我"}</span>
-                  <p>{message.content}</p>
-                </div>
-              ))
-            )}
+            {messages.length === 0 && !isProcessing ? <div className="assist-empty-message">暂无对话。</div> : null}
+            {messages.map((message, index) => (
+              <div className={`assist-message ${message.role}`} key={`${message.role}-${index}`}>
+                <span>{message.role === "assistant" ? "AI" : "我"}</span>
+                <p>{message.content}</p>
+              </div>
+            ))}
+            {isProcessing ? (
+              <div className="assist-message assistant pending">
+                <span>AI</span>
+                <p>{isLoading ? "正在准备第一个问题..." : "已收到，正在整理项目上下文..."}</p>
+              </div>
+            ) : null}
           </div>
 
           {Object.keys(fieldNotes).length > 0 ? (
@@ -243,6 +295,14 @@ export default function StoryOutlineAssistPage() {
               ))}
             </div>
           ) : null}
+
+          <AssistProcessingStatus
+            isProcessing={isProcessing}
+            stage={processStage}
+            elapsedSeconds={elapsedSeconds}
+            requestId={activeRequestId}
+            lastRunMeta={lastRunMeta}
+          />
 
           <form className="assist-input-row" onSubmit={sendReply}>
             <Textarea
@@ -257,6 +317,42 @@ export default function StoryOutlineAssistPage() {
           </form>
         </section>
       </div>
+    </div>
+  );
+}
+
+function AssistProcessingStatus({
+  isProcessing,
+  stage,
+  elapsedSeconds,
+  requestId,
+  lastRunMeta
+}: {
+  isProcessing: boolean;
+  stage: AssistProcessStage;
+  elapsedSeconds: number;
+  requestId: string;
+  lastRunMeta: AssistRunMeta | null;
+}) {
+  if (!isProcessing && !lastRunMeta) return null;
+  if (!isProcessing && lastRunMeta) {
+    return (
+      <div className="assist-process-status complete">
+        <span>本轮完成</span>
+        <p>
+          用时 {formatElapsedMs(lastRunMeta.elapsedMs)} / 请求编号 {lastRunMeta.requestId}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="assist-process-status">
+      <span>{assistStageLabel(stage)}</span>
+      <p>
+        已等待 {elapsedSeconds} 秒
+        {requestId ? ` / 请求编号 ${requestId}` : ""}
+      </p>
+      <small>{assistWaitingHint(elapsedSeconds)}</small>
     </div>
   );
 }
@@ -386,6 +482,77 @@ function computeCompletion(form: StoryOutlineForm): StoryOutlineAssistCompletion
   };
 }
 
+function hasAnyStoryOutlineContent(form: StoryOutlineForm) {
+  return storyOutlineTextFieldKeys.some((field) => form[field].trim());
+}
+
 function fieldLabel(field: string) {
   return fieldLabels[field] ?? field;
+}
+
+function createClientRequestId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `assist-${Date.now()}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
+function startProcessing(
+  requestId: string,
+  stage: AssistProcessStage,
+  setActiveRequestId: Dispatch<SetStateAction<string>>,
+  setProcessingStartedAt: Dispatch<SetStateAction<number | null>>,
+  setElapsedSeconds: Dispatch<SetStateAction<number>>,
+  setProcessStage: Dispatch<SetStateAction<AssistProcessStage>>,
+  setLastRunMeta: Dispatch<SetStateAction<AssistRunMeta | null>>
+) {
+  setActiveRequestId(requestId);
+  setProcessingStartedAt(Date.now());
+  setElapsedSeconds(0);
+  setProcessStage(stage);
+  setLastRunMeta(null);
+}
+
+function stopProcessing(
+  setProcessingStartedAt: Dispatch<SetStateAction<number | null>>,
+  setProcessStage: Dispatch<SetStateAction<AssistProcessStage>>,
+  setActiveRequestId: Dispatch<SetStateAction<string>>
+) {
+  setProcessingStartedAt(null);
+  setProcessStage("idle");
+  setActiveRequestId("");
+}
+
+function toRunMeta(result: StoryOutlineAssistResult, fallbackRequestId: string): AssistRunMeta {
+  return {
+    requestId: result.request_id || fallbackRequestId,
+    elapsedMs: typeof result.elapsed_ms === "number" ? result.elapsed_ms : 0
+  };
+}
+
+function assistStageLabel(stage: AssistProcessStage) {
+  const labels: Record<AssistProcessStage, string> = {
+    idle: "等待输入",
+    loading_context: "整理项目上下文",
+    calling_model: "调用文本模型",
+    parsing: "解析字段建议",
+    updating: "更新左侧草稿"
+  };
+  return labels[stage];
+}
+
+function assistWaitingHint(elapsedSeconds: number) {
+  if (elapsedSeconds >= 60) {
+    return "已等待较久，可继续等待，或稍后重试 / 检查模型配置。";
+  }
+  if (elapsedSeconds >= 30) {
+    return "模型仍在处理，通常与模型响应速度有关，可以继续等待。";
+  }
+  return "请求已发送，正在等待 AI 返回结构化字段建议。";
+}
+
+function formatElapsedMs(elapsedMs: number) {
+  if (elapsedMs <= 0) return "不足 1 秒";
+  if (elapsedMs < 1000) return `${elapsedMs} 毫秒`;
+  return `${(elapsedMs / 1000).toFixed(1)} 秒`;
 }

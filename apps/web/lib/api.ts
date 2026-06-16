@@ -148,6 +148,7 @@ export type StoryOutlineAssistPayload = {
   current_outline: ProjectStoryOutlinePayload;
   messages: StoryOutlineAssistMessage[];
   user_message?: string;
+  client_request_id?: string;
 };
 
 export type StoryOutlineAssistCompletion = {
@@ -163,6 +164,9 @@ export type StoryOutlineAssistResult = {
   completion: StoryOutlineAssistCompletion;
   field_notes: Record<string, string>;
   next_focus_fields: string[];
+  request_id?: string;
+  elapsed_ms?: number;
+  stage_timings?: Record<string, number>;
 };
 
 export type ReferenceStoryStructureDraft = {

@@ -1,6 +1,8 @@
 """故事大纲服务模块，处理整体故事大纲保存、AI 生成、局部改写和参考结构提取。"""
 import json
+import logging
 import re
+import time
 from typing import Any
 from uuid import uuid4
 
@@ -41,6 +43,8 @@ from app.services.project.generation_common import (
     rewrite_prompt,
 )
 
+
+logger = logging.getLogger(__name__)
 
 STORY_OUTLINE_FIELDS = (
     "logline",
@@ -457,32 +461,116 @@ async def rewrite_story_outline(project_id: str, payload: StoryOutlineRewritePay
 
 async def assist_story_outline(project_id: str, payload: StoryOutlineAssistPayload) -> dict[str, Any]:
     """调用文本模型根据对话辅助补全故事大纲。"""
-    if payload.action == "reply" and not payload.user_message:
-        raise ValueError("请先输入回复内容")
+    request_id = payload.client_request_id or uuid4().hex[:12]
+    started_at = time.perf_counter()
+    stage_timings: dict[str, int] = {}
+    current_stage = "validate_payload"
 
-    with get_session() as session:
-        project = session.get(Project, project_id)
-        if not project:
-            raise ValueError("项目不存在")
-        world_snapshots = session.scalars(select(ProjectWorldSnapshot).where(ProjectWorldSnapshot.project_id == project_id)).all()
-        character_snapshots = session.scalars(select(ProjectCharacterSnapshot).where(ProjectCharacterSnapshot.project_id == project_id)).all()
-        prompt = story_outline_assist_prompt(project, world_snapshots, character_snapshots, payload)
+    def elapsed_ms() -> int:
+        return int((time.perf_counter() - started_at) * 1000)
 
-    system_prompt = read_rule("story-outline-assistant-rule.md")
-    data = await call_text_generation_api(system_prompt, prompt, max_tokens=1400)
-    assistant_message = normalize_optional_text(str(data.get("assistant_message"))) if data.get("assistant_message") is not None else None
-    if not assistant_message:
-        raise ValueError("AI 协助响应缺少引导内容")
+    def mark_stage(stage: str) -> None:
+        stage_timings[stage] = elapsed_ms()
 
-    patch = story_outline_assist_patch(data)
-    merged_outline = merge_story_outline_patch(payload.current_outline, patch)
-    return {
-        "assistant_message": assistant_message,
-        "outline_patch": patch.model_dump(exclude_none=True),
-        "completion": story_outline_assist_completion(merged_outline),
-        "field_notes": story_outline_assist_notes(data),
-        "next_focus_fields": story_outline_assist_next_focus(data),
-    }
+    try:
+        logger.info(
+            "story_outline_assist.start request_id=%s project_id=%s action=%s",
+            request_id,
+            project_id,
+            payload.action,
+        )
+        if payload.action == "reply" and not payload.user_message:
+            raise ValueError("请先输入回复内容")
+        mark_stage(current_stage)
+
+        current_stage = "load_context"
+        with get_session() as session:
+            project = session.get(Project, project_id)
+            if not project:
+                raise ValueError("项目不存在")
+            world_snapshots = session.scalars(select(ProjectWorldSnapshot).where(ProjectWorldSnapshot.project_id == project_id)).all()
+            character_snapshots = session.scalars(select(ProjectCharacterSnapshot).where(ProjectCharacterSnapshot.project_id == project_id)).all()
+            mark_stage(current_stage)
+
+            current_stage = "build_prompt"
+            prompt = story_outline_assist_prompt(project, world_snapshots, character_snapshots, payload)
+            mark_stage(current_stage)
+
+        current_stage = "read_rule"
+        system_prompt = read_rule("story-outline-assistant-rule.md")
+        mark_stage(current_stage)
+
+        current_stage = "model_call"
+        logger.info(
+            "story_outline_assist.model_call.start request_id=%s project_id=%s elapsed_ms=%s",
+            request_id,
+            project_id,
+            elapsed_ms(),
+        )
+        data = await call_text_generation_api(system_prompt, prompt, max_tokens=1400)
+        mark_stage(current_stage)
+        logger.info(
+            "story_outline_assist.model_call.done request_id=%s project_id=%s elapsed_ms=%s",
+            request_id,
+            project_id,
+            elapsed_ms(),
+        )
+
+        current_stage = "parse_response"
+        assistant_message = normalize_optional_text(str(data.get("assistant_message"))) if data.get("assistant_message") is not None else None
+        if not assistant_message:
+            raise ValueError("AI 协助响应缺少引导内容")
+
+        patch = story_outline_assist_patch(data)
+        merged_outline = merge_story_outline_patch(payload.current_outline, patch)
+        completion = story_outline_assist_completion(merged_outline)
+        field_notes = story_outline_assist_notes(data)
+        next_focus_fields = story_outline_assist_next_focus(data)
+        mark_stage(current_stage)
+
+        total_elapsed_ms = elapsed_ms()
+        logger.info(
+            "story_outline_assist.complete request_id=%s project_id=%s elapsed_ms=%s stage_timings=%s",
+            request_id,
+            project_id,
+            total_elapsed_ms,
+            stage_timings,
+        )
+        return {
+            "assistant_message": assistant_message,
+            "outline_patch": patch.model_dump(exclude_none=True),
+            "completion": completion,
+            "field_notes": field_notes,
+            "next_focus_fields": next_focus_fields,
+            "request_id": request_id,
+            "elapsed_ms": total_elapsed_ms,
+            "stage_timings": stage_timings,
+        }
+    except ValueError as exc:
+        logger.warning(
+            "story_outline_assist.failed request_id=%s project_id=%s stage=%s elapsed_ms=%s stage_timings=%s error=%s",
+            request_id,
+            project_id,
+            current_stage,
+            elapsed_ms(),
+            stage_timings,
+            exc,
+            exc_info=True,
+        )
+        message = str(exc)
+        if "请求编号" not in message:
+            message = f"{message}（请求编号：{request_id}）"
+        raise ValueError(message) from exc
+    except Exception as exc:
+        logger.exception(
+            "story_outline_assist.unexpected_failed request_id=%s project_id=%s stage=%s elapsed_ms=%s stage_timings=%s",
+            request_id,
+            project_id,
+            current_stage,
+            elapsed_ms(),
+            stage_timings,
+        )
+        raise ValueError(f"AI 协助失败，请稍后重试（请求编号：{request_id}）") from exc
 
 
 def list_reference_story_structure_drafts(project_id: str) -> list[dict[str, Any]]:

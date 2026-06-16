@@ -540,6 +540,12 @@ select {
   border: 1px solid var(--line);
 }
 
+.assist-message.pending p {
+  background: #f3f7f5;
+  border-color: #c7d6d0;
+  color: #31524c;
+}
+
 .assist-message.user {
   justify-self: end;
   text-align: right;
@@ -570,6 +576,34 @@ select {
   font-size: 13px;
   line-height: 1.5;
   margin: 0;
+}
+
+.assist-process-status {
+  background: #f8faf7;
+  border: 1px solid #cbd8d4;
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 9px 11px;
+}
+
+.assist-process-status span {
+  color: var(--brand-strong);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.assist-process-status p,
+.assist-process-status small {
+  color: var(--app-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.assist-process-status.complete {
+  background: #f2f6f4;
+  border-color: var(--line);
 }
 
 .assist-input-row {
