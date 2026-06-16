@@ -21,6 +21,7 @@ import {
   StoryOutlineAssistResult,
   updateProjectStoryOutline
 } from "@/lib/api";
+import { clearStoryOutlineAssistDraft, readStoryOutlineAssistDraft } from "../../_utils/storyOutlineAssistDraft";
 import { storyOutlineFieldGroups, StoryOutlineField, StoryOutlineTextFieldKey } from "../../storyOutlineFields";
 
 type StoryOutlineForm = Record<StoryOutlineTextFieldKey, string> & {
@@ -70,6 +71,7 @@ export default function StoryOutlineAssistPage() {
   const [replyText, setReplyText] = useState("");
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const [draftSourceMessage, setDraftSourceMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -106,9 +108,11 @@ export default function StoryOutlineAssistPage() {
       try {
         const [projectResult, outline] = await Promise.all([getProject(projectId), getProjectStoryOutline(projectId)]);
         if (!active) return;
-        const initialForm = storyPayloadToForm(outline ?? emptyStoryForm);
+        const entryDraft = readStoryOutlineAssistDraft(projectId, outline);
+        const initialForm = entryDraft ?? storyPayloadToForm(outline ?? emptyStoryForm);
         setProject(projectResult);
         setAssistForm(initialForm);
+        setDraftSourceMessage(entryDraft ? "已带入故事大纲页当前填写内容。" : "");
         setProcessStage("calling_model");
         const result = await assistProjectStoryOutline(projectId, {
           action: "start",
@@ -192,6 +196,7 @@ export default function StoryOutlineAssistPage() {
     setStatus("");
     try {
       await updateProjectStoryOutline(projectId, storyFormToPayload(assistForm));
+      clearStoryOutlineAssistDraft(projectId);
       router.push(`/projects/${projectId}/story-text`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "故事大纲保存失败");
@@ -216,6 +221,7 @@ export default function StoryOutlineAssistPage() {
 
       {error ? <div className="error">{error}</div> : null}
       {status ? <div className="success">{status}</div> : null}
+      {draftSourceMessage ? <div className="success">{draftSourceMessage}</div> : null}
 
       <div className="story-outline-assist-layout">
         <aside className="assist-outline-panel panel stack">

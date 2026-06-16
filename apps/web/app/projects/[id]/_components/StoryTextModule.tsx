@@ -11,6 +11,7 @@ import {
   setStoryFormValue,
   worldSnapshotSummary
 } from "../_utils/workbenchForms";
+import { saveStoryOutlineAssistDraft } from "../_utils/storyOutlineAssistDraft";
 import { referenceTabs } from "../_utils/workbenchTypes";
 import { storyOutlineFieldGroups } from "../storyOutlineFields";
 import { ArtifactStatusBadge, EpisodePicker, NumberInput, ReferenceCard, SectionTitle, StatusSelect, TextArea, TextInput } from "./shared";
@@ -37,7 +38,12 @@ function StoryOutlinePanel({ workbench }: { workbench: ProjectWorkbenchState }) 
         </div>
         <div className="story-outline-header-actions">
           <Button className="compact-action" variant="secondary" asChild>
-            <Link href={`/projects/${workbench.projectId}/story-outline/assist`}>AI协助</Link>
+            <Link
+              href={`/projects/${workbench.projectId}/story-outline/assist`}
+              onClick={() => saveStoryOutlineAssistDraft(workbench.projectId, workbench.storyForm)}
+            >
+              AI协助
+            </Link>
           </Button>
           <Button className="compact-action" variant="secondary" asChild>
             <Link href={`/projects/${workbench.projectId}/story-outline/extract`}>AI提取</Link>
