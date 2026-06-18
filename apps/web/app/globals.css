@@ -1412,6 +1412,64 @@ select {
   grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
 }
 
+.asset-tab-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.asset-tab-nav {
+  justify-self: start;
+  max-width: 100%;
+}
+
+.asset-tab-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.asset-tab-count {
+  background: #e2e8f0;
+  border-radius: 999px;
+  color: #334155;
+  font-size: 11px;
+  line-height: 1;
+  min-width: 18px;
+  padding: 3px 6px;
+  text-align: center;
+}
+
+.asset-tab-button.active .asset-tab-count {
+  background: #dbeafe;
+  color: var(--brand-strong);
+}
+
+.asset-tab-panel {
+  min-width: 0;
+}
+
+.world-book-overview {
+  align-items: start;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.world-book-overview-main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.world-book-overview-main p {
+  margin: 0;
+  max-width: 75ch;
+}
+
+.world-book-overview-actions {
+  align-self: start;
+}
+
 .asset-list-wide {
   max-height: none;
 }
@@ -1425,6 +1483,48 @@ select {
 
 .world-entry-list {
   max-height: 560px;
+}
+
+.world-entry-workspace {
+  align-items: start;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+}
+
+.world-entry-index,
+.world-entry-editor {
+  min-width: 0;
+}
+
+.world-entry-filter-bar {
+  align-items: stretch;
+  gap: 8px;
+  grid-template-columns: 1fr;
+}
+
+.world-entry-card {
+  cursor: pointer;
+}
+
+.world-entry-card-content {
+  color: #334155;
+  display: -webkit-box;
+  line-height: 1.5;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.world-entry-editor {
+  background: var(--panel-subtle);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.world-entry-editor .field textarea {
+  min-height: 220px;
 }
 
 .asset-card {
@@ -1488,6 +1588,27 @@ select {
 
 .asset-card-disabled {
   opacity: 0.55;
+}
+
+.snapshot-entry-editor {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.snapshot-entry-editor .section-heading {
+  margin-bottom: 0;
+}
+
+.snapshot-entry-item {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.snapshot-entry-item:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .picker-panel {
@@ -1786,6 +1907,8 @@ select {
   .filter-bar-compact,
   .metric-grid,
   .workspace-entry-grid,
+  .world-book-overview,
+  .world-entry-workspace,
   .readonly-context-grid,
   .detail-layout,
   .episode-workspace,
@@ -1814,6 +1937,14 @@ select {
 
   .episode-index-list {
     max-height: 340px;
+  }
+
+  .world-entry-list {
+    max-height: 360px;
+  }
+
+  .world-entry-editor .field textarea {
+    min-height: 240px;
   }
 
   .page-header,

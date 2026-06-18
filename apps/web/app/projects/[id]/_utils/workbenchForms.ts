@@ -21,6 +21,7 @@ import type {
   ShotForm,
   Stage,
   StoryOutlineForm,
+  WorldSnapshotEntryForm,
   WorkspaceMode,
   WorldSnapshotForm
 } from "./workbenchTypes";
@@ -40,6 +41,15 @@ export const emptyProjectForm: ProjectForm = {
 export const emptyWorldSnapshotForm: WorldSnapshotForm = {
   name: "",
   genre: "",
+  era_background: "",
+  world_rules: "",
+  organizations: "",
+  locations: "",
+  social_structure: "",
+  taboo_or_constraints: "",
+  tone_style: "",
+  summary: "",
+  entries: [],
   snapshot_content: "",
   entry_snapshot_content: ""
 };
@@ -48,6 +58,19 @@ export const emptyCharacterSnapshotForm: CharacterSnapshotForm = {
   name: "",
   gender: "女",
   role_type: "",
+  identity: "",
+  background: "",
+  personality: "",
+  goal: "",
+  motivation: "",
+  secret: "",
+  conflict_points: "",
+  relationship_notes: "",
+  speech_style: "",
+  catchphrases: "",
+  emotional_arc: "",
+  story_function: "",
+  image_keywords: "",
   snapshot_content: "",
   visual_description: "",
   reference_image_url: "",
@@ -135,23 +158,116 @@ export function projectToForm(project: ProjectSummary): ProjectForm {
 }
 
 export function worldSnapshotToForm(snapshot: ProjectWorldSnapshot): WorldSnapshotForm {
+  const content = parseSnapshot(snapshot.snapshot_content);
   return {
     name: snapshot.name,
     genre: snapshot.genre,
+    era_background: snapshotField(content, "era_background"),
+    world_rules: snapshotField(content, "world_rules"),
+    organizations: snapshotField(content, "organizations"),
+    locations: snapshotField(content, "locations"),
+    social_structure: snapshotField(content, "social_structure"),
+    taboo_or_constraints: snapshotField(content, "taboo_or_constraints"),
+    tone_style: snapshotField(content, "tone_style"),
+    summary: snapshotField(content, "summary"),
+    entries: parseWorldSnapshotEntries(snapshot.entry_snapshot_content),
     snapshot_content: snapshot.snapshot_content,
     entry_snapshot_content: snapshot.entry_snapshot_content
   };
 }
 
+export function worldSnapshotFormToPayload(form: WorldSnapshotForm) {
+  const baseContent = parseSnapshot(form.snapshot_content) ?? {};
+  const nextContent = {
+    ...baseContent,
+    name: form.name,
+    genre: form.genre,
+    era_background: form.era_background,
+    world_rules: form.world_rules,
+    organizations: form.organizations,
+    locations: form.locations,
+    social_structure: form.social_structure,
+    taboo_or_constraints: form.taboo_or_constraints,
+    tone_style: form.tone_style,
+    summary: form.summary
+  };
+  const originalEntries = parseSnapshotArray(form.entry_snapshot_content);
+  const nextEntries = form.entries.map((entry, index) => ({
+    ...(originalEntries[index] ?? {}),
+    title: entry.title,
+    entry_type: entry.entry_type,
+    keywords: entry.keywords,
+    content: entry.content,
+    applicable_scope: entry.applicable_scope,
+    priority: Number.isFinite(Number(entry.priority)) ? Number(entry.priority) : 0,
+    status: entry.status
+  }));
+
+  return {
+    name: form.name,
+    genre: form.genre,
+    snapshot_content: JSON.stringify(nextContent),
+    entry_snapshot_content: JSON.stringify(nextEntries)
+  };
+}
+
 export function characterSnapshotToForm(snapshot: ProjectCharacterSnapshot): CharacterSnapshotForm {
+  const content = parseSnapshot(snapshot.snapshot_content);
   return {
     name: snapshot.name,
     gender: snapshot.gender,
     role_type: snapshot.role_type,
+    identity: snapshotField(content, "identity"),
+    background: snapshotField(content, "background"),
+    personality: snapshotField(content, "personality"),
+    goal: snapshotField(content, "goal"),
+    motivation: snapshotField(content, "motivation"),
+    secret: snapshotField(content, "secret"),
+    conflict_points: snapshotField(content, "conflict_points"),
+    relationship_notes: snapshotField(content, "relationship_notes"),
+    speech_style: snapshotField(content, "speech_style"),
+    catchphrases: snapshotField(content, "catchphrases"),
+    emotional_arc: snapshotField(content, "emotional_arc"),
+    story_function: snapshotField(content, "story_function"),
+    image_keywords: snapshotField(content, "image_keywords"),
     snapshot_content: snapshot.snapshot_content,
-    visual_description: snapshot.visual_description || "",
+    visual_description: snapshot.visual_description || snapshotField(content, "visual_description"),
     reference_image_url: snapshot.reference_image_url || "",
     reference_local_path: snapshot.reference_local_path || ""
+  };
+}
+
+export function characterSnapshotFormToPayload(form: CharacterSnapshotForm) {
+  const baseContent = parseSnapshot(form.snapshot_content) ?? {};
+  const nextContent = {
+    ...baseContent,
+    name: form.name,
+    gender: form.gender,
+    role_type: form.role_type,
+    identity: form.identity,
+    background: form.background,
+    personality: form.personality,
+    goal: form.goal,
+    motivation: form.motivation,
+    secret: form.secret,
+    conflict_points: form.conflict_points,
+    relationship_notes: form.relationship_notes,
+    speech_style: form.speech_style,
+    catchphrases: form.catchphrases,
+    emotional_arc: form.emotional_arc,
+    story_function: form.story_function,
+    visual_description: form.visual_description,
+    image_keywords: form.image_keywords
+  };
+
+  return {
+    name: form.name,
+    gender: form.gender,
+    role_type: form.role_type,
+    snapshot_content: JSON.stringify(nextContent),
+    visual_description: toOptional(form.visual_description),
+    reference_image_url: toOptional(form.reference_image_url),
+    reference_local_path: toOptional(form.reference_local_path)
   };
 }
 
@@ -407,6 +523,42 @@ export function parseSnapshot(content: string): Record<string, unknown> | null {
     return null;
   }
   return null;
+}
+
+function parseSnapshotArray(content: string): Array<Record<string, unknown>> {
+  try {
+    const parsed: unknown = JSON.parse(content);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item));
+    }
+  } catch {
+    return [];
+  }
+  return [];
+}
+
+function snapshotField(content: Record<string, unknown> | null, field: string) {
+  const value = content?.[field];
+  return typeof value === "string" ? value : "";
+}
+
+function snapshotNumberField(content: Record<string, unknown>, field: string) {
+  const value = content[field];
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "string") return value;
+  return "0";
+}
+
+function parseWorldSnapshotEntries(content: string): WorldSnapshotEntryForm[] {
+  return parseSnapshotArray(content).map((entry) => ({
+    title: snapshotField(entry, "title"),
+    entry_type: (snapshotField(entry, "entry_type") || "其他") as WorldSnapshotEntryForm["entry_type"],
+    keywords: snapshotField(entry, "keywords"),
+    content: snapshotField(entry, "content"),
+    applicable_scope: snapshotField(entry, "applicable_scope"),
+    priority: snapshotNumberField(entry, "priority"),
+    status: (snapshotField(entry, "status") || "active") as WorldSnapshotEntryForm["status"]
+  }));
 }
 
 export function formatNumber(value: number) {

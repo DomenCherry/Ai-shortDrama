@@ -1,4 +1,4 @@
-import type { ProjectArtifactStatus } from "@/lib/api";
+import type { ProjectArtifactStatus, WorldEntryStatus, WorldEntryType } from "@/lib/api";
 
 export type Stage = "settings" | "assets" | "story" | "episodes" | "content" | "script" | "storyboard";
 export type WorkspaceGroupKey = "projectAssets" | "storyText" | "production";
@@ -20,14 +20,46 @@ export type ProjectForm = {
 export type WorldSnapshotForm = {
   name: string;
   genre: string;
+  era_background: string;
+  world_rules: string;
+  organizations: string;
+  locations: string;
+  social_structure: string;
+  taboo_or_constraints: string;
+  tone_style: string;
+  summary: string;
+  entries: WorldSnapshotEntryForm[];
   snapshot_content: string;
   entry_snapshot_content: string;
+};
+
+export type WorldSnapshotEntryForm = {
+  title: string;
+  entry_type: WorldEntryType;
+  keywords: string;
+  content: string;
+  applicable_scope: string;
+  priority: string;
+  status: WorldEntryStatus;
 };
 
 export type CharacterSnapshotForm = {
   name: string;
   gender: "男" | "女";
   role_type: string;
+  identity: string;
+  background: string;
+  personality: string;
+  goal: string;
+  motivation: string;
+  secret: string;
+  conflict_points: string;
+  relationship_notes: string;
+  speech_style: string;
+  catchphrases: string;
+  emotional_arc: string;
+  story_function: string;
+  image_keywords: string;
   snapshot_content: string;
   visual_description: string;
   reference_image_url: string;

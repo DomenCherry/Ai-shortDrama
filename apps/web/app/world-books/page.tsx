@@ -169,6 +169,9 @@ export default function WorldBooksPage() {
                 <Button variant="secondary" asChild>
                   <Link href={`/world-books/${book.id}`}>查看详情</Link>
                 </Button>
+                <Button variant="secondary" asChild>
+                  <Link href={`/world-books/${book.id}?tab=entries`}>管理条目</Link>
+                </Button>
                 {book.status !== "active" && (
                   <Button
 

@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SimpleSelect } from "@/components/ui/simple-select";
+import type { WorldEntryStatus, WorldEntryType } from "@/lib/api";
 import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import {
   characterSnapshotSummary,
@@ -16,6 +18,13 @@ import {
   worldSnapshotSummary
 } from "../_utils/workbenchForms";
 import { AssetDrawer, AssetSection, NumberInput, TextArea, TextInput } from "./shared";
+
+type AssetTab = "world" | "characters";
+const worldEntryTypes: WorldEntryType[] = ["世界规则", "地点", "组织", "阶层关系", "历史事件", "特殊物品", "禁忌或限制", "风格约束", "其他"];
+const worldEntryStatusOptions: Array<{ label: string; value: WorldEntryStatus }> = [
+  { label: "启用", value: "active" },
+  { label: "停用", value: "disabled" }
+];
 
 export function ProjectAssetsModule({ workbench }: { workbench: ProjectWorkbenchState }) {
   const project = workbench.project;
@@ -70,11 +79,50 @@ function ProjectSettingsPanel({ workbench }: { workbench: ProjectWorkbenchState 
 }
 
 function ProjectAssetPanel({ workbench }: { workbench: ProjectWorkbenchState }) {
+  const [activeAssetTab, setActiveAssetTab] = useState<AssetTab>("world");
+  const tabs: Array<{ key: AssetTab; label: string; count: number }> = [
+    { key: "world", label: "项目世界观", count: workbench.worldSnapshots.length },
+    { key: "characters", label: "项目角色", count: workbench.characterSnapshots.length }
+  ];
+
   return (
     <>
-      <div className="grid-2">
-        <WorldSnapshotSection workbench={workbench} />
-        <CharacterSnapshotSection workbench={workbench} />
+      <div className="asset-tab-shell">
+        <div className="asset-tab-nav module-subnav" role="tablist" aria-label="项目资产编辑分类">
+          {tabs.map((tab) => (
+            <button
+              aria-controls={`asset-tab-panel-${tab.key}`}
+              aria-selected={activeAssetTab === tab.key}
+              className={`module-subnav-tab asset-tab-button ${activeAssetTab === tab.key ? "active" : ""}`}
+              id={`asset-tab-${tab.key}`}
+              key={tab.key}
+              role="tab"
+              type="button"
+              onClick={() => setActiveAssetTab(tab.key)}
+            >
+              <span>{tab.label}</span>
+              <span className="asset-tab-count">{tab.count}</span>
+            </button>
+          ))}
+        </div>
+        <div
+          aria-labelledby="asset-tab-world"
+          className="asset-tab-panel"
+          hidden={activeAssetTab !== "world"}
+          id="asset-tab-panel-world"
+          role="tabpanel"
+        >
+          <WorldSnapshotSection workbench={workbench} />
+        </div>
+        <div
+          aria-labelledby="asset-tab-characters"
+          className="asset-tab-panel"
+          hidden={activeAssetTab !== "characters"}
+          id="asset-tab-panel-characters"
+          role="tabpanel"
+        >
+          <CharacterSnapshotSection workbench={workbench} />
+        </div>
       </div>
       <WorldPickerDrawer workbench={workbench} />
       <CharacterPickerDrawer workbench={workbench} />
@@ -124,8 +172,74 @@ function WorldSnapshotSection({ workbench }: { workbench: ProjectWorkbenchState 
               <div className="grid-2">
                 <TextInput label="项目世界观名称" value={workbench.worldSnapshotForm.name} onChange={(value) => setWorldSnapshotFormValue("name", value, workbench.setWorldSnapshotForm)} />
                 <TextInput label="题材类型" value={workbench.worldSnapshotForm.genre} onChange={(value) => setWorldSnapshotFormValue("genre", value, workbench.setWorldSnapshotForm)} />
-                <TextArea label="基础设定快照" value={workbench.worldSnapshotForm.snapshot_content} onChange={(value) => setWorldSnapshotFormValue("snapshot_content", value, workbench.setWorldSnapshotForm)} />
-                <TextArea label="条目快照" value={workbench.worldSnapshotForm.entry_snapshot_content} onChange={(value) => setWorldSnapshotFormValue("entry_snapshot_content", value, workbench.setWorldSnapshotForm)} />
+                <TextArea label="时代背景" value={workbench.worldSnapshotForm.era_background} onChange={(value) => setWorldSnapshotFormValue("era_background", value, workbench.setWorldSnapshotForm)} />
+                <TextArea label="世界规则" value={workbench.worldSnapshotForm.world_rules} onChange={(value) => setWorldSnapshotFormValue("world_rules", value, workbench.setWorldSnapshotForm)} />
+                <TextArea label="组织势力" value={workbench.worldSnapshotForm.organizations} onChange={(value) => setWorldSnapshotFormValue("organizations", value, workbench.setWorldSnapshotForm)} />
+                <TextArea label="关键地点" value={workbench.worldSnapshotForm.locations} onChange={(value) => setWorldSnapshotFormValue("locations", value, workbench.setWorldSnapshotForm)} />
+                <TextArea label="社会结构" value={workbench.worldSnapshotForm.social_structure} onChange={(value) => setWorldSnapshotFormValue("social_structure", value, workbench.setWorldSnapshotForm)} />
+                <TextArea label="禁忌或限制" value={workbench.worldSnapshotForm.taboo_or_constraints} onChange={(value) => setWorldSnapshotFormValue("taboo_or_constraints", value, workbench.setWorldSnapshotForm)} />
+                <TextArea label="基调风格" value={workbench.worldSnapshotForm.tone_style} onChange={(value) => setWorldSnapshotFormValue("tone_style", value, workbench.setWorldSnapshotForm)} />
+                <TextArea label="摘要" value={workbench.worldSnapshotForm.summary} onChange={(value) => setWorldSnapshotFormValue("summary", value, workbench.setWorldSnapshotForm)} />
+              </div>
+              <div className="snapshot-entry-editor stack">
+                <div className="section-heading">
+                  <h3>项目世界观条目</h3>
+                  <span className="hint">共 {workbench.worldSnapshotForm.entries.length} 条</span>
+                </div>
+                {workbench.worldSnapshotForm.entries.length === 0 ? (
+                  <div className="empty-state">当前世界观没有可编辑条目。</div>
+                ) : (
+                  <div className="asset-list asset-list-wide">
+                    {workbench.worldSnapshotForm.entries.map((entry, index) => (
+                      <div className="snapshot-entry-item" key={`${entry.title}-${index}`}>
+                        <div className="grid-2">
+                          <TextInput
+                            label="条目标题"
+                            value={entry.title}
+                            onChange={(value) => updateWorldSnapshotEntry(index, "title", value, workbench)}
+                          />
+                          <div className="field">
+                            <label>条目类型</label>
+                            <SimpleSelect
+                              value={entry.entry_type}
+                              onValueChange={(value) => updateWorldSnapshotEntry(index, "entry_type", value as WorldEntryType, workbench)}
+                              options={worldEntryTypes.map((type) => ({ label: type, value: type }))}
+                            />
+                          </div>
+                          <TextInput
+                            label="关键词"
+                            value={entry.keywords}
+                            onChange={(value) => updateWorldSnapshotEntry(index, "keywords", value, workbench)}
+                          />
+                          <NumberInput
+                            label="优先级"
+                            step="1"
+                            value={entry.priority}
+                            onChange={(value) => updateWorldSnapshotEntry(index, "priority", value, workbench)}
+                          />
+                          <TextInput
+                            label="适用范围"
+                            value={entry.applicable_scope}
+                            onChange={(value) => updateWorldSnapshotEntry(index, "applicable_scope", value, workbench)}
+                          />
+                          <div className="field">
+                            <label>状态</label>
+                            <SimpleSelect
+                              value={entry.status}
+                              onValueChange={(value) => updateWorldSnapshotEntry(index, "status", value as WorldEntryStatus, workbench)}
+                              options={worldEntryStatusOptions}
+                            />
+                          </div>
+                        </div>
+                        <TextArea
+                          label="条目内容"
+                          value={entry.content}
+                          onChange={(value) => updateWorldSnapshotEntry(index, "content", value, workbench)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="actions">
                 <Button variant="secondary" type="button" onClick={workbench.cancelWorldSnapshotEdit} disabled={workbench.savingSnapshotId === snapshot.id}>
@@ -141,6 +255,18 @@ function WorldSnapshotSection({ workbench }: { workbench: ProjectWorkbenchState 
       ))}
     </AssetSection>
   );
+}
+
+function updateWorldSnapshotEntry<K extends keyof ProjectWorkbenchState["worldSnapshotForm"]["entries"][number]>(
+  index: number,
+  field: K,
+  value: ProjectWorkbenchState["worldSnapshotForm"]["entries"][number][K],
+  workbench: ProjectWorkbenchState
+) {
+  workbench.setWorldSnapshotForm((current) => ({
+    ...current,
+    entries: current.entries.map((entry, entryIndex) => (entryIndex === index ? { ...entry, [field]: value } : entry))
+  }));
 }
 
 function CharacterSnapshotSection({ workbench }: { workbench: ProjectWorkbenchState }) {
@@ -197,8 +323,20 @@ function CharacterSnapshotSection({ workbench }: { workbench: ProjectWorkbenchSt
                   />
                 </div>
                 <TextInput label="人物原型 / 项目定位" value={workbench.characterSnapshotForm.role_type} onChange={(value) => setCharacterSnapshotFormValue("role_type", value, workbench.setCharacterSnapshotForm)} />
-                <TextArea label="项目角色设定快照" value={workbench.characterSnapshotForm.snapshot_content} onChange={(value) => setCharacterSnapshotFormValue("snapshot_content", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="角色身份" value={workbench.characterSnapshotForm.identity} onChange={(value) => setCharacterSnapshotFormValue("identity", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="人物背景" value={workbench.characterSnapshotForm.background} onChange={(value) => setCharacterSnapshotFormValue("background", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="性格特征" value={workbench.characterSnapshotForm.personality} onChange={(value) => setCharacterSnapshotFormValue("personality", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="角色目标" value={workbench.characterSnapshotForm.goal} onChange={(value) => setCharacterSnapshotFormValue("goal", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="行动动机" value={workbench.characterSnapshotForm.motivation} onChange={(value) => setCharacterSnapshotFormValue("motivation", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="隐藏秘密" value={workbench.characterSnapshotForm.secret} onChange={(value) => setCharacterSnapshotFormValue("secret", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="冲突点" value={workbench.characterSnapshotForm.conflict_points} onChange={(value) => setCharacterSnapshotFormValue("conflict_points", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="关系备注" value={workbench.characterSnapshotForm.relationship_notes} onChange={(value) => setCharacterSnapshotFormValue("relationship_notes", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="说话方式" value={workbench.characterSnapshotForm.speech_style} onChange={(value) => setCharacterSnapshotFormValue("speech_style", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="口头禅" value={workbench.characterSnapshotForm.catchphrases} onChange={(value) => setCharacterSnapshotFormValue("catchphrases", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="情绪弧光" value={workbench.characterSnapshotForm.emotional_arc} onChange={(value) => setCharacterSnapshotFormValue("emotional_arc", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="故事功能" value={workbench.characterSnapshotForm.story_function} onChange={(value) => setCharacterSnapshotFormValue("story_function", value, workbench.setCharacterSnapshotForm)} />
                 <TextArea label="项目内视觉描述" value={workbench.characterSnapshotForm.visual_description} onChange={(value) => setCharacterSnapshotFormValue("visual_description", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="形象关键词" value={workbench.characterSnapshotForm.image_keywords} onChange={(value) => setCharacterSnapshotFormValue("image_keywords", value, workbench.setCharacterSnapshotForm)} />
                 <TextInput label="参考图 URL" value={workbench.characterSnapshotForm.reference_image_url} onChange={(value) => setCharacterSnapshotFormValue("reference_image_url", value, workbench.setCharacterSnapshotForm)} />
                 <TextInput label="参考图本地路径" value={workbench.characterSnapshotForm.reference_local_path} onChange={(value) => setCharacterSnapshotFormValue("reference_local_path", value, workbench.setCharacterSnapshotForm)} />
               </div>

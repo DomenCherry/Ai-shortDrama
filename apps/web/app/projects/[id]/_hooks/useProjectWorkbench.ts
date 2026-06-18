@@ -58,6 +58,7 @@ import {
   episodeContentToForm,
   episodeOutlineToForm,
   episodeScriptToForm,
+  characterSnapshotFormToPayload,
   nextShotNo,
   projectToForm,
   replaceCharacterSnapshot,
@@ -70,6 +71,7 @@ import {
   toOptional,
   toOptionalNumber,
   validateProject,
+  worldSnapshotFormToPayload,
   worldSnapshotToForm,
   characterSnapshotToForm
 } from "../_utils/workbenchForms";
@@ -538,23 +540,18 @@ export function useProjectWorkbench({
       setError("项目世界观题材不能为空");
       return;
     }
-    if (!worldSnapshotForm.snapshot_content.trim()) {
-      setError("项目世界观基础设定不能为空");
+    if (!worldSnapshotForm.world_rules.trim()) {
+      setError("项目世界观规则不能为空");
       return;
     }
-    if (!worldSnapshotForm.entry_snapshot_content.trim()) {
-      setError("项目世界观条目快照不能为空");
+    if (worldSnapshotForm.entries.some((entry) => !entry.title.trim() || !entry.content.trim())) {
+      setError("项目世界观条目的标题和内容不能为空");
       return;
     }
 
     setSavingSnapshotId(editingWorldSnapshotId);
     try {
-      const saved = await updateProjectWorldSnapshot(projectId, editingWorldSnapshotId, {
-        name: worldSnapshotForm.name,
-        genre: worldSnapshotForm.genre,
-        snapshot_content: worldSnapshotForm.snapshot_content,
-        entry_snapshot_content: worldSnapshotForm.entry_snapshot_content
-      });
+      const saved = await updateProjectWorldSnapshot(projectId, editingWorldSnapshotId, worldSnapshotFormToPayload(worldSnapshotForm));
       setWorldSnapshots((current) => replaceWorldSnapshot(current, saved));
       cancelWorldSnapshotEdit();
       setStatus("项目世界观已保存，故事文本和短剧制作已有内容已标记为需要检查。");
@@ -579,22 +576,14 @@ export function useProjectWorkbench({
       setError("项目角色人物原型不能为空");
       return;
     }
-    if (!characterSnapshotForm.snapshot_content.trim()) {
-      setError("项目角色设定快照不能为空");
+    if (!characterSnapshotForm.identity.trim() && !characterSnapshotForm.goal.trim()) {
+      setError("项目角色身份或目标至少填写一项");
       return;
     }
 
     setSavingSnapshotId(editingCharacterSnapshotId);
     try {
-      const saved = await updateProjectCharacterSnapshot(projectId, editingCharacterSnapshotId, {
-        name: characterSnapshotForm.name,
-        gender: characterSnapshotForm.gender,
-        role_type: characterSnapshotForm.role_type,
-        snapshot_content: characterSnapshotForm.snapshot_content,
-        visual_description: toOptional(characterSnapshotForm.visual_description),
-        reference_image_url: toOptional(characterSnapshotForm.reference_image_url),
-        reference_local_path: toOptional(characterSnapshotForm.reference_local_path)
-      });
+      const saved = await updateProjectCharacterSnapshot(projectId, editingCharacterSnapshotId, characterSnapshotFormToPayload(characterSnapshotForm));
       setCharacterSnapshots((current) => replaceCharacterSnapshot(current, saved));
       cancelCharacterSnapshotEdit();
       setStatus("项目角色已保存，故事文本和短剧制作已有内容已标记为需要检查。");
