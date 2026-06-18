@@ -22,7 +22,7 @@ from app.models.schemas import (
     ProjectEpisodeContentPayload,
 )
 from app.services import model_configs
-from app.services.project.generation_common import call_text_generation_api, read_rule
+from app.services.project.generation_common import call_text_generation_raw, read_rule
 from app.services.project.common import (
     character_snapshot_to_response,
     count_content_characters,
@@ -195,13 +195,15 @@ async def generate_episode_content(
     started_at = time.perf_counter()
     system_prompt = read_rule("episode-content-writing-rule.md")
     max_tokens = min(3600, max(1600, round(target_max * 1.6)))
-    data = await call_text_generation_api(
+    response = await call_text_generation_raw(
         system_prompt,
         _generation_prompt(snapshot, payload.instruction),
         max_tokens=max_tokens,
     )
     elapsed_ms = round((time.perf_counter() - started_at) * 1000)
-    output_text = str(data.get("detailed_content") or "").strip()
+    if response.finish_reason in {"length", "max_tokens"}:
+        raise ValueError("候选稿生成不完整，请重试")
+    output_text = response.content.strip()
     if not output_text:
         raise ValueError("正文生成结果为空，请调整创作要求后重试")
 

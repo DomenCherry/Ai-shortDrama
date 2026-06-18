@@ -17,6 +17,7 @@ from app.models.db_models import (
     ProjectStoryOutline,
 )
 from app.models.schemas import EpisodeContentGenerationCreate, EpisodeContentGenerationUpdate, ProjectEpisodeContentPayload
+from app.services.project.generation_common import TextGenerationResponse
 from app.services.project.story import episode_contents
 
 
@@ -137,8 +138,13 @@ class EpisodeContentGenerationTests(unittest.IsolatedAsyncioTestCase):
             patch.object(episode_contents.model_configs, "get_enabled_config", return_value=model_config),
             patch.object(
                 episode_contents,
-                "call_text_generation_api",
-                new=AsyncMock(return_value={"detailed_content": "门外的脚步突然停住，手机同时亮起。"}),
+                "call_text_generation_raw",
+                new=AsyncMock(
+                    return_value=TextGenerationResponse(
+                        content="门外的脚步突然停住，手机同时亮起。",
+                        finish_reason="stop",
+                    )
+                ),
             ) as model_call,
         ):
             generated = await episode_contents.generate_episode_content(
@@ -216,16 +222,54 @@ class EpisodeContentGenerationTests(unittest.IsolatedAsyncioTestCase):
             patch.object(episode_contents.model_configs, "get_enabled_config", return_value=model_config),
             patch.object(
                 episode_contents,
-                "call_text_generation_api",
-                new=AsyncMock(return_value={"detailed_content": ""}),
+                "call_text_generation_raw",
+                new=AsyncMock(side_effect=ValueError("文本生成接口响应格式无法解析")),
             ),
         ):
-            with self.assertRaisesRegex(ValueError, "正文生成结果为空"):
+            with self.assertRaisesRegex(ValueError, "文本生成接口响应格式无法解析"):
                 await episode_contents.generate_episode_content(
                     self.project_id,
                     2,
                     EpisodeContentGenerationCreate(client_request_id="empty-output"),
                 )
+
+    async def test_generation_preserves_plain_text_with_paragraphs_and_quotes(self) -> None:
+        model_config = {"id": "model-1", "model_name": "test-model", "last_test_status": "success"}
+        plain_text = '门外传来两声轻响。\n\n她问：“谁？”走廊里无人回答。'
+        with (
+            patch.object(episode_contents.model_configs, "get_enabled_config", return_value=model_config),
+            patch.object(
+                episode_contents,
+                "call_text_generation_raw",
+                new=AsyncMock(return_value=TextGenerationResponse(content=plain_text, finish_reason="stop")),
+            ),
+        ):
+            generated = await episode_contents.generate_episode_content(
+                self.project_id,
+                2,
+                EpisodeContentGenerationCreate(client_request_id="plain-text"),
+            )
+
+        self.assertEqual(generated["output_text"], plain_text)
+
+    async def test_truncated_generation_is_not_persisted(self) -> None:
+        model_config = {"id": "model-1", "model_name": "test-model", "last_test_status": "success"}
+        with (
+            patch.object(episode_contents.model_configs, "get_enabled_config", return_value=model_config),
+            patch.object(
+                episode_contents,
+                "call_text_generation_raw",
+                new=AsyncMock(return_value=TextGenerationResponse(content="未完成正文", finish_reason="length")),
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "候选稿生成不完整"):
+                await episode_contents.generate_episode_content(
+                    self.project_id,
+                    2,
+                    EpisodeContentGenerationCreate(client_request_id="truncated"),
+                )
+
+        self.assertEqual(episode_contents.list_episode_content_generations(self.project_id, 2), [])
 
 
 if __name__ == "__main__":

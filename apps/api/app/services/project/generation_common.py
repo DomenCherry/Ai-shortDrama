@@ -1,6 +1,7 @@
-"""AI 生成公共服务模块，封装规则读取、模型调用、JSON 解析和生成上下文拼接。"""
+"""AI 生成公共服务模块，封装规则读取、模型调用、响应解析和生成上下文拼接。"""
 import json
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,14 @@ import httpx
 from app.models.db_models import Project, ProjectCharacterSnapshot, ProjectWorldSnapshot, ReferenceStoryStructureDraft
 from app.services import model_configs
 from app.services.project.common import character_snapshot_to_response, project_to_response, world_snapshot_to_response
+
+
+@dataclass(frozen=True)
+class TextGenerationResponse:
+    """文本模型的原始文本响应及结束原因。"""
+
+    content: str
+    finish_reason: str | None
 
 
 def rules_root() -> Path:
@@ -50,8 +59,13 @@ def extract_json_object(text: str) -> dict[str, Any]:
     return parsed
 
 
-async def call_text_generation_api(system_prompt: str, user_prompt: str, *, max_tokens: int = 1600) -> dict[str, Any]:
-    """调用当前启用文本模型，并解析为结构化 JSON。"""
+async def call_text_generation_raw(
+    system_prompt: str,
+    user_prompt: str,
+    *,
+    max_tokens: int = 1600,
+) -> TextGenerationResponse:
+    """调用当前启用文本模型，返回未经 JSON 解析的文本和结束原因。"""
     text_config = model_configs.get_enabled_config("text")
     if not text_config or text_config["last_test_status"] != "success":
         raise ValueError("请先配置并测试成功文本生成模型 API")
@@ -77,10 +91,19 @@ async def call_text_generation_api(system_prompt: str, user_prompt: str, *, max_
     except httpx.RequestError as exc:
         raise ValueError("文本生成接口无法访问，请检查 API 地址或网络连接") from exc
 
-    text = data.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+    choice = data.get("choices", [{}])[0]
+    text = choice.get("message", {}).get("content", "").strip()
     if not text:
         raise ValueError("文本生成接口响应格式无法解析")
-    return extract_json_object(text)
+    return TextGenerationResponse(content=text, finish_reason=choice.get("finish_reason"))
+
+
+async def call_text_generation_api(system_prompt: str, user_prompt: str, *, max_tokens: int = 1600) -> dict[str, Any]:
+    """调用当前启用文本模型，并将响应解析为结构化 JSON。"""
+    response = await call_text_generation_raw(system_prompt, user_prompt, max_tokens=max_tokens)
+    if response.finish_reason in {"length", "max_tokens"}:
+        raise ValueError("模型响应因长度限制被截断，请缩短输入后重试")
+    return extract_json_object(response.content)
 
 
 def project_context_summary(
