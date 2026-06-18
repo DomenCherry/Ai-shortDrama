@@ -85,7 +85,7 @@
 
 ## 8. 关联文档
 
-- [第一期 PRD](../prd.md) §9.10
-- [项目工作台](./project-workbench.md)
-- [分集大纲](./episode-outline.md)
-- [人物设定](./character-design.md)
+- [第一期 PRD](../../prd.md) §9.10
+- [项目工作台](../projects/project-workbench.md)
+- [分集大纲](../story-creation/episode-outline.md)
+- [人物设定](../story-creation/character-design.md)

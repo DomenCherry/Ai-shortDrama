@@ -425,7 +425,7 @@ PUT /api/projects/{project_id}/copywriting/{episode_no}
 ## 7. 关联文档
 
 - [第一期 PRD](../prd.md)
-- [项目工作台模块 PRD](../module-prds/project-workbench.md)
+- [项目工作台模块 PRD](../module-prds/projects/project-workbench.md)
 - [项目工作台前端 Spec](../frontend-specs/project-workbench.md)
 - [分集大纲与单集故事正文创作后端 Spec](./episode-outline.md)
 - [项目工作台资产快照后端 Spec](./project-workbench-assets.md)

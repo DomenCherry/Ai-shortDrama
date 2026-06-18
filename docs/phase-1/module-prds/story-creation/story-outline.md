@@ -365,11 +365,11 @@ AI 协助创作必须使用独立的 `story-outline-assistant` Skill 或规则�
 
 ## 14. 关联文档
 
-- [第一期 PRD](../prd.md) §9.6
-- [项目工作台](./project-workbench.md)
+- [第一期 PRD](../../prd.md) §9.6
+- [项目工作台](../projects/project-workbench.md)
 - [选题策划](./topic-planning.md)
-- [创作资产库](./creative-asset-library.md)
-- [故事大纲后端 Spec](../backend-specs/story-outline.md)
-- [故事大纲前端 Spec](../frontend-specs/story-outline.md)
-- [参考故事结构抽取规则](../../../rules/story-structure-extraction-rule.md)
-- [故事大纲 AI 协助创作规则](../../../rules/story-outline-assistant-rule.md)
+- [创作资产库](../creative-assets/creative-asset-library.md)
+- [故事大纲后端 Spec](../../backend-specs/story-outline.md)
+- [故事大纲前端 Spec](../../frontend-specs/story-outline.md)
+- [参考故事结构抽取规则](../../../../rules/story-structure-extraction-rule.md)
+- [故事大纲 AI 协助创作规则](../../../../rules/story-outline-assistant-rule.md)

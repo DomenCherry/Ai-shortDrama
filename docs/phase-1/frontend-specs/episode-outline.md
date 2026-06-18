@@ -5,8 +5,8 @@
 - 页面名称：分集大纲与单集故事正文创作
 - 页面路径：`/projects/[id]/story-text`
 - 所属阶段：第一期，项目工作台 / 故事文本
-- 关联 PRD：[分集大纲与单集故事正文创作](../module-prds/episode-outline.md)
-- 关联功能设计：[项目工作台](../module-prds/project-workbench.md)
+- 关联 PRD：[分集大纲与单集故事正文创作](../module-prds/story-creation/episode-outline.md)
+- 关联功能设计：[项目工作台](../module-prds/projects/project-workbench.md)
 - 目标用户：个人短剧创作者
 
 ## 2. 页面目标

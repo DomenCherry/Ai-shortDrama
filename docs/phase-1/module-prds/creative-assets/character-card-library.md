@@ -488,8 +488,8 @@ AI 短剧制作工具需要帮助创作者持续产出短剧项目。随着项�
 
 ## 16. 关联文档
 
-- [第一期 PRD](../prd.md)
+- [第一期 PRD](../../prd.md)
 - [创作资产库](./creative-asset-library.md)
-- [角色卡库前端 Spec](../frontend-specs/character-card-library.md)
-- [角色卡库后端 Spec](../backend-specs/character-card-library.md)
-- [项目工作台资产快照后端 Spec](../backend-specs/project-workbench-assets.md)
+- [角色卡库前端 Spec](../../frontend-specs/character-card-library.md)
+- [角色卡库后端 Spec](../../backend-specs/character-card-library.md)
+- [项目工作台资产快照后端 Spec](../../backend-specs/project-workbench-assets.md)

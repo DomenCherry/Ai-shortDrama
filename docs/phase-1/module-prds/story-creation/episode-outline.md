@@ -192,9 +192,9 @@ AI 创作控制台应支持：
 
 ## 10. 关联文档
 
-- [第一期 PRD](../prd.md) §9.9
-- [项目工作台](./project-workbench.md)
+- [第一期 PRD](../../prd.md) §9.9
+- [项目工作台](../projects/project-workbench.md)
 - [整体故事大纲](./story-outline.md)
 - [选题策划](./topic-planning.md)
 - [人物设定](./character-design.md)
-- [单集剧本](./episode-script.md)
+- [单集剧本](../production/episode-script.md)

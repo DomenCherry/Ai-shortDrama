@@ -57,6 +57,6 @@
 
 ## 8. 关联文档
 
-- [第一期 PRD](../prd.md) §9.12
-- [项目工作台](./project-workbench.md)
-- [创作资产库](./creative-asset-library.md)
+- [第一期 PRD](../../prd.md) §9.12
+- [项目工作台](../projects/project-workbench.md)
+- [创作资产库](../creative-assets/creative-asset-library.md)

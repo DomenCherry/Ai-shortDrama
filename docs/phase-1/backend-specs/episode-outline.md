@@ -281,7 +281,7 @@ PUT /api/projects/{project_id}/episode-contents/{episode_no}
 ## 8. 关联文档
 
 - [第一期 PRD](../prd.md)
-- [分集大纲与单集故事正文创作模块 PRD](../module-prds/episode-outline.md)
-- [项目工作台模块 PRD](../module-prds/project-workbench.md)
+- [分集大纲与单集故事正文创作模块 PRD](../module-prds/story-creation/episode-outline.md)
+- [项目工作台模块 PRD](../module-prds/projects/project-workbench.md)
 - [分集大纲与单集故事正文创作前端 Spec](../frontend-specs/episode-outline.md)
 - [项目工作台后端 Spec](./project-workbench.md)

@@ -209,7 +209,7 @@
 
 - [创作资产库](./creative-asset-library.md) — 世界观与角色卡的加载、快照和引用整体规则
 - [角色卡库](./character-card-library.md) — 角色卡资产的管理模块
-- [项目工作台](./project-workbench.md) — 世界观在项目中的加载与编辑入口
-- [世界观库前端 Spec](../frontend-specs/world-book-library.md) — 世界观库页面交互与验收
-- [世界观库后端 Spec](../backend-specs/world-book-library.md) — 世界观接口、条目接口和状态规则
-- [项目工作台资产快照后端 Spec](../backend-specs/project-workbench-assets.md) — 项目内世界观快照接口
+- [项目工作台](../projects/project-workbench.md) — 世界观在项目中的加载与编辑入口
+- [世界观库前端 Spec](../../frontend-specs/world-book-library.md) — 世界观库页面交互与验收
+- [世界观库后端 Spec](../../backend-specs/world-book-library.md) — 世界观接口、条目接口和状态规则
+- [项目工作台资产快照后端 Spec](../../backend-specs/project-workbench-assets.md) — 项目内世界观快照接口

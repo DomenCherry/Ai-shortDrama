@@ -155,4 +155,4 @@ Markdown 导出以项目当前状态为准，不直接导出资产库最新版�
 |------|------|
 | [世界观库](./world-book-library.md) | WorldBook、WorldEntry 字段定义与 CRUD |
 | [角色卡库](./character-card-library.md) | CharacterCard 字段定义与 CRUD |
-| [项目工作台前端规格](../frontend-specs/project-workbench.md) | 项目资产加载区交互 |
+| [项目工作台前端规格](../../frontend-specs/project-workbench.md) | 项目资产加载区交互 |

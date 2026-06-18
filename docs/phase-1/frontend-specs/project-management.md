@@ -161,4 +161,4 @@
 
 ## 7. 关联文档
 
-- 模块 PRD：[module-prds/project-management.md](../module-prds/project-management.md)
+- 模块 PRD：[module-prds/projects/project-management.md](../module-prds/projects/project-management.md)

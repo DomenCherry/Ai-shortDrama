@@ -457,7 +457,7 @@ POST /api/projects/{project_id}/story-structure-drafts/{draft_id}/discard
 
 ## 7. 关联文档
 
-- [故事大纲模块 PRD](../module-prds/story-outline.md)
+- [故事大纲模块 PRD](../module-prds/story-creation/story-outline.md)
 - [项目工作台前端 Spec](../frontend-specs/project-workbench.md)
 - [故事大纲前端 Spec](../frontend-specs/story-outline.md)
 - [模型 API 配置后端 Spec](./model-api-settings.md)

@@ -319,7 +319,7 @@
 
 ## 10. 关联文档
 
-- [故事大纲模块 PRD](../module-prds/story-outline.md)
+- [故事大纲模块 PRD](../module-prds/story-creation/story-outline.md)
 - [故事大纲后端 Spec](../backend-specs/story-outline.md)
 - [项目工作台页面 Spec](./project-workbench.md)
 - [模型 API 配置前端 Spec](./model-api-settings.md)

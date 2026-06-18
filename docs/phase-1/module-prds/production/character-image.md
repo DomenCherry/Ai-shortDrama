@@ -78,7 +78,7 @@
 
 ## 8. 关联文档
 
-- [第一期 PRD](../prd.md) §9.8
-- [项目工作台](./project-workbench.md)
-- [人物设定](./character-design.md)
-- [模型 API 配置](./model-api-settings.md)
+- [第一期 PRD](../../prd.md) §9.8
+- [项目工作台](../projects/project-workbench.md)
+- [人物设定](../story-creation/character-design.md)
+- [模型 API 配置](../platform/model-api-settings.md)

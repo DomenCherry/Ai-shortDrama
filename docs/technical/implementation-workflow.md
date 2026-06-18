@@ -27,7 +27,7 @@
 
 - 项目长期方向：更新 `docs/project/`。
 - 阶段整体范围：更新 `docs/phase-1/prd.md`。
-- 单功能产品需求：更新或新增 `docs/phase-1/module-prds/<feature>.md`。
+- 单功能产品需求：更新或新增 `docs/phase-1/module-prds/<domain>/<feature>.md`。
 - 后端接口、数据库或 service 规则变化：更新或新增 `docs/phase-1/backend-specs/<feature>.md`。
 - 前端页面、表单或交互变化：更新或新增 `docs/phase-1/frontend-specs/<page>.md`。
 - 技术或工程约束：更新 `docs/technical/`。
@@ -39,7 +39,7 @@
 功能 PRD 存放在：
 
 ```text
-docs/phase-1/module-prds/<feature>.md
+docs/phase-1/module-prds/<domain>/<feature>.md
 ```
 
 功能 PRD 应说明：
@@ -271,7 +271,7 @@ rg -n "<关键功能名>|<关键字段名>" docs
 新增完整功能时，推荐顺序如下：
 
 ```text
-1. docs/phase-1/module-prds/<feature>.md
+1. docs/phase-1/module-prds/<domain>/<feature>.md
 2. 按需创建或更新 docs/phase-1/backend-specs/<feature>.md
 3. 按需创建或更新 docs/phase-1/frontend-specs/<page>.md
 4. apps/api 后端接口、服务、模型、迁移
@@ -292,7 +292,7 @@ phase-1/prd.md
   第一期整体范围
 
 phase-1/module-prds
-  单功能模块 PRD
+  按业务域组织的单功能模块 PRD
 
 phase-1/backend-specs
   后端接口 Spec

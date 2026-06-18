@@ -513,8 +513,8 @@
 
 ## 9. 关联文档
 
-- [项目 PRD](../prd.md) — §9.3A、§11.4–§11.6、§12.10–§12.19、§13、§14、§15.2
-- [项目工作台前端规格](../frontend-specs/project-workbench.md)
-- [项目工作台资产快照后端 Spec](../backend-specs/project-workbench-assets.md)
-- [世界观库模块 PRD](./world-book-library.md)
-- [角色卡库模块 PRD](./character-card-library.md)
+- [项目 PRD](../../prd.md) — §9.3A、§11.4–§11.6、§12.10–§12.19、§13、§14、§15.2
+- [项目工作台前端规格](../../frontend-specs/project-workbench.md)
+- [项目工作台资产快照后端 Spec](../../backend-specs/project-workbench-assets.md)
+- [世界观库模块 PRD](../creative-assets/world-book-library.md)
+- [角色卡库模块 PRD](../creative-assets/character-card-library.md)

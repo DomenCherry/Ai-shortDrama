@@ -68,6 +68,6 @@
 
 ## 8. 关联文档
 
-- [第一期 PRD](../prd.md) §9.5
-- [项目工作台](./project-workbench.md)
-- [项目管理](./project-management.md)
+- [第一期 PRD](../../prd.md) §9.5
+- [项目工作台](../projects/project-workbench.md)
+- [项目管理](../projects/project-management.md)

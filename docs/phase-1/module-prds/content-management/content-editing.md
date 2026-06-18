@@ -53,5 +53,5 @@
 
 ## 8. 关联文档
 
-- [第一期 PRD](../prd.md) §9.11
-- [项目工作台](./project-workbench.md)
+- [第一期 PRD](../../prd.md) §9.11
+- [项目工作台](../projects/project-workbench.md)

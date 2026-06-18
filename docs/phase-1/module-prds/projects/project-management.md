@@ -466,6 +466,6 @@ Markdown 导出中需要包含项目基础信息。
 
 | 文档 | 路径 | 说明 |
 | --- | --- | --- |
-| 前端规格 | [frontend-specs/project-management.md](../frontend-specs/project-management.md) | 页面设计和交互流程 |
-| 产品需求文档 | [prd.md](../prd.md) | 第一期整体 PRD |
-| 项目工作台前端规格 | [frontend-specs/project-workbench.md](../frontend-specs/project-workbench.md) | 项目工作台页面实现规格 |
+| 前端规格 | [frontend-specs/project-management.md](../../frontend-specs/project-management.md) | 页面设计和交互流程 |
+| 产品需求文档 | [prd.md](../../prd.md) | 第一期整体 PRD |
+| 项目工作台前端规格 | [frontend-specs/project-workbench.md](../../frontend-specs/project-workbench.md) | 项目工作台页面实现规格 |

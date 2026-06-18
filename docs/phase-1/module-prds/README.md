@@ -1,32 +1,25 @@
 # 模块 PRD 索引
 
-本目录包含第一期所有模块的详细 PRD（Layer 2）。每个文档对应一个独立功能模块，定义该模块的字段、校验规则、状态机、用户故事和验收标准。
+本目录包含第一期所有模块的详细 PRD（Layer 2）。文档按业务域分组，每个文档对应一个独立功能模块，定义该模块的字段、校验规则、状态机、用户故事和验收标准。
 
-## 模块清单
+## 业务域与模块清单
 
-### 已实现
-
-| 模块 | 文档 | 说明 |
-|------|------|------|
-| 创作资产库 | [creative-asset-library.md](./creative-asset-library.md) | 资产-项目架构总则 |
-| 世界观库 | [world-book-library.md](./world-book-library.md) | 世界观资产管理与项目加载 |
-| 角色卡库 | [character-card-library.md](./character-card-library.md) | 角色卡资产管理与项目加载 |
-| 模型 API 配置 | [model-api-settings.md](./model-api-settings.md) | 文本/图片模型配置与连通性测试 |
-| 项目管理 | [project-management.md](./project-management.md) | 项目创建、时长配置、列表管理 |
-| 项目工作台 | [project-workbench.md](./project-workbench.md) | 三类入口、内容状态机、人工编辑 |
-
-### 未实现（薄占位）
-
-| 模块 | 文档 | 说明 |
-|------|------|------|
-| 选题策划生成 | [topic-planning.md](./topic-planning.md) | AI 生成选题方向 |
-| 整体故事大纲 | [story-outline.md](./story-outline.md) | AI 生成故事骨架 |
-| 人物设定 | [character-design.md](./character-design.md) | AI 生成人物体系 |
-| 人物示意图 | [character-image.md](./character-image.md) | AI 生成角色视觉参考 |
-| 分集大纲 | [episode-outline.md](./episode-outline.md) | AI 生成分集结构 |
-| 单集剧本 | [episode-script.md](./episode-script.md) | AI 生成剧本与改写 |
-| 内容编辑 | [content-editing.md](./content-editing.md) | 版本控制与编辑管理 |
-| Markdown 导出 | [markdown-export.md](./markdown-export.md) | 项目内容导出 |
+| 业务域 | 模块 | 文档 | 状态 | 说明 |
+|--------|------|------|------|------|
+| 平台配置 | 模型 API 配置 | [model-api-settings.md](./platform/model-api-settings.md) | 已实现 | 文本/图片模型配置与连通性测试 |
+| 项目管理 | 项目管理 | [project-management.md](./projects/project-management.md) | 已实现 | 项目创建、时长配置、列表管理 |
+| 项目管理 | 项目工作台 | [project-workbench.md](./projects/project-workbench.md) | 已实现 | 三类入口、内容状态机、人工编辑 |
+| 创作资产 | 创作资产库 | [creative-asset-library.md](./creative-assets/creative-asset-library.md) | 已实现 | 资产-项目架构总则 |
+| 创作资产 | 世界观库 | [world-book-library.md](./creative-assets/world-book-library.md) | 已实现 | 世界观资产管理与项目加载 |
+| 创作资产 | 角色卡库 | [character-card-library.md](./creative-assets/character-card-library.md) | 已实现 | 角色卡资产管理与项目加载 |
+| 故事创作 | 选题策划生成 | [topic-planning.md](./story-creation/topic-planning.md) | 薄占位 | AI 生成选题方向 |
+| 故事创作 | 整体故事大纲 | [story-outline.md](./story-creation/story-outline.md) | 已实现 | AI 生成故事骨架 |
+| 故事创作 | 人物设定 | [character-design.md](./story-creation/character-design.md) | 薄占位 | AI 生成人物体系 |
+| 故事创作 | 分集大纲 | [episode-outline.md](./story-creation/episode-outline.md) | 已实现 | AI 生成分集结构和单集故事正文 |
+| 短剧制作 | 人物示意图 | [character-image.md](./production/character-image.md) | 薄占位 | AI 生成角色视觉参考 |
+| 短剧制作 | 单集剧本 | [episode-script.md](./production/episode-script.md) | 薄占位 | AI 生成剧本与改写 |
+| 内容管理 | 内容编辑 | [content-editing.md](./content-management/content-editing.md) | 薄占位 | 版本控制与编辑管理 |
+| 内容管理 | Markdown 导出 | [markdown-export.md](./content-management/markdown-export.md) | 薄占位 | 项目内容导出 |
 
 ## 模块依赖关系
 
@@ -63,25 +56,25 @@
 
 | 数据对象 | 定义所在文档 |
 |----------|------------|
-| Project | [project-management.md](./project-management.md) |
-| TopicPlan | [topic-planning.md](./topic-planning.md) |
-| ModelApiConfig | [model-api-settings.md](./model-api-settings.md) |
-| ModelApiTestLog | [model-api-settings.md](./model-api-settings.md) |
-| WorldBook | [world-book-library.md](./world-book-library.md) |
-| WorldEntry | [world-book-library.md](./world-book-library.md) |
-| ProjectWorldSnapshot | [world-book-library.md](./world-book-library.md) |
-| CharacterCard | [character-card-library.md](./character-card-library.md) |
-| ProjectCharacterSnapshot | [character-card-library.md](./character-card-library.md) |
-| ProjectArtifactStatus | [project-workbench.md](./project-workbench.md) |
-| ProjectStoryOutline | [project-workbench.md](./project-workbench.md) |
-| Character | [project-workbench.md](./project-workbench.md) |
-| CharacterImage | [project-workbench.md](./project-workbench.md) |
-| ProjectEpisodeOutline | [project-workbench.md](./project-workbench.md) |
-| ProjectEpisodeContent | [project-workbench.md](./project-workbench.md) |
-| ProjectEpisodeScript | [project-workbench.md](./project-workbench.md) |
-| ProjectStoryboardShot | [project-workbench.md](./project-workbench.md) |
-| ProjectCopywriting | [project-workbench.md](./project-workbench.md) |
-| GenerationVersion | [project-workbench.md](./project-workbench.md) |
+| Project | [project-management.md](./projects/project-management.md) |
+| TopicPlan | [topic-planning.md](./story-creation/topic-planning.md) |
+| ModelApiConfig | [model-api-settings.md](./platform/model-api-settings.md) |
+| ModelApiTestLog | [model-api-settings.md](./platform/model-api-settings.md) |
+| WorldBook | [world-book-library.md](./creative-assets/world-book-library.md) |
+| WorldEntry | [world-book-library.md](./creative-assets/world-book-library.md) |
+| ProjectWorldSnapshot | [world-book-library.md](./creative-assets/world-book-library.md) |
+| CharacterCard | [character-card-library.md](./creative-assets/character-card-library.md) |
+| ProjectCharacterSnapshot | [character-card-library.md](./creative-assets/character-card-library.md) |
+| ProjectArtifactStatus | [project-workbench.md](./projects/project-workbench.md) |
+| ProjectStoryOutline | [project-workbench.md](./projects/project-workbench.md) |
+| Character | [project-workbench.md](./projects/project-workbench.md) |
+| CharacterImage | [project-workbench.md](./projects/project-workbench.md) |
+| ProjectEpisodeOutline | [project-workbench.md](./projects/project-workbench.md) |
+| ProjectEpisodeContent | [project-workbench.md](./projects/project-workbench.md) |
+| ProjectEpisodeScript | [project-workbench.md](./projects/project-workbench.md) |
+| ProjectStoryboardShot | [project-workbench.md](./projects/project-workbench.md) |
+| ProjectCopywriting | [project-workbench.md](./projects/project-workbench.md) |
+| GenerationVersion | [project-workbench.md](./projects/project-workbench.md) |
 
 ## 编写约定
 

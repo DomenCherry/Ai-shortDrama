@@ -291,51 +291,51 @@
 
 ### 9.1 模型 API 配置与连通性测试
 
-用户配置文本和图片生成模型 API，并测试接口可用性。详细设计见 [模型 API 配置](./module-prds/model-api-settings.md)。
+用户配置文本和图片生成模型 API，并测试接口可用性。详细设计见 [模型 API 配置](./module-prds/platform/model-api-settings.md)。
 
 ### 9.2 创作资产库
 
-世界观和角色卡资产独立管理，项目加载后生成快照副本。架构总则见 [创作资产库](./module-prds/creative-asset-library.md)，子模块见 [世界观库](./module-prds/world-book-library.md) 和 [角色卡库](./module-prds/character-card-library.md)。
+世界观和角色卡资产独立管理，项目加载后生成快照副本。架构总则见 [创作资产库](./module-prds/creative-assets/creative-asset-library.md)，子模块见 [世界观库](./module-prds/creative-assets/world-book-library.md) 和 [角色卡库](./module-prds/creative-assets/character-card-library.md)。
 
 ### 9.3 项目管理
 
-项目创建、时长配置和列表管理。详细设计见 [项目管理](./module-prds/project-management.md)。
+项目创建、时长配置和列表管理。详细设计见 [项目管理](./module-prds/projects/project-management.md)。
 
 ### 9.4 项目工作台
 
-工作台三类入口、内容状态机（draft/confirmed/needs_review）、人工编辑保存和上下游一致性约束。三类入口为：项目资料 / 资产、故事文本、短剧制作。详细设计见 [项目工作台](./module-prds/project-workbench.md)。
+工作台三类入口、内容状态机（draft/confirmed/needs_review）、人工编辑保存和上下游一致性约束。三类入口为：项目资料 / 资产、故事文本、短剧制作。详细设计见 [项目工作台](./module-prds/projects/project-workbench.md)。
 
 ### 9.5 选题策划生成（未实现）
 
-AI 生成剧名候选、一句话故事、卖点、冲突和钩子。占位规格见 [选题策划](./module-prds/topic-planning.md)。
+AI 生成剧名候选、一句话故事、卖点、冲突和钩子。占位规格见 [选题策划](./module-prds/story-creation/topic-planning.md)。
 
 ### 9.6 整体故事大纲（未实现）
 
-AI 生成故事骨架、起承转合和剧情脉络，并支持从参考故事中抽取去具体化的高层叙事结构，以及通过对话式 AI 协助逐步补全故事大纲字段。详细规格见 [故事大纲](./module-prds/story-outline.md)。
+AI 生成故事骨架、起承转合和剧情脉络，并支持从参考故事中抽取去具体化的高层叙事结构，以及通过对话式 AI 协助逐步补全故事大纲字段。详细规格见 [故事大纲](./module-prds/story-creation/story-outline.md)。
 
 ### 9.7 人物设定（未实现）
 
-AI 生成主角、反派和配角设定。占位规格见 [人物设定](./module-prds/character-design.md)。
+AI 生成主角、反派和配角设定。占位规格见 [人物设定](./module-prds/story-creation/character-design.md)。
 
 ### 9.8 人物示意图（未实现）
 
-AI 生成角色视觉参考图。占位规格见 [人物示意图](./module-prds/character-image.md)。
+AI 生成角色视觉参考图。占位规格见 [人物示意图](./module-prds/production/character-image.md)。
 
 ### 9.9 分集大纲与单集故事正文创作（未实现）
 
-AI 生成完整分集结构，并提供单集故事正文创作工作台，用于生成、续写、润色、摘要和一致性质检。钩子提取归入短剧制作。详细规格见 [分集大纲](./module-prds/episode-outline.md)。
+AI 生成完整分集结构，并提供单集故事正文创作工作台，用于生成、续写、润色、摘要和一致性质检。钩子提取归入短剧制作。详细规格见 [分集大纲](./module-prds/story-creation/episode-outline.md)。
 
 ### 9.10 单集剧本（未实现）
 
-AI 基于单集故事正文生成短剧脚本并支持改写。占位规格见 [单集剧本](./module-prds/episode-script.md)。
+AI 基于单集故事正文生成短剧脚本并支持改写。占位规格见 [单集剧本](./module-prds/production/episode-script.md)。
 
 ### 9.11 内容编辑（未实现）
 
-版本记录和编辑管理。占位规格见 [内容编辑](./module-prds/content-editing.md)。
+版本记录和编辑管理。占位规格见 [内容编辑](./module-prds/content-management/content-editing.md)。
 
 ### 9.12 Markdown 导出（未实现）
 
-项目内容导出为 Markdown。占位规格见 [Markdown 导出](./module-prds/markdown-export.md)。
+项目内容导出为 Markdown。占位规格见 [Markdown 导出](./module-prds/content-management/markdown-export.md)。
 
 ## 10. 非功能需求
 

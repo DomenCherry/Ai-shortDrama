@@ -81,8 +81,8 @@
 
 ## 8. 关联文档
 
-- [第一期 PRD](../prd.md) §9.7
-- [项目工作台](./project-workbench.md)
-- [角色卡库](./character-card-library.md)
+- [第一期 PRD](../../prd.md) §9.7
+- [项目工作台](../projects/project-workbench.md)
+- [角色卡库](../creative-assets/character-card-library.md)
 - [选题策划](./topic-planning.md)
-- [人物示意图](./character-image.md)
+- [人物示意图](../production/character-image.md)

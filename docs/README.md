@@ -13,7 +13,13 @@ docs
 ├── phase-1
 │   ├── prd.md
 │   ├── module-prds
-│   │   └── README.md
+│   │   ├── README.md
+│   │   ├── platform
+│   │   ├── projects
+│   │   ├── creative-assets
+│   │   ├── story-creation
+│   │   ├── production
+│   │   └── content-management
 │   ├── frontend-specs
 │   │   └── README.md
 │   └── backend-specs
@@ -59,7 +65,7 @@ docs
 
 ## 第一阶段模块 PRD
 
-模块 PRD 用于在进入详细设计和实现前，单独描述某个功能的产品目标、范围、流程、数据对象和验收标准。
+模块 PRD 用于在进入详细设计和实现前，单独描述某个功能的产品目标、范围、流程、数据对象和验收标准。第一期模块按平台配置、项目管理、创作资产、故事创作、短剧制作和内容管理六个业务域组织。
 
 - [第一期模块 PRD 索引](./phase-1/module-prds/README.md)
 
@@ -84,6 +90,7 @@ docs
 └── phase-n
     ├── prd.md
     ├── module-prds
+    │   └── <domain>
     ├── backend-specs
     └── frontend-specs
 ```

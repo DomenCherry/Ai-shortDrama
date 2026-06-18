@@ -258,5 +258,5 @@
 
 ## 6. 关联文档
 
-- 模块 PRD：[module-prds/model-api-settings.md](../module-prds/model-api-settings.md)
+- 模块 PRD：[module-prds/platform/model-api-settings.md](../module-prds/platform/model-api-settings.md)
 - 后端接口 Spec：[backend-specs/model-api-settings.md](../backend-specs/model-api-settings.md)
