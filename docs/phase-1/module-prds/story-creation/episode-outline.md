@@ -197,4 +197,4 @@ AI 创作控制台应支持：
 - [整体故事大纲](./story-outline.md)
 - [选题策划](./topic-planning.md)
 - [人物设定](./character-design.md)
-- [单集剧本](../production/episode-script.md)
+- [结构化剧本](../production/structured-script.md)

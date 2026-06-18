@@ -16,8 +16,12 @@
 | 故事创作 | 整体故事大纲 | [story-outline.md](./story-creation/story-outline.md) | 已实现 | AI 生成故事骨架 |
 | 故事创作 | 人物设定 | [character-design.md](./story-creation/character-design.md) | 薄占位 | AI 生成人物体系 |
 | 故事创作 | 分集大纲 | [episode-outline.md](./story-creation/episode-outline.md) | 已实现 | AI 生成分集结构和单集故事正文 |
+| 短剧制作 | 外部 AI 视频工具制作包总览 | [external-ai-production-package.md](./production/external-ai-production-package.md) | 模块边界已确认 | 单集制作流程、统一状态与跨模块规则 |
 | 短剧制作 | 人物示意图 | [character-image.md](./production/character-image.md) | 薄占位 | AI 生成角色视觉参考 |
-| 短剧制作 | 单集剧本 | [episode-script.md](./production/episode-script.md) | 薄占位 | AI 生成剧本与改写 |
+| 短剧制作 | 结构化剧本 | [structured-script.md](./production/structured-script.md) | 详细设计中 | 场次、剧本内容块、生成与改写 |
+| 短剧制作 | 分镜制作 | [storyboard-production.md](./production/storyboard-production.md) | 待细化 | 镜头拆分、提示词与 Seedance 适配 |
+| 短剧制作 | 后期准备 | [post-production-prep.md](./production/post-production-prep.md) | 待细化 | 配音、字幕、声音与剪辑准备 |
+| 短剧制作 | 制作包导出 | [production-package-export.md](./production/production-package-export.md) | 待细化 | 校验、版本、标准化文件与导出 |
 | 内容管理 | 内容编辑 | [content-editing.md](./content-management/content-editing.md) | 薄占位 | 版本控制与编辑管理 |
 | 内容管理 | Markdown 导出 | [markdown-export.md](./content-management/markdown-export.md) | 薄占位 | 项目内容导出 |
 
@@ -43,7 +47,7 @@
         │           │
         │           └── 分集大纲
         │                 │
-        │                 └── 单集剧本
+        │                 └── 结构化剧本 -> 分镜制作 -> 后期准备 -> 制作包导出
         │
         ├── 内容编辑与版本控制
         │

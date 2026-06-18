@@ -327,7 +327,7 @@ AI 生成完整分集结构，并提供单集故事正文创作工作台，用�
 
 ### 9.10 单集剧本（未实现）
 
-AI 基于单集故事正文生成短剧脚本并支持改写。占位规格见 [单集剧本](./module-prds/production/episode-script.md)。
+AI 基于单集故事正文生成短剧脚本并支持改写。详细规格见 [结构化剧本](./module-prds/production/structured-script.md)。
 
 ### 9.11 内容编辑（未实现）
 
