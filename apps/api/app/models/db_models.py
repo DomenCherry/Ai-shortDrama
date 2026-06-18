@@ -301,6 +301,34 @@ class ProjectEpisodeContent(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class EpisodeContentGenerationVersion(Base):
+    """单集正文 AI 生成候选版本，采用前不覆盖正式正文。"""
+    __tablename__ = "episode_content_generation_versions"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "episode_no",
+            "client_request_id",
+            name="uq_episode_content_generations_request",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    instruction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    input_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
+    output_text: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="candidate", index=True)
+    client_request_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    model_config_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    model_name: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    elapsed_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    adopted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class ProjectEpisodeScript(Base):
     """项目单集剧本表，保存场景、对白和动作提示。"""
     __tablename__ = "project_episode_scripts"

@@ -229,7 +229,7 @@ export function characterSnapshotToForm(snapshot: ProjectCharacterSnapshot): Cha
     catchphrases: snapshotField(content, "catchphrases"),
     emotional_arc: snapshotField(content, "emotional_arc"),
     story_function: snapshotField(content, "story_function"),
-    image_keywords: snapshotField(content, "image_keywords"),
+    image_keywords: localizeCharacterImageKeywords(snapshotField(content, "image_keywords")),
     snapshot_content: snapshot.snapshot_content,
     visual_description: snapshot.visual_description || snapshotField(content, "visual_description"),
     reference_image_url: snapshot.reference_image_url || "",
@@ -511,6 +511,52 @@ export function characterSnapshotSummary(snapshot: ProjectCharacterSnapshot) {
     return content.goal;
   }
   return "已加载到项目的角色副本。";
+}
+
+export function characterSnapshotImageUrl(snapshot: ProjectCharacterSnapshot) {
+  if (snapshot.reference_image_url?.trim()) return snapshot.reference_image_url;
+  return snapshotField(parseSnapshot(snapshot.snapshot_content), "turnaround_image_url");
+}
+
+function localizeCharacterImageKeywords(value: string) {
+  const glossary: Record<string, string> = {
+    "European medieval knight": "欧洲中世纪骑士",
+    "dark green cloak": "深绿色斗篷",
+    "leather armor": "皮甲",
+    chainmail: "锁子甲",
+    "grounded realism": "写实质感",
+    "medieval herbalist": "中世纪草药师",
+    "auburn braid": "红褐色长辫",
+    "dark blue gown": "深蓝长袍",
+    "leather satchel": "皮革挎包",
+    "court intrigue": "宫廷权谋氛围",
+    "Chinese primordial casual fantasy": "中国洪荒休闲奇幻",
+    "mountain spirit": "山灵",
+    "celadon robe": "青瓷色长袍",
+    "gourd flask": "葫芦酒壶",
+    "relaxed cultivator": "松弛感修行者",
+    "Chinese fantasy innkeeper": "中国奇幻客栈掌柜",
+    "peach blossom spirit": "桃花灵",
+    "peach hanfu": "桃色汉服",
+    "lively warm expression": "活泼温暖的神情",
+    "casual myth": "轻松神话风格",
+    "modern urban doctor": "现代都市医生",
+    "East Asian male": "东亚男性",
+    "charcoal bomber jacket": "炭灰色飞行夹克",
+    "hospital ID": "医院工牌",
+    "realistic wardrobe": "写实服装",
+    "modern investigative journalist": "现代调查记者",
+    "East Asian female": "东亚女性",
+    "beige trench coat": "米色风衣",
+    "canvas bag": "帆布包",
+    "realistic urban style": "写实都市风格"
+  };
+
+  return value
+    .split(",")
+    .map((keyword) => glossary[keyword.trim()] || keyword.trim())
+    .filter(Boolean)
+    .join("、");
 }
 
 export function parseSnapshot(content: string): Record<string, unknown> | null {

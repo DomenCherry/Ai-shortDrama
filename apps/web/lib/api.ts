@@ -240,6 +240,31 @@ export type ProjectEpisodeContent = ProjectEpisodeContentPayload & {
   updated_at: string;
 };
 
+export type EpisodeContentGenerationStatus = "candidate" | "adopted" | "discarded";
+
+export type EpisodeContentGeneration = {
+  id: string;
+  project_id: string;
+  episode_no: number;
+  instruction?: string;
+  input_snapshot: Record<string, unknown>;
+  output_text: string;
+  word_count: number;
+  status: EpisodeContentGenerationStatus;
+  client_request_id: string;
+  model_config_id?: string;
+  model_name?: string;
+  elapsed_ms?: number;
+  created_at: string;
+  updated_at: string;
+  adopted_at?: string;
+};
+
+export type EpisodeContentGenerationAdoptResult = {
+  generation: EpisodeContentGeneration;
+  content: ProjectEpisodeContent;
+};
+
 export type ProjectEpisodeScriptPayload = {
   scene_text?: string;
   dialogue?: string;
@@ -641,6 +666,55 @@ export function updateProjectEpisodeContent(projectId: string, episodeNo: number
     method: "PUT",
     body: JSON.stringify(payload)
   });
+}
+
+export function generateProjectEpisodeContent(
+  projectId: string,
+  episodeNo: number,
+  payload: { instruction?: string; client_request_id: string }
+) {
+  return request<EpisodeContentGeneration>(`/api/projects/${projectId}/episode-contents/${episodeNo}/generations`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function listProjectEpisodeContentGenerations(projectId: string, episodeNo: number) {
+  return request<EpisodeContentGeneration[]>(`/api/projects/${projectId}/episode-contents/${episodeNo}/generations`);
+}
+
+export function updateProjectEpisodeContentGeneration(
+  projectId: string,
+  episodeNo: number,
+  generationId: string,
+  outputText: string
+) {
+  return request<EpisodeContentGeneration>(
+    `/api/projects/${projectId}/episode-contents/${episodeNo}/generations/${generationId}`,
+    { method: "PUT", body: JSON.stringify({ output_text: outputText }) }
+  );
+}
+
+export function adoptProjectEpisodeContentGeneration(
+  projectId: string,
+  episodeNo: number,
+  generationId: string
+) {
+  return request<EpisodeContentGenerationAdoptResult>(
+    `/api/projects/${projectId}/episode-contents/${episodeNo}/generations/${generationId}/adopt`,
+    { method: "POST" }
+  );
+}
+
+export function discardProjectEpisodeContentGeneration(
+  projectId: string,
+  episodeNo: number,
+  generationId: string
+) {
+  return request<EpisodeContentGeneration>(
+    `/api/projects/${projectId}/episode-contents/${episodeNo}/generations/${generationId}/discard`,
+    { method: "POST" }
+  );
 }
 
 export function getProjectEpisodeScript(projectId: string, episodeNo: number) {

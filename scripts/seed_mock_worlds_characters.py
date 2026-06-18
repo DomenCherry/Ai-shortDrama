@@ -146,7 +146,7 @@ CHARACTERS = [
         "emotional_arc": "从只相信军令，到学会相信同伴和自己的判断。",
         "story_function": "行动线主角、秘密护送者、权谋漩涡中的道德锚点。",
         "visual_description": "二十七八岁，短深金发，轻胡茬，皮革与链甲混合护甲，深绿披风，常年风霜感。",
-        "image_keywords": "European medieval knight, dark green cloak, leather armor, chainmail, grounded realism",
+        "image_keywords": "欧洲中世纪骑士、深绿色斗篷、皮甲、锁子甲、写实质感",
         "filename": "europe-medieval-male-knight.png",
     },
     {
@@ -168,7 +168,7 @@ CHARACTERS = [
         "emotional_arc": "从谨慎旁观者成长为主动揭露真相的人。",
         "story_function": "情报线主角、医学与档案知识提供者。",
         "visual_description": "二十五六岁，红褐色长辫，深蓝羊毛外袍，皮革草药包，气质沉静敏锐。",
-        "image_keywords": "medieval herbalist, auburn braid, dark blue gown, leather satchel, court intrigue",
+        "image_keywords": "中世纪草药师、红褐色长辫、深蓝长袍、皮革挎包、宫廷权谋氛围",
         "filename": "europe-medieval-female-herbalist.png",
     },
     {
@@ -190,7 +190,7 @@ CHARACTERS = [
         "emotional_arc": "从旁观人间，到愿意为别人承担因果。",
         "story_function": "轻喜剧男主、法术解决问题与制造问题的来源。",
         "visual_description": "二十岁出头外貌，黑色长发松束，青灰与白色休闲汉服，腰间挂葫芦，气质清爽松弛。",
-        "image_keywords": "Chinese primordial casual fantasy, mountain spirit, celadon robe, gourd flask, relaxed cultivator",
+        "image_keywords": "中国洪荒休闲奇幻、山灵、青瓷色长袍、葫芦酒壶、松弛感修行者",
         "filename": "honghuang-casual-male-spirit.png",
     },
     {
@@ -212,7 +212,7 @@ CHARACTERS = [
         "emotional_arc": "从守着小客栈，到敢于保护更大的云梦集。",
         "story_function": "日常据点核心、女主、信息与情感连接者。",
         "visual_description": "二十岁出头外貌，黑色长发配桃花发饰，桃色与青绿色休闲汉服，笑容明亮。",
-        "image_keywords": "Chinese fantasy innkeeper, peach blossom spirit, peach hanfu, lively warm expression, casual myth",
+        "image_keywords": "中国奇幻客栈掌柜、桃花灵、桃色汉服、活泼温暖的神情、轻松神话风格",
         "filename": "honghuang-casual-female-innkeeper.png",
     },
     {
@@ -234,7 +234,7 @@ CHARACTERS = [
         "emotional_arc": "从封闭自保，到愿意公开面对伤口和真相。",
         "story_function": "医疗线男主、现实伦理冲突承载者。",
         "visual_description": "三十岁出头，黑色短发，白衬衫配深色夹克，胸前医院工牌，气质冷静专业。",
-        "image_keywords": "modern urban doctor, East Asian male, charcoal bomber jacket, hospital ID, realistic wardrobe",
+        "image_keywords": "现代都市医生、东亚男性、炭灰色飞行夹克、医院工牌、写实服装",
         "filename": "modern-urban-male-doctor.png",
     },
     {
@@ -256,7 +256,7 @@ CHARACTERS = [
         "emotional_arc": "从只相信证据，到理解真相也需要被人承受。",
         "story_function": "媒体线女主、调查推进者、都市公共议题连接者。",
         "visual_description": "二十七八岁，齐肩黑发，米色风衣、黑色高领、牛仔裤和帆布斜挎包，观察感强。",
-        "image_keywords": "modern investigative journalist, East Asian female, beige trench coat, canvas bag, realistic urban style",
+        "image_keywords": "现代调查记者、东亚女性、米色风衣、帆布包、写实都市风格",
         "filename": "modern-urban-female-journalist.png",
     },
 ]

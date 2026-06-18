@@ -1,6 +1,6 @@
 import type { ProjectArtifactStatus, WorldEntryStatus, WorldEntryType } from "@/lib/api";
 
-export type Stage = "settings" | "assets" | "story" | "episodes" | "content" | "script" | "storyboard";
+export type Stage = "settings" | "world" | "characters" | "story" | "episodes" | "content" | "script" | "storyboard";
 export type WorkspaceGroupKey = "projectAssets" | "storyText" | "production";
 export type WorkspaceMode = "landing" | WorkspaceGroupKey;
 export type ReferenceTab = "settings" | "characters" | "style" | "inspiration";
@@ -146,7 +146,8 @@ export const workspaceGroups: Array<{
     defaultStage: "settings",
     stages: [
       { key: "settings", label: "基础信息" },
-      { key: "assets", label: "世界观与角色" }
+      { key: "world", label: "世界观" },
+      { key: "characters", label: "角色" }
     ]
   },
   {

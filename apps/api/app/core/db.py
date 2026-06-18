@@ -31,6 +31,7 @@ def initialize_database() -> None:
     """按当前模型创建缺失的数据表，主要服务本地开发启动。"""
     from app.models.db_models import (  # noqa: F401
         CharacterCard,
+        EpisodeContentGenerationVersion,
         ModelApiConfig,
         ModelApiTestLog,
         Project,

@@ -84,20 +84,46 @@ export function WorkbenchHeader({ workbench }: { workbench: ProjectWorkbenchStat
         >
           {workbench.visibleStages.map((stage) => (
             <Button
+              aria-current={workbench.activeStage === stage.key ? "page" : undefined}
               className={`module-subnav-tab ${workbench.activeStage === stage.key ? "active" : ""}`}
               type="button"
               variant="ghost"
               key={stage.key}
               onClick={() => workbench.setActiveStage(stage.key)}
             >
-              {stage.label}
+              <span>{stage.label}</span>
+              {workbench.currentWorkspaceGroup?.key === "projectAssets" && stage.key === "world" ? (
+                <span className="module-stage-count">{workbench.worldSnapshots.length}/1</span>
+              ) : null}
+              {workbench.currentWorkspaceGroup?.key === "projectAssets" && stage.key === "characters" ? (
+                <span className="module-stage-count">{workbench.characterSnapshots.length}</span>
+              ) : null}
             </Button>
           ))}
         </nav>
         {moduleFunctionActions.length > 0 ? (
           <div className="module-function-strip" aria-label="AI 功能入口">
             {moduleFunctionActions.map((action) => (
-              <Button className="module-ai-action" type="button" variant="ghost" key={action} onClick={() => workbench.showAiPlaceholder(action)}>
+              <Button
+                className="module-ai-action"
+                type="button"
+                variant="ghost"
+                key={action}
+                disabled={
+                  action === "正文创作" &&
+                  (!workbench.canGenerateEpisodeContent || workbench.isGeneratingContent)
+                }
+                title={
+                  action === "正文创作" && !workbench.canGenerateEpisodeContent
+                    ? "请先完善并保存本集分集大纲"
+                    : undefined
+                }
+                onClick={() =>
+                  action === "正文创作"
+                    ? workbench.openEpisodeContentCreator()
+                    : workbench.showAiPlaceholder(action)
+                }
+              >
                 {action}
               </Button>
             ))}

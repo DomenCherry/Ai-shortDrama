@@ -2,10 +2,13 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
+  adoptProjectEpisodeContentGeneration,
   createProjectStoryboardShot,
   deleteProjectCharacterSnapshot,
   deleteProjectStoryboardShot,
   deleteProjectWorldSnapshot,
+  discardProjectEpisodeContentGeneration,
+  generateProjectEpisodeContent,
   getProject,
   getProjectCopywriting,
   getProjectEpisodeContent,
@@ -14,6 +17,7 @@ import {
   listCharacterCards,
   listProjectCharacterSnapshots,
   listProjectEpisodeOutlines,
+  listProjectEpisodeContentGenerations,
   listProjectStoryboardShots,
   listProjectWorldSnapshots,
   listWorldBooks,
@@ -23,6 +27,7 @@ import {
   updateProjectCharacterSnapshot,
   updateProjectCopywriting,
   updateProjectEpisodeContent,
+  updateProjectEpisodeContentGeneration,
   updateProjectEpisodeOutline,
   updateProjectEpisodeScript,
   updateProjectStoryboardShot,
@@ -31,6 +36,7 @@ import {
 } from "@/lib/api";
 import type {
   CharacterCard,
+  EpisodeContentGeneration,
   ProjectCharacterSnapshot,
   ProjectCopywriting,
   ProjectEpisodeContent,
@@ -114,6 +120,7 @@ export function useProjectWorkbench({
     [isLandingMode, mode]
   );
   const visibleStages = useMemo(() => visibleGroups.flatMap((group) => group.stages), [visibleGroups]);
+  const normalizedRequestedStage = requestedStage === "assets" ? "world" : requestedStage;
   const [project, setProject] = useState<ProjectSummary | null>(null);
   const [activeStage, setActiveStage] = useState<Stage>(() => defaultStageForMode(mode));
   const [selectedEpisodeNo, setSelectedEpisodeNo] = useState(1);
@@ -127,6 +134,12 @@ export function useProjectWorkbench({
   const [episodeScript, setEpisodeScript] = useState<ProjectEpisodeScript | null>(null);
   const [storyboardShots, setStoryboardShots] = useState<ProjectStoryboardShot[]>([]);
   const [copywriting, setCopywriting] = useState<ProjectCopywriting | null>(null);
+  const [episodeContentGenerations, setEpisodeContentGenerations] = useState<EpisodeContentGeneration[]>([]);
+  const [activeContentGenerationId, setActiveContentGenerationId] = useState("");
+  const [contentGenerationInstruction, setContentGenerationInstruction] = useState("");
+  const [contentGenerationDraft, setContentGenerationDraft] = useState("");
+  const [contentEditorMode, setContentEditorMode] = useState<"current" | "candidate">("current");
+  const [showContentCreator, setShowContentCreator] = useState(false);
 
   const [projectForm, setProjectForm] = useState<ProjectForm>(emptyProjectForm);
   const [storyForm, setStoryForm] = useState<StoryOutlineForm>(emptyStoryForm);
@@ -149,6 +162,9 @@ export function useProjectWorkbench({
   const [isLoadingAssets, setIsLoadingAssets] = useState(false);
   const [isLoadingEpisodeArtifacts, setIsLoadingEpisodeArtifacts] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const [isSavingContentGeneration, setIsSavingContentGeneration] = useState(false);
+  const [isAdoptingContentGeneration, setIsAdoptingContentGeneration] = useState(false);
   const [savingSnapshotId, setSavingSnapshotId] = useState("");
   const [removingSnapshotId, setRemovingSnapshotId] = useState("");
   const [removingShotId, setRemovingShotId] = useState("");
@@ -189,6 +205,19 @@ export function useProjectWorkbench({
     () => episodeOutlines.find((outline) => outline.episode_no === selectedEpisodeNo) ?? null,
     [episodeOutlines, selectedEpisodeNo]
   );
+  const activeContentGeneration = useMemo(
+    () => episodeContentGenerations.find((item) => item.id === activeContentGenerationId) ?? null,
+    [activeContentGenerationId, episodeContentGenerations]
+  );
+  const canGenerateEpisodeContent = Boolean(
+    selectedEpisodeOutline &&
+      (selectedEpisodeOutline.title ||
+        selectedEpisodeOutline.synopsis ||
+        selectedEpisodeOutline.hook ||
+        selectedEpisodeOutline.conflict ||
+        selectedEpisodeOutline.reversal ||
+        selectedEpisodeOutline.cliffhanger)
+  );
   const activeWorkspaceGroup =
     workspaceGroups.find((group) => group.stages.some((stage) => stage.key === activeStage)) ?? workspaceGroups[0];
   const currentWorkspaceGroup = isLandingMode ? null : workspaceGroups.find((group) => group.key === mode) ?? activeWorkspaceGroup;
@@ -211,14 +240,14 @@ export function useProjectWorkbench({
   }, [projectId]);
 
   useEffect(() => {
-    if (requestedStage && visibleStages.some((stage) => stage.key === requestedStage)) {
-      setActiveStage(requestedStage as Stage);
+    if (normalizedRequestedStage && visibleStages.some((stage) => stage.key === normalizedRequestedStage)) {
+      setActiveStage(normalizedRequestedStage as Stage);
       return;
     }
     if (!visibleStages.some((stage) => stage.key === activeStage)) {
       setActiveStage(defaultStageForMode(mode));
     }
-  }, [activeStage, mode, requestedStage, visibleStages]);
+  }, [activeStage, mode, normalizedRequestedStage, visibleStages]);
 
   useEffect(() => {
     if (!project) return;
@@ -291,18 +320,26 @@ export function useProjectWorkbench({
     setIsLoadingEpisodeArtifacts(true);
     setArtifactError("");
     try {
-      const [content, previousContent, script, shots, copy] = await Promise.all([
+      const [content, previousContent, script, shots, copy, generations] = await Promise.all([
         getProjectEpisodeContent(projectId, episodeNo),
         episodeNo > 1 ? getProjectEpisodeContent(projectId, episodeNo - 1) : Promise.resolve(null),
         getProjectEpisodeScript(projectId, episodeNo),
         listProjectStoryboardShots(projectId, episodeNo),
-        getProjectCopywriting(projectId, episodeNo)
+        getProjectCopywriting(projectId, episodeNo),
+        listProjectEpisodeContentGenerations(projectId, episodeNo)
       ]);
       setEpisodeContent(content);
       setPreviousEpisodeContent(previousContent);
       setEpisodeScript(script);
       setStoryboardShots(shots);
       setCopywriting(copy);
+      setEpisodeContentGenerations(generations);
+      const recoverableCandidate = generations.find((item) => item.status === "candidate") ?? null;
+      setActiveContentGenerationId(recoverableCandidate?.id ?? "");
+      setContentGenerationDraft(recoverableCandidate?.output_text ?? "");
+      setContentGenerationInstruction(recoverableCandidate?.instruction ?? "");
+      setContentEditorMode(recoverableCandidate ? "candidate" : "current");
+      setShowContentCreator(Boolean(recoverableCandidate));
       setContentForm(episodeContentToForm(content));
       setScriptForm(episodeScriptToForm(script));
       setCopyForm(copywritingToForm(copy));
@@ -423,6 +460,135 @@ export function useProjectWorkbench({
       setArtifactError(err instanceof Error ? err.message : "单集故事正文保存失败");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const createContentGenerationRequestId = () => {
+    if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+    return `episode-content-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  };
+
+  const openEpisodeContentCreator = () => {
+    setArtifactError("");
+    if (!canGenerateEpisodeContent) {
+      setStatus("");
+      setArtifactError("请先完善并保存本集分集大纲，再生成正文。");
+      return;
+    }
+    setShowContentCreator(true);
+  };
+
+  const generateEpisodeContentCandidate = async () => {
+    if (!canGenerateEpisodeContent || isGeneratingContent) return;
+    setIsGeneratingContent(true);
+    setArtifactError("");
+    setStatus("");
+    try {
+      const generated = await generateProjectEpisodeContent(projectId, selectedEpisodeNo, {
+        instruction: toOptional(contentGenerationInstruction),
+        client_request_id: createContentGenerationRequestId()
+      });
+      setEpisodeContentGenerations((current) => [generated, ...current.filter((item) => item.id !== generated.id)].slice(0, 10));
+      setActiveContentGenerationId(generated.id);
+      setContentGenerationDraft(generated.output_text);
+      setContentEditorMode("candidate");
+      setShowContentCreator(true);
+      setStatus(`第 ${selectedEpisodeNo} 集候选稿已生成，采用前不会覆盖当前正文。`);
+    } catch (err) {
+      setArtifactError(err instanceof Error ? err.message : "正文候选稿生成失败，请稍后重试");
+    } finally {
+      setIsGeneratingContent(false);
+    }
+  };
+
+  const selectContentGeneration = (generationId: string) => {
+    const generation = episodeContentGenerations.find((item) => item.id === generationId);
+    if (!generation) return;
+    setActiveContentGenerationId(generation.id);
+    setContentGenerationDraft(generation.output_text);
+    setContentGenerationInstruction(generation.instruction ?? "");
+    setContentEditorMode("candidate");
+    setShowContentCreator(true);
+  };
+
+  const saveContentGenerationDraft = async () => {
+    if (!activeContentGeneration || activeContentGeneration.status !== "candidate") return activeContentGeneration;
+    if (!contentGenerationDraft.trim()) {
+      setArtifactError("候选稿不能为空。");
+      return null;
+    }
+    setIsSavingContentGeneration(true);
+    setArtifactError("");
+    try {
+      const saved = await updateProjectEpisodeContentGeneration(
+        projectId,
+        selectedEpisodeNo,
+        activeContentGeneration.id,
+        contentGenerationDraft
+      );
+      setEpisodeContentGenerations((current) => current.map((item) => (item.id === saved.id ? saved : item)));
+      setContentGenerationDraft(saved.output_text);
+      setStatus("候选稿修改已保存。");
+      return saved;
+    } catch (err) {
+      setArtifactError(err instanceof Error ? err.message : "候选稿保存失败，请稍后重试");
+      return null;
+    } finally {
+      setIsSavingContentGeneration(false);
+    }
+  };
+
+  const adoptContentGeneration = async () => {
+    if (!activeContentGeneration || activeContentGeneration.status !== "candidate") return;
+    setIsAdoptingContentGeneration(true);
+    setArtifactError("");
+    setStatus("");
+    try {
+      let generation = activeContentGeneration;
+      if (contentGenerationDraft.trim() !== activeContentGeneration.output_text) {
+        const saved = await updateProjectEpisodeContentGeneration(
+          projectId,
+          selectedEpisodeNo,
+          activeContentGeneration.id,
+          contentGenerationDraft
+        );
+        generation = saved;
+      }
+      const result = await adoptProjectEpisodeContentGeneration(projectId, selectedEpisodeNo, generation.id);
+      setEpisodeContent(result.content);
+      setContentForm(episodeContentToForm(result.content));
+      setEpisodeContentGenerations((current) =>
+        current.map((item) => {
+          if (item.id === result.generation.id) return result.generation;
+          return item.status === "candidate" ? { ...item, status: "discarded" as const } : item;
+        })
+      );
+      setContentEditorMode("current");
+      setStatus(`第 ${selectedEpisodeNo} 集候选稿已采用；旧摘要和质检备注已清空，请重新填写摘要。`);
+    } catch (err) {
+      setArtifactError(err instanceof Error ? err.message : "候选稿采用失败，请稍后重试");
+    } finally {
+      setIsAdoptingContentGeneration(false);
+    }
+  };
+
+  const discardContentGeneration = async () => {
+    if (!activeContentGeneration || activeContentGeneration.status !== "candidate") return;
+    setArtifactError("");
+    setStatus("");
+    try {
+      const discarded = await discardProjectEpisodeContentGeneration(
+        projectId,
+        selectedEpisodeNo,
+        activeContentGeneration.id
+      );
+      setEpisodeContentGenerations((current) => current.map((item) => (item.id === discarded.id ? discarded : item)));
+      setActiveContentGenerationId("");
+      setContentGenerationDraft("");
+      setContentEditorMode("current");
+      setStatus("候选稿已放弃，正式正文未发生变化。");
+    } catch (err) {
+      setArtifactError(err instanceof Error ? err.message : "候选稿放弃失败，请稍后重试");
     }
   };
 
@@ -805,6 +971,8 @@ export function useProjectWorkbench({
     storyOutline,
     episodeOutlines,
     episodeContent,
+    episodeContentGenerations,
+    activeContentGeneration,
     episodeScript,
     storyboardShots,
     copywriting,
@@ -837,6 +1005,9 @@ export function useProjectWorkbench({
     isLoadingAssets,
     isLoadingEpisodeArtifacts,
     isSaving,
+    isGeneratingContent,
+    isSavingContentGeneration,
+    isAdoptingContentGeneration,
     savingSnapshotId,
     removingSnapshotId,
     removingShotId,
@@ -867,6 +1038,7 @@ export function useProjectWorkbench({
     durationChanged,
     episodeRows,
     selectedEpisodeOutline,
+    canGenerateEpisodeContent,
     activeWorkspaceGroup,
     currentWorkspaceGroup,
     filledEpisodeOutlineCount,
@@ -876,10 +1048,24 @@ export function useProjectWorkbench({
     copywritingStatus,
     contentWordCount,
     previousEpisodeSummary,
+    contentGenerationInstruction,
+    setContentGenerationInstruction,
+    contentGenerationDraft,
+    setContentGenerationDraft,
+    contentEditorMode,
+    setContentEditorMode,
+    showContentCreator,
+    setShowContentCreator,
     saveProject,
     saveStoryOutline,
     saveEpisodeOutline,
     saveEpisodeContent,
+    openEpisodeContentCreator,
+    generateEpisodeContentCandidate,
+    selectContentGeneration,
+    saveContentGenerationDraft,
+    adoptContentGeneration,
+    discardContentGeneration,
     saveEpisodeScript,
     saveShot,
     saveCopywriting,

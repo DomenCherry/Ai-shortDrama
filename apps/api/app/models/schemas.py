@@ -19,6 +19,7 @@ StoryOutlineWriteMode = Literal["preview", "apply"]
 ReferenceStoryApplyMode = Literal["fill_empty", "overwrite"]
 StoryOutlineAssistAction = Literal["start", "reply"]
 StoryOutlineAssistMessageRole = Literal["user", "assistant"]
+EpisodeContentGenerationStatus = Literal["candidate", "adopted", "discarded"]
 
 
 class ModelApiConfigCreate(BaseModel):
@@ -890,6 +891,61 @@ class ProjectEpisodeContentResponse(ProjectEpisodeContentPayload):
     word_count: int
     created_at: str
     updated_at: str
+
+
+class EpisodeContentGenerationCreate(BaseModel):
+    """创建单集正文候选稿的请求。"""
+    instruction: Optional[str] = None
+    client_request_id: str = Field(min_length=1, max_length=80)
+
+    @field_validator("instruction", "client_request_id", mode="before")
+    @classmethod
+    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+
+class EpisodeContentGenerationUpdate(BaseModel):
+    """保存用户对候选稿的编辑。"""
+    output_text: str = Field(min_length=1)
+
+    @field_validator("output_text", mode="before")
+    @classmethod
+    def normalize_output(cls, value: str) -> str:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped:
+                return stripped
+        raise ValueError("候选稿不能为空")
+
+
+class EpisodeContentGenerationResponse(BaseModel):
+    """单集正文候选版本响应。"""
+    id: str
+    project_id: str
+    episode_no: int
+    instruction: Optional[str]
+    input_snapshot: dict
+    output_text: str
+    word_count: int
+    status: EpisodeContentGenerationStatus
+    client_request_id: str
+    model_config_id: Optional[str]
+    model_name: Optional[str]
+    elapsed_ms: Optional[int]
+    created_at: str
+    updated_at: str
+    adopted_at: Optional[str]
+
+
+class EpisodeContentGenerationAdoptResponse(BaseModel):
+    """采用候选稿后的版本与正式正文。"""
+    generation: EpisodeContentGenerationResponse
+    content: ProjectEpisodeContentResponse
 
 
 class ProjectEpisodeScriptPayload(ProjectArtifactBase):

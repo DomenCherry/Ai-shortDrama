@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SimpleSelect } from "@/components/ui/simple-select";
+import { resolveAssetUrl } from "@/lib/api";
 import type { WorldEntryStatus, WorldEntryType } from "@/lib/api";
 import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import {
+  characterSnapshotImageUrl,
   characterSnapshotSummary,
   formatNumber,
   setCharacterSnapshotFormValue,
@@ -19,7 +21,6 @@ import {
 } from "../_utils/workbenchForms";
 import { AssetDrawer, AssetSection, NumberInput, TextArea, TextInput } from "./shared";
 
-type AssetTab = "world" | "characters";
 const worldEntryTypes: WorldEntryType[] = ["世界规则", "地点", "组织", "阶层关系", "历史事件", "特殊物品", "禁忌或限制", "风格约束", "其他"];
 const worldEntryStatusOptions: Array<{ label: string; value: WorldEntryStatus }> = [
   { label: "启用", value: "active" },
@@ -33,7 +34,10 @@ export function ProjectAssetsModule({ workbench }: { workbench: ProjectWorkbench
   return (
     <>
       {workbench.activeStage === "settings" ? <ProjectSettingsPanel workbench={workbench} /> : null}
-      {workbench.activeStage === "assets" ? <ProjectAssetPanel workbench={workbench} /> : null}
+      {workbench.activeStage === "world" ? <WorldSnapshotSection workbench={workbench} /> : null}
+      {workbench.activeStage === "characters" ? <CharacterSnapshotSection workbench={workbench} /> : null}
+      <WorldPickerDrawer workbench={workbench} />
+      <CharacterPickerDrawer workbench={workbench} />
     </>
   );
 }
@@ -75,58 +79,6 @@ function ProjectSettingsPanel({ workbench }: { workbench: ProjectWorkbenchState 
         </Button>
       </div>
     </form>
-  );
-}
-
-function ProjectAssetPanel({ workbench }: { workbench: ProjectWorkbenchState }) {
-  const [activeAssetTab, setActiveAssetTab] = useState<AssetTab>("world");
-  const tabs: Array<{ key: AssetTab; label: string; count: number }> = [
-    { key: "world", label: "项目世界观", count: workbench.worldSnapshots.length },
-    { key: "characters", label: "项目角色", count: workbench.characterSnapshots.length }
-  ];
-
-  return (
-    <>
-      <div className="asset-tab-shell">
-        <div className="asset-tab-nav module-subnav" role="tablist" aria-label="项目资产编辑分类">
-          {tabs.map((tab) => (
-            <button
-              aria-controls={`asset-tab-panel-${tab.key}`}
-              aria-selected={activeAssetTab === tab.key}
-              className={`module-subnav-tab asset-tab-button ${activeAssetTab === tab.key ? "active" : ""}`}
-              id={`asset-tab-${tab.key}`}
-              key={tab.key}
-              role="tab"
-              type="button"
-              onClick={() => setActiveAssetTab(tab.key)}
-            >
-              <span>{tab.label}</span>
-              <span className="asset-tab-count">{tab.count}</span>
-            </button>
-          ))}
-        </div>
-        <div
-          aria-labelledby="asset-tab-world"
-          className="asset-tab-panel"
-          hidden={activeAssetTab !== "world"}
-          id="asset-tab-panel-world"
-          role="tabpanel"
-        >
-          <WorldSnapshotSection workbench={workbench} />
-        </div>
-        <div
-          aria-labelledby="asset-tab-characters"
-          className="asset-tab-panel"
-          hidden={activeAssetTab !== "characters"}
-          id="asset-tab-panel-characters"
-          role="tabpanel"
-        >
-          <CharacterSnapshotSection workbench={workbench} />
-        </div>
-      </div>
-      <WorldPickerDrawer workbench={workbench} />
-      <CharacterPickerDrawer workbench={workbench} />
-    </>
   );
 }
 
@@ -282,16 +234,30 @@ function CharacterSnapshotSection({ workbench }: { workbench: ProjectWorkbenchSt
     >
       {workbench.characterSnapshots.map((snapshot) => (
         <article className="asset-card" key={snapshot.id}>
-          <div className="asset-card-main">
-            <div className="asset-card-title">
-              <strong>{snapshot.name}</strong>
-              <Badge className="status-badge status-active">已加载 v{snapshot.source_version}</Badge>
+          <div className="character-asset-overview">
+            <CharacterImage
+              url={characterSnapshotImageUrl(snapshot)}
+              alt={`${snapshot.name}的参考图`}
+              className="character-asset-image"
+            />
+            <div className="asset-card-main">
+              <div className="asset-card-title">
+                <strong>{snapshot.name}</strong>
+                <Badge className="status-badge status-active">已加载 v{snapshot.source_version}</Badge>
+              </div>
+              <dl className="character-field-list">
+                <div>
+                  <dt>性别</dt>
+                  <dd>{characterValueLabel(snapshot.gender)}</dd>
+                </div>
+                <div>
+                  <dt>人物原型</dt>
+                  <dd>{characterValueLabel(snapshot.role_type)}</dd>
+                </div>
+              </dl>
+              <p>{snapshot.visual_description || characterSnapshotSummary(snapshot)}</p>
+              <p className="hint">加载时间：{new Date(snapshot.loaded_at).toLocaleString("zh-CN")}</p>
             </div>
-            <div className="hint">
-              {snapshot.gender} · {snapshot.role_type}
-            </div>
-            <p>{snapshot.visual_description || characterSnapshotSummary(snapshot)}</p>
-            <p className="hint">加载时间：{new Date(snapshot.loaded_at).toLocaleString()}</p>
           </div>
           <div className="asset-card-actions">
             <Button variant="secondary" type="button" onClick={() => workbench.startEditingCharacterSnapshot(snapshot)}>
@@ -336,9 +302,16 @@ function CharacterSnapshotSection({ workbench }: { workbench: ProjectWorkbenchSt
                 <TextArea label="情绪弧光" value={workbench.characterSnapshotForm.emotional_arc} onChange={(value) => setCharacterSnapshotFormValue("emotional_arc", value, workbench.setCharacterSnapshotForm)} />
                 <TextArea label="故事功能" value={workbench.characterSnapshotForm.story_function} onChange={(value) => setCharacterSnapshotFormValue("story_function", value, workbench.setCharacterSnapshotForm)} />
                 <TextArea label="项目内视觉描述" value={workbench.characterSnapshotForm.visual_description} onChange={(value) => setCharacterSnapshotFormValue("visual_description", value, workbench.setCharacterSnapshotForm)} />
-                <TextArea label="形象关键词" value={workbench.characterSnapshotForm.image_keywords} onChange={(value) => setCharacterSnapshotFormValue("image_keywords", value, workbench.setCharacterSnapshotForm)} />
-                <TextInput label="参考图 URL" value={workbench.characterSnapshotForm.reference_image_url} onChange={(value) => setCharacterSnapshotFormValue("reference_image_url", value, workbench.setCharacterSnapshotForm)} />
-                <TextInput label="参考图本地路径" value={workbench.characterSnapshotForm.reference_local_path} onChange={(value) => setCharacterSnapshotFormValue("reference_local_path", value, workbench.setCharacterSnapshotForm)} />
+                <TextArea label="形象提示词（可中英文）" value={workbench.characterSnapshotForm.image_keywords} onChange={(value) => setCharacterSnapshotFormValue("image_keywords", value, workbench.setCharacterSnapshotForm)} />
+                <div className="character-reference-field">
+                  <span className="character-reference-label">参考图片</span>
+                  <CharacterImage
+                    url={workbench.characterSnapshotForm.reference_image_url}
+                    alt={`${workbench.characterSnapshotForm.name || "角色"}的参考图预览`}
+                    className="character-reference-preview"
+                  />
+                  <TextInput label="图片地址" value={workbench.characterSnapshotForm.reference_image_url} onChange={(value) => setCharacterSnapshotFormValue("reference_image_url", value, workbench.setCharacterSnapshotForm)} />
+                </div>
               </div>
               <div className="actions">
                 <Button variant="secondary" type="button" onClick={workbench.cancelCharacterSnapshotEdit} disabled={workbench.savingSnapshotId === snapshot.id}>
@@ -354,6 +327,38 @@ function CharacterSnapshotSection({ workbench }: { workbench: ProjectWorkbenchSt
       ))}
     </AssetSection>
   );
+}
+
+function CharacterImage({ url, alt, className }: { url?: string; alt: string; className: string }) {
+  const [failedUrl, setFailedUrl] = useState("");
+  const hasImage = Boolean(url?.trim()) && failedUrl !== url;
+
+  return (
+    <div className={className}>
+      {hasImage ? (
+        <img src={resolveAssetUrl(url)} alt={alt} onError={() => setFailedUrl(url || "")} />
+      ) : (
+        <div className="character-image-placeholder" role="img" aria-label={url ? `${alt}加载失败` : `${alt}尚未设置`}>
+          <span aria-hidden="true">图</span>
+          <small>{url ? "图片无法加载" : "暂无参考图"}</small>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function characterValueLabel(value: string) {
+  const labels: Record<string, string> = {
+    male: "男",
+    female: "女",
+    protagonist: "主角",
+    antagonist: "反派",
+    supporting: "配角",
+    mentor: "导师",
+    ally: "盟友",
+    rival: "对手"
+  };
+  return labels[value.trim().toLowerCase()] || value || "未填写";
 }
 
 function WorldPickerDrawer({ workbench }: { workbench: ProjectWorkbenchState }) {

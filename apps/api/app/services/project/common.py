@@ -1,4 +1,5 @@
 """项目通用服务模块，提供序列化、校验、时间和下游内容状态传播能力。"""
+import json
 from datetime import datetime, timezone
 from typing import Any
 
@@ -8,6 +9,7 @@ from app.models.db_models import (
     Project,
     ProjectCharacterSnapshot,
     ProjectCopywriting,
+    EpisodeContentGenerationVersion,
     ProjectEpisodeContent,
     ProjectEpisodeOutline,
     ProjectEpisodeScript,
@@ -138,6 +140,31 @@ def episode_content_to_response(content: ProjectEpisodeContent) -> dict[str, Any
         "status": content.status,
         "created_at": content.created_at.isoformat(),
         "updated_at": content.updated_at.isoformat(),
+    }
+
+
+def episode_content_generation_to_response(generation: EpisodeContentGenerationVersion) -> dict[str, Any]:
+    """将单集正文候选版本转换为 API 响应结构。"""
+    try:
+        input_snapshot = json.loads(generation.input_snapshot)
+    except json.JSONDecodeError:
+        input_snapshot = {}
+    return {
+        "id": generation.id,
+        "project_id": generation.project_id,
+        "episode_no": generation.episode_no,
+        "instruction": generation.instruction,
+        "input_snapshot": input_snapshot if isinstance(input_snapshot, dict) else {},
+        "output_text": generation.output_text,
+        "word_count": count_content_characters(generation.output_text),
+        "status": generation.status,
+        "client_request_id": generation.client_request_id,
+        "model_config_id": generation.model_config_id,
+        "model_name": generation.model_name,
+        "elapsed_ms": generation.elapsed_ms,
+        "created_at": generation.created_at.isoformat(),
+        "updated_at": generation.updated_at.isoformat(),
+        "adopted_at": generation.adopted_at.isoformat() if generation.adopted_at else None,
     }
 
 

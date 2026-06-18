@@ -212,7 +212,7 @@ export function AssetDrawer({
     }}>
       <SheetContent className="w-[min(560px,calc(100vw-32px))] max-w-none gap-0 p-0 sm:max-w-none" showCloseButton={false}>
         <div className="asset-drawer-header">
-          <SheetTitle id="asset-drawer-title">{title}</SheetTitle>
+          <SheetTitle>{title}</SheetTitle>
           <Button variant="secondary" type="button" onClick={onClose}>
             关闭
           </Button>
@@ -223,11 +223,21 @@ export function AssetDrawer({
   );
 }
 
-export function EpisodePicker({ episodeCount, value, onChange }: { episodeCount: number; value: number; onChange: (value: number) => void }) {
+export function EpisodePicker({
+  episodeCount,
+  value,
+  onChange,
+  disabled = false
+}: {
+  episodeCount: number;
+  value: number;
+  onChange: (value: number) => void;
+  disabled?: boolean;
+}) {
   return (
     <div className="field compact-field">
       <label>当前集数</label>
-      <Select value={String(value)} onValueChange={(nextValue) => onChange(Number(nextValue))}>
+      <Select disabled={disabled} value={String(value)} onValueChange={(nextValue) => onChange(Number(nextValue))}>
         <SelectTrigger className="w-full">
           <SelectValue />
         </SelectTrigger>
