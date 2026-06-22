@@ -330,7 +330,7 @@ class EpisodeContentGenerationVersion(Base):
 
 
 class ProjectEpisodeScript(Base):
-    """项目单集剧本表，保存场景、对白和动作提示。"""
+    """项目单集结构化剧本聚合根。"""
     __tablename__ = "project_episode_scripts"
     __table_args__ = (
         UniqueConstraint("project_id", "episode_no", name="uq_project_episode_scripts_project_episode"),
@@ -343,9 +343,121 @@ class ProjectEpisodeScript(Base):
     dialogue: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     action_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     voiceover: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    title: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    source_content_version: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    auto_duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    manual_duration_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    effective_duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
+    confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectScriptScene(Base):
+    """结构化剧本场次，顺序由服务端统一规范化。"""
+    __tablename__ = "project_script_scenes"
+    __table_args__ = (UniqueConstraint("script_id", "sort_order", name="uq_project_script_scenes_order"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    script_id: Mapped[str] = mapped_column(String(64), ForeignKey("project_episode_scripts.id"), nullable=False, index=True)
+    title: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    location: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    time_of_day: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    interior_exterior: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    character_snapshot_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    auto_duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    manual_duration_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    effective_duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    story_purpose: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectScriptBlock(Base):
+    """结构化剧本内容块，按真实叙事顺序保存。"""
+    __tablename__ = "project_script_blocks"
+    __table_args__ = (UniqueConstraint("scene_id", "sort_order", name="uq_project_script_blocks_order"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    scene_id: Mapped[str] = mapped_column(String(64), ForeignKey("project_script_scenes.id"), nullable=False, index=True)
+    block_type: Mapped[str] = mapped_column(String(24), nullable=False)
+    character_snapshot_id: Mapped[Optional[str]] = mapped_column(
+        String(64), ForeignKey("project_character_snapshots.id"), nullable=True, index=True
+    )
+    temporary_speaker_name: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    emotion: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    performance_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectEpisodeScriptVersion(Base):
+    """不可变的结构化剧本正式版本快照。"""
+    __tablename__ = "project_episode_script_versions"
+    __table_args__ = (UniqueConstraint("script_id", "version", name="uq_project_episode_script_versions_number"),)
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    script_id: Mapped[str] = mapped_column(String(64), ForeignKey("project_episode_scripts.id"), nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_content_version: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    snapshot: Mapped[str] = mapped_column(Text, nullable=False)
+    change_source: Mapped[str] = mapped_column(String(32), nullable=False)
+    generation_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectScriptGeneration(Base):
+    """整集、场次或连续内容块改写生成的候选记录。"""
+    __tablename__ = "project_script_generations"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "episode_no", "generation_scope", "client_request_id",
+            name="uq_project_script_generations_request",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    generation_scope: Mapped[str] = mapped_column(String(24), nullable=False, index=True)
+    target_scene_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    target_block_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    rewrite_preset: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    instruction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    base_script_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    base_script_revision: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    input_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
+    output_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="candidate", index=True)
+    client_request_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    model_config_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    model_name: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    elapsed_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    adopted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectScriptCheckRun(Base):
+    """结构化剧本检查结果，绑定具体正式版本与修订号。"""
+    __tablename__ = "project_script_check_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    script_id: Mapped[str] = mapped_column(String(64), ForeignKey("project_episode_scripts.id"), nullable=False, index=True)
+    script_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    script_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    mode: Mapped[str] = mapped_column(String(24), nullable=False)
+    semantic_check_status: Mapped[str] = mapped_column(String(24), nullable=False)
+    issues: Mapped[str] = mapped_column(Text, nullable=False)
+    model_config_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    model_name: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class ProjectStoryboardShot(Base):

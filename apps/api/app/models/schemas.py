@@ -20,6 +20,16 @@ ReferenceStoryApplyMode = Literal["fill_empty", "overwrite"]
 StoryOutlineAssistAction = Literal["start", "reply"]
 StoryOutlineAssistMessageRole = Literal["user", "assistant"]
 EpisodeContentGenerationStatus = Literal["candidate", "adopted", "discarded"]
+ScriptStatus = Literal["draft", "pending_review", "confirmed", "needs_review"]
+ScriptBlockType = Literal["action", "dialogue", "voiceover", "transition"]
+ScriptTimeOfDay = Literal["morning", "day", "dusk", "night", "other"]
+ScriptInteriorExterior = Literal["interior", "exterior", "mixed"]
+ScriptGenerationScope = Literal["episode", "scene", "blocks"]
+ScriptGenerationStatus = Literal["candidate", "adopted", "discarded"]
+ScriptRewritePreset = Literal[
+    "more_satisfying", "more_tragic", "more_suspenseful", "more_colloquial",
+    "short_video_pacing", "compress_duration", "stronger_cliffhanger",
+]
 
 
 class ModelApiConfigCreate(BaseModel):
@@ -948,32 +958,191 @@ class EpisodeContentGenerationAdoptResponse(BaseModel):
     content: ProjectEpisodeContentResponse
 
 
-class ProjectEpisodeScriptPayload(ProjectArtifactBase):
-    """ProjectEpisodeScriptPayload 业务请求体，用于约束接口数据结构。"""
-    scene_text: Optional[str] = None
-    dialogue: Optional[str] = None
-    action_notes: Optional[str] = None
-    voiceover: Optional[str] = None
+class ScriptBlockPayload(BaseModel):
+    id: Optional[str] = None
+    block_type: ScriptBlockType = "action"
+    character_snapshot_id: Optional[str] = None
+    temporary_speaker_name: Optional[str] = Field(default=None, max_length=120)
+    content: Optional[str] = Field(default=None, max_length=10000)
+    emotion: Optional[str] = Field(default=None, max_length=120)
+    performance_note: Optional[str] = Field(default=None, max_length=1000)
 
-    @field_validator("scene_text", "dialogue", "action_notes", "voiceover", mode="before")
+    @field_validator("temporary_speaker_name", "content", "emotion", "performance_note", mode="before")
     @classmethod
-    def normalize_text(cls, value: Optional[str]) -> Optional[str]:
-        """清理单集剧本文字段，避免空白对白或动作说明进入制作阶段。"""
-        if value is None:
-            return None
+    def normalize_text(cls, value):
         if isinstance(value, str):
-            stripped = value.strip()
-            return stripped or None
+            return value.strip() or None
         return value
 
 
-class ProjectEpisodeScriptResponse(ProjectEpisodeScriptPayload):
-    """ProjectEpisodeScriptResponse 响应体，用于约束接口数据结构。"""
+class ScriptScenePayload(BaseModel):
+    id: Optional[str] = None
+    title: Optional[str] = Field(default=None, max_length=120)
+    location: Optional[str] = Field(default=None, max_length=120)
+    time_of_day: Optional[ScriptTimeOfDay] = None
+    interior_exterior: Optional[ScriptInteriorExterior] = None
+    character_snapshot_ids: list[str] = Field(default_factory=list)
+    manual_duration_seconds: Optional[float] = Field(default=None, gt=0, le=3600)
+    story_purpose: Optional[str] = Field(default=None, max_length=1000)
+    blocks: list[ScriptBlockPayload] = Field(default_factory=list, max_length=500)
+
+    @field_validator("title", "location", "story_purpose", mode="before")
+    @classmethod
+    def normalize_text(cls, value):
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
+
+
+class ProjectEpisodeScriptPayload(BaseModel):
+    """原子保存完整结构化剧本聚合。"""
+    revision: Optional[int] = Field(default=None, ge=1)
+    title: Optional[str] = Field(default=None, max_length=120)
+    manual_duration_seconds: Optional[float] = Field(default=None, gt=0, le=3600)
+    scenes: list[ScriptScenePayload] = Field(default_factory=list, max_length=200)
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def normalize_title(cls, value):
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
+
+
+class ScriptBlockResponse(ScriptBlockPayload):
+    id: str
+    scene_id: str
+    sort_order: int
+    created_at: str
+    updated_at: str
+
+
+class ScriptCharacterRef(BaseModel):
+    character_snapshot_id: str
+    name: str
+    updated_at: str
+
+
+class ScriptSceneResponse(ScriptScenePayload):
+    id: str
+    script_id: str
+    scene_no: int
+    character_refs: list[ScriptCharacterRef]
+    auto_duration_seconds: float
+    effective_duration_seconds: float
+    sort_order: int
+    blocks: list[ScriptBlockResponse]
+    created_at: str
+    updated_at: str
+
+
+class ScriptCheckIssue(BaseModel):
+    code: str
+    severity: Literal["error", "warning", "info"]
+    message: str
+    scene_id: Optional[str] = None
+    block_id: Optional[str] = None
+    details: dict = Field(default_factory=dict)
+
+
+class ProjectEpisodeScriptResponse(BaseModel):
     id: str
     project_id: str
     episode_no: int
+    title: Optional[str]
+    revision: int
+    version: int
+    source_content_version: Optional[str]
+    auto_duration_seconds: float
+    manual_duration_seconds: Optional[float]
+    effective_duration_seconds: float
+    target_duration_seconds: float
+    duration_deviation_seconds: float
+    duration_deviation_percent: float
+    status: ScriptStatus
+    confirmed_at: Optional[str]
+    scenes: list[ScriptSceneResponse]
+    validation_issues: list[ScriptCheckIssue]
     created_at: str
     updated_at: str
+
+
+class ScriptGenerationCreate(BaseModel):
+    generation_scope: ScriptGenerationScope
+    target_scene_id: Optional[str] = None
+    target_block_ids: list[str] = Field(default_factory=list)
+    rewrite_preset: Optional[ScriptRewritePreset] = None
+    instruction: Optional[str] = Field(default=None, max_length=2000)
+    client_request_id: str = Field(min_length=1, max_length=80)
+    base_script_version: Optional[int] = None
+    base_script_revision: Optional[int] = None
+
+    @field_validator("instruction", "client_request_id", mode="before")
+    @classmethod
+    def normalize_text(cls, value):
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
+
+
+class ScriptGenerationResponse(BaseModel):
+    id: str
+    project_id: str
+    episode_no: int
+    generation_scope: ScriptGenerationScope
+    target_scene_id: Optional[str]
+    target_block_ids: list[str]
+    rewrite_preset: Optional[ScriptRewritePreset]
+    instruction: Optional[str]
+    base_script_version: Optional[int]
+    base_script_revision: Optional[int]
+    input_snapshot: dict
+    output_snapshot: dict
+    status: ScriptGenerationStatus
+    client_request_id: str
+    model_config_id: Optional[str]
+    model_name: Optional[str]
+    elapsed_ms: Optional[int]
+    adopted_at: Optional[str]
+    created_at: str
+    updated_at: str
+
+
+class ScriptRevisionPayload(BaseModel):
+    revision: Optional[int] = None
+
+
+class ScriptCheckPayload(BaseModel):
+    revision: int = Field(ge=1)
+    mode: Literal["structure", "full"] = "full"
+
+
+class ScriptCheckResponse(BaseModel):
+    id: str
+    script_id: str
+    script_version: int
+    script_revision: int
+    mode: Literal["structure", "full"]
+    semantic_check_status: Literal["not_requested", "succeeded", "failed"]
+    issues: list[ScriptCheckIssue]
+    model_config_id: Optional[str]
+    model_name: Optional[str]
+    created_at: str
+
+
+class ScriptGenerationAdoptResponse(BaseModel):
+    generation: ScriptGenerationResponse
+    script: ProjectEpisodeScriptResponse
+
+
+class ScriptVersionSummary(BaseModel):
+    version: int
+    source_content_version: Optional[str]
+    change_source: str
+    generation_id: Optional[str]
+    duration_seconds: float
+    scene_count: int
+    created_at: str
 
 
 class ProjectStoryboardShotPayload(ProjectArtifactBase):

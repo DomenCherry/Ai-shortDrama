@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import type { ProjectArtifactStatus, ProjectCharacterSnapshot, ProjectEpisodeOutline, ProjectWorldSnapshot } from "@/lib/api";
+import type { ProjectArtifactStatus, ProjectCharacterSnapshot, ProjectEpisodeOutline, ProjectWorldSnapshot, ScriptStatus } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,7 +72,7 @@ export function WorkspaceEntryCard({
   );
 }
 
-export function SectionTitle({ title, status }: { title: string; status: ProjectArtifactStatus }) {
+export function SectionTitle({ title, status }: { title: string; status: ScriptStatus }) {
   return (
     <div className="section-heading">
       <h2>{title}</h2>
@@ -81,7 +81,7 @@ export function SectionTitle({ title, status }: { title: string; status: Project
   );
 }
 
-export function ArtifactStatusBadge({ status }: { status: ProjectArtifactStatus }) {
+export function ArtifactStatusBadge({ status }: { status: ScriptStatus }) {
   return <Badge className={`status-badge ${artifactStatusClass(status)}`}>{artifactStatusLabel(status)}</Badge>;
 }
 

@@ -246,7 +246,6 @@ def mark_project_downstream_for_review(session, project_id: str) -> None:
         ProjectStoryOutline,
         ProjectEpisodeOutline,
         ProjectEpisodeContent,
-        ProjectEpisodeScript,
         ProjectStoryboardShot,
         ProjectCopywriting,
     ):
@@ -255,39 +254,64 @@ def mark_project_downstream_for_review(session, project_id: str) -> None:
             .where(model.project_id == project_id, model.status != "needs_review")
             .values(status="needs_review", updated_at=current_time)
         )
+    _mark_scripts_for_review(session, ProjectEpisodeScript.project_id == project_id, current_time)
 
 
 def mark_story_downstream_for_review(session, project_id: str) -> None:
     """故事大纲变化后，标记分集、正文、剧本和制作内容需要复核。"""
     current_time = now_utc()
-    for model in (ProjectEpisodeOutline, ProjectEpisodeContent, ProjectEpisodeScript, ProjectStoryboardShot, ProjectCopywriting):
+    for model in (ProjectEpisodeOutline, ProjectEpisodeContent, ProjectStoryboardShot, ProjectCopywriting):
         session.execute(
             update(model)
             .where(model.project_id == project_id, model.status != "needs_review")
             .values(status="needs_review", updated_at=current_time)
         )
+    _mark_scripts_for_review(session, ProjectEpisodeScript.project_id == project_id, current_time)
 
 
 def mark_episode_outline_downstream_for_review(session, project_id: str, episode_no: int) -> None:
     """分集大纲变化后，标记对应单集的后续内容需要复核。"""
     current_time = now_utc()
-    for model in (ProjectEpisodeContent, ProjectEpisodeScript, ProjectStoryboardShot, ProjectCopywriting):
+    for model in (ProjectEpisodeContent, ProjectStoryboardShot, ProjectCopywriting):
         session.execute(
             update(model)
             .where(model.project_id == project_id, model.episode_no == episode_no, model.status != "needs_review")
             .values(status="needs_review", updated_at=current_time)
         )
+    _mark_scripts_for_review(
+        session,
+        (ProjectEpisodeScript.project_id == project_id) & (ProjectEpisodeScript.episode_no == episode_no),
+        current_time,
+    )
 
 
 def mark_episode_content_downstream_for_review(session, project_id: str, episode_no: int) -> None:
     """单集正文变化后，标记剧本和制作内容需要复核。"""
     current_time = now_utc()
-    for model in (ProjectEpisodeScript, ProjectStoryboardShot, ProjectCopywriting):
+    for model in (ProjectStoryboardShot, ProjectCopywriting):
         session.execute(
             update(model)
             .where(model.project_id == project_id, model.episode_no == episode_no, model.status != "needs_review")
             .values(status="needs_review", updated_at=current_time)
         )
+    _mark_scripts_for_review(
+        session,
+        (ProjectEpisodeScript.project_id == project_id) & (ProjectEpisodeScript.episode_no == episode_no),
+        current_time,
+    )
+
+
+def _mark_scripts_for_review(session, condition, current_time) -> None:
+    """上游传播到结构化剧本时同步递增修订号，保证并发控制有效。"""
+    session.execute(
+        update(ProjectEpisodeScript)
+        .where(condition, ProjectEpisodeScript.status != "needs_review")
+        .values(
+            status="needs_review",
+            revision=ProjectEpisodeScript.revision + 1,
+            updated_at=current_time,
+        )
+    )
 
 
 def mark_script_downstream_for_review(session, project_id: str, episode_no: int) -> None:

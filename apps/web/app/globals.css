@@ -2253,3 +2253,366 @@ select {
     @apply font-sans;
   }
 }
+
+.structured-script-workbench {
+  display: grid;
+  gap: 12px;
+}
+
+.structured-script-toolbar {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 10px;
+  position: sticky;
+  top: 54px;
+  z-index: 25;
+}
+
+.structured-script-episode,
+.structured-script-duration,
+.structured-script-actions,
+.script-scene-tools,
+.script-scene-footer,
+.inspector-heading {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.structured-script-duration {
+  color: var(--app-muted);
+  margin-right: auto;
+}
+
+.structured-script-duration strong {
+  color: var(--text);
+}
+
+.structured-script-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.structured-script-loading {
+  display: grid;
+  gap: 12px;
+}
+
+.structured-script-layout {
+  align-items: start;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 330px;
+}
+
+.structured-script-editor {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.structured-script-meta,
+.script-scene-fields {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(260px, 1fr) minmax(180px, 240px);
+  padding: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field > label,
+.field-label {
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.structured-script-empty {
+  align-items: center;
+  background: var(--panel);
+  border: 1px dashed #a5b4fc;
+  border-radius: 12px;
+  display: flex;
+  gap: 14px;
+  min-height: 150px;
+  padding: 24px;
+}
+
+.structured-script-empty > svg {
+  color: var(--brand);
+  flex: 0 0 auto;
+  height: 28px;
+  width: 28px;
+}
+
+.structured-script-empty div {
+  margin-right: auto;
+}
+
+.structured-script-empty h3,
+.structured-script-empty p,
+.structured-script-inspector h3,
+.candidate-scenes h3,
+.candidate-scenes h4 {
+  margin: 0;
+}
+
+.structured-script-empty p {
+  color: var(--app-muted);
+  margin-top: 4px;
+}
+
+.script-scene {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.script-scene-header {
+  align-items: center;
+  background: var(--panel-subtle);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto auto minmax(180px, 1fr) auto auto;
+  padding: 8px 10px;
+}
+
+.script-scene-number {
+  color: var(--brand-strong);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.script-scene-body {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.script-scene-fields {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  grid-template-columns: minmax(180px, 1fr) repeat(3, minmax(120px, 0.55fr));
+  padding: 0;
+}
+
+.script-character-picker {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.script-character-picker > label {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.script-block-list {
+  display: grid;
+  gap: 8px;
+}
+
+.script-block {
+  align-items: start;
+  background: #fbfcff;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 72px minmax(0, 1fr) 32px;
+  padding: 9px;
+}
+
+.script-block-dialogue {
+  background: #f8f8ff;
+}
+
+.script-block-voiceover {
+  background: #f3fbfd;
+}
+
+.script-block-transition {
+  background: #f8fafc;
+}
+
+.script-block-leading,
+.script-block-tools {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+}
+
+.script-block-tools {
+  flex-direction: column;
+}
+
+.script-block-content {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.script-block-row {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: minmax(112px, 0.45fr) repeat(2, minmax(140px, 1fr));
+}
+
+.structured-script-inspector {
+  display: grid;
+  gap: 10px;
+  position: sticky;
+  top: 112px;
+}
+
+.structured-script-inspector > section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.inspector-heading {
+  justify-content: space-between;
+}
+
+.script-issue-list,
+.script-generation-list,
+.candidate-scenes,
+.candidate-blocks {
+  display: grid;
+  gap: 8px;
+}
+
+.script-issue {
+  background: var(--panel-subtle);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+}
+
+.script-issue strong {
+  font-size: 12px;
+}
+
+.script-issue-error strong {
+  color: var(--danger);
+}
+
+.script-issue-warning strong {
+  color: var(--warning);
+}
+
+.script-generation-list button {
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  text-align: left;
+}
+
+.script-generation-list button:hover,
+.script-generation-list button:focus-visible {
+  background: var(--panel-subtle);
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.script-generation-list small {
+  color: var(--app-muted);
+}
+
+.structured-script-sheet {
+  width: min(720px, 92vw);
+}
+
+.sheet-form-body,
+.candidate-preview {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 16px 16px;
+}
+
+.sheet-form-body {
+  display: grid;
+  gap: 14px;
+}
+
+.candidate-scenes > section,
+.candidate-blocks > div {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px;
+}
+
+.candidate-scenes section > div,
+.candidate-blocks > div {
+  align-items: start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 56px minmax(0, 1fr);
+  margin-top: 8px;
+}
+
+.candidate-scenes p,
+.candidate-blocks p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 1240px) {
+  .structured-script-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .structured-script-inspector {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    position: static;
+  }
+}
+
+@media (max-width: 1100px) {
+  .script-scene-fields,
+  .script-block-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .structured-script-toolbar {
+    position: static;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .structured-script-workbench *,
+  .structured-script-workbench *::before,
+  .structured-script-workbench *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

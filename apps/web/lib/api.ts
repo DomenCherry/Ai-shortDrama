@@ -265,20 +265,136 @@ export type EpisodeContentGenerationAdoptResult = {
   content: ProjectEpisodeContent;
 };
 
-export type ProjectEpisodeScriptPayload = {
-  scene_text?: string;
-  dialogue?: string;
-  action_notes?: string;
-  voiceover?: string;
-  status: ProjectArtifactStatus;
+export type ScriptStatus = ProjectArtifactStatus | "pending_review";
+export type ScriptBlockType = "action" | "dialogue" | "voiceover" | "transition";
+export type ScriptTimeOfDay = "morning" | "day" | "dusk" | "night" | "other";
+export type ScriptInteriorExterior = "interior" | "exterior" | "mixed";
+
+export type ScriptCheckIssue = {
+  code: string;
+  severity: "error" | "warning" | "info";
+  message: string;
+  scene_id?: string;
+  block_id?: string;
+  details: Record<string, unknown>;
 };
 
-export type ProjectEpisodeScript = ProjectEpisodeScriptPayload & {
+export type ScriptBlockPayload = {
+  id?: string;
+  block_type: ScriptBlockType;
+  character_snapshot_id?: string;
+  temporary_speaker_name?: string;
+  content?: string;
+  emotion?: string;
+  performance_note?: string;
+};
+
+export type ScriptBlock = ScriptBlockPayload & {
+  id: string;
+  scene_id: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ScriptScenePayload = {
+  id?: string;
+  title?: string;
+  location?: string;
+  time_of_day?: ScriptTimeOfDay;
+  interior_exterior?: ScriptInteriorExterior;
+  character_snapshot_ids: string[];
+  manual_duration_seconds?: number;
+  story_purpose?: string;
+  blocks: ScriptBlockPayload[];
+};
+
+export type ScriptScene = Omit<ScriptScenePayload, "id" | "blocks"> & {
+  id: string;
+  script_id: string;
+  scene_no: number;
+  character_refs: Array<{ character_snapshot_id: string; name: string; updated_at: string }>;
+  auto_duration_seconds: number;
+  effective_duration_seconds: number;
+  sort_order: number;
+  blocks: ScriptBlock[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectEpisodeScriptPayload = {
+  revision: number | null;
+  title?: string;
+  manual_duration_seconds?: number;
+  scenes: ScriptScenePayload[];
+};
+
+export type ProjectEpisodeScript = {
   id: string;
   project_id: string;
   episode_no: number;
+  title?: string;
+  revision: number;
+  version: number;
+  source_content_version?: string;
+  auto_duration_seconds: number;
+  manual_duration_seconds?: number;
+  effective_duration_seconds: number;
+  target_duration_seconds: number;
+  duration_deviation_seconds: number;
+  duration_deviation_percent: number;
+  status: ScriptStatus;
+  confirmed_at?: string;
+  scenes: ScriptScene[];
+  validation_issues: ScriptCheckIssue[];
   created_at: string;
   updated_at: string;
+};
+
+export type ScriptGenerationScope = "episode" | "scene" | "blocks";
+export type ScriptRewritePreset = "more_satisfying" | "more_tragic" | "more_suspenseful" | "more_colloquial" | "short_video_pacing" | "compress_duration" | "stronger_cliffhanger";
+export type ScriptGeneration = {
+  id: string;
+  project_id: string;
+  episode_no: number;
+  generation_scope: ScriptGenerationScope;
+  target_scene_id?: string;
+  target_block_ids: string[];
+  rewrite_preset?: ScriptRewritePreset;
+  instruction?: string;
+  base_script_version?: number;
+  base_script_revision?: number;
+  input_snapshot: Record<string, unknown>;
+  output_snapshot: Record<string, unknown>;
+  status: "candidate" | "adopted" | "discarded";
+  client_request_id: string;
+  model_config_id?: string;
+  model_name?: string;
+  elapsed_ms?: number;
+  adopted_at?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ScriptCheckResult = {
+  id: string;
+  script_id: string;
+  script_version: number;
+  script_revision: number;
+  mode: "structure" | "full";
+  semantic_check_status: "not_requested" | "succeeded" | "failed";
+  issues: ScriptCheckIssue[];
+  created_at: string;
+};
+
+export type ScriptVersionSummary = {
+  version: number;
+  source_content_version?: string;
+  change_source: "manual_save" | "generation_adopt" | "migration";
+  generation_id?: string;
+  duration_seconds: number;
+  scene_count: number;
+  created_at: string;
 };
 
 export type ProjectStoryboardShotPayload = {
@@ -478,6 +594,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 function normalizeHttpError(status: number, detail: unknown) {
   if (typeof detail === "string" && detail !== "Not Found") {
     return detail;
+  }
+  if (detail && typeof detail === "object" && "message" in detail && typeof detail.message === "string") {
+    return detail.message;
   }
   if (status === 404) {
     return "请求的接口或资源不存在，请确认后端服务已更新并已重启。";
@@ -726,6 +845,72 @@ export function updateProjectEpisodeScript(projectId: string, episodeNo: number,
     method: "PUT",
     body: JSON.stringify(payload)
   });
+}
+
+export function listProjectScriptGenerations(projectId: string, episodeNo: number) {
+  return request<ScriptGeneration[]>(`/api/projects/${projectId}/episode-scripts/${episodeNo}/generations`);
+}
+
+export function createProjectScriptGeneration(
+  projectId: string,
+  episodeNo: number,
+  payload: {
+    generation_scope: ScriptGenerationScope;
+    target_scene_id?: string;
+    target_block_ids: string[];
+    rewrite_preset?: ScriptRewritePreset;
+    instruction?: string;
+    client_request_id: string;
+    base_script_version: number | null;
+    base_script_revision: number | null;
+  }
+) {
+  return request<ScriptGeneration>(`/api/projects/${projectId}/episode-scripts/${episodeNo}/generations`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function adoptProjectScriptGeneration(projectId: string, episodeNo: number, generationId: string, revision: number | null) {
+  return request<{ generation: ScriptGeneration; script: ProjectEpisodeScript }>(
+    `/api/projects/${projectId}/episode-scripts/${episodeNo}/generations/${generationId}/adopt`,
+    { method: "POST", body: JSON.stringify({ revision }) }
+  );
+}
+
+export function discardProjectScriptGeneration(projectId: string, episodeNo: number, generationId: string) {
+  return request<ScriptGeneration>(`/api/projects/${projectId}/episode-scripts/${episodeNo}/generations/${generationId}/discard`, {
+    method: "POST"
+  });
+}
+
+export function checkProjectEpisodeScript(projectId: string, episodeNo: number, revision: number, mode: "structure" | "full" = "full") {
+  return request<ScriptCheckResult>(`/api/projects/${projectId}/episode-scripts/${episodeNo}/checks`, {
+    method: "POST",
+    body: JSON.stringify({ revision, mode })
+  });
+}
+
+export function submitProjectEpisodeScript(projectId: string, episodeNo: number, revision: number) {
+  return request<ProjectEpisodeScript>(`/api/projects/${projectId}/episode-scripts/${episodeNo}/submit-review`, {
+    method: "POST",
+    body: JSON.stringify({ revision })
+  });
+}
+
+export function confirmProjectEpisodeScript(projectId: string, episodeNo: number, revision: number) {
+  return request<ProjectEpisodeScript>(`/api/projects/${projectId}/episode-scripts/${episodeNo}/confirm`, {
+    method: "POST",
+    body: JSON.stringify({ revision })
+  });
+}
+
+export function listProjectEpisodeScriptVersions(projectId: string, episodeNo: number) {
+  return request<ScriptVersionSummary[]>(`/api/projects/${projectId}/episode-scripts/${episodeNo}/versions`);
+}
+
+export function getProjectEpisodeScriptVersion(projectId: string, episodeNo: number, version: number) {
+  return request<ProjectEpisodeScript>(`/api/projects/${projectId}/episode-scripts/${episodeNo}/versions/${version}`);
 }
 
 export function listProjectStoryboardShots(projectId: string, episodeNo: number) {

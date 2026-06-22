@@ -118,11 +118,9 @@ export const emptyContentForm: EpisodeContentForm = {
 };
 
 export const emptyScriptForm: EpisodeScriptForm = {
-  scene_text: "",
-  dialogue: "",
-  action_notes: "",
-  voiceover: "",
-  status: "draft"
+  revision: null,
+  title: "",
+  scenes: []
 };
 
 export const emptyShotForm: ShotForm = {
@@ -323,11 +321,28 @@ export function episodeContentToForm(content: ProjectEpisodeContent | null): Epi
 export function episodeScriptToForm(script: ProjectEpisodeScript | null): EpisodeScriptForm {
   if (!script) return emptyScriptForm;
   return {
-    scene_text: script.scene_text || "",
-    dialogue: script.dialogue || "",
-    action_notes: script.action_notes || "",
-    voiceover: script.voiceover || "",
-    status: script.status
+    revision: script.revision,
+    title: script.title || "",
+    manual_duration_seconds: script.manual_duration_seconds,
+    scenes: script.scenes.map((scene) => ({
+      id: scene.id,
+      title: scene.title,
+      location: scene.location,
+      time_of_day: scene.time_of_day,
+      interior_exterior: scene.interior_exterior,
+      character_snapshot_ids: scene.character_snapshot_ids,
+      manual_duration_seconds: scene.manual_duration_seconds,
+      story_purpose: scene.story_purpose,
+      blocks: scene.blocks.map((block) => ({
+        id: block.id,
+        block_type: block.block_type,
+        character_snapshot_id: block.character_snapshot_id,
+        temporary_speaker_name: block.temporary_speaker_name,
+        content: block.content,
+        emotion: block.emotion,
+        performance_note: block.performance_note
+      }))
+    }))
   };
 }
 
@@ -456,10 +471,6 @@ export function setContentFormValue(field: keyof EpisodeContentForm, value: stri
   setter((current) => ({ ...current, [field]: value }));
 }
 
-export function setScriptFormValue(field: keyof EpisodeScriptForm, value: string | ProjectArtifactStatus, setter: Dispatch<SetStateAction<EpisodeScriptForm>>) {
-  setter((current) => ({ ...current, [field]: value }));
-}
-
 export function setShotFormValue(field: keyof ShotForm, value: string | ProjectArtifactStatus, setter: Dispatch<SetStateAction<ShotForm>>) {
   setter((current) => ({ ...current, [field]: value }));
 }
@@ -479,13 +490,14 @@ export function toOptionalNumber(value: string) {
   return Number.isFinite(numberValue) ? numberValue : undefined;
 }
 
-export function artifactStatusLabel(status: ProjectArtifactStatus) {
+export function artifactStatusLabel(status: ProjectArtifactStatus | "pending_review") {
   if (status === "confirmed") return "已确认";
+  if (status === "pending_review") return "待确认";
   if (status === "needs_review") return "需要检查";
   return "草稿";
 }
 
-export function artifactStatusClass(status: ProjectArtifactStatus) {
+export function artifactStatusClass(status: ProjectArtifactStatus | "pending_review") {
   if (status === "confirmed") return "status-active";
   if (status === "needs_review") return "status-review";
   return "status-draft";

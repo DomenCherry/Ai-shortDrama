@@ -4,52 +4,19 @@ import { Button } from "@/components/ui/button";
 import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import {
   setCopyFormValue,
-  setScriptFormValue,
   setShotFormValue
 } from "../_utils/workbenchForms";
 import { ArtifactStatusBadge, EpisodePicker, NumberInput, ProductionContextSummary, SectionTitle, StatusSelect, TextArea, TextInput } from "./shared";
+import { StructuredScriptPanel } from "./StructuredScriptPanel";
 
 export function ProductionModule({ workbench }: { workbench: ProjectWorkbenchState }) {
   if (!workbench.project || workbench.isLandingMode) return null;
 
   return (
     <>
-      {workbench.activeStage === "script" ? <EpisodeScriptPanel workbench={workbench} /> : null}
+      {workbench.activeStage === "script" ? <StructuredScriptPanel workbench={workbench} /> : null}
       {workbench.activeStage === "storyboard" ? <StoryboardAndCopywritingPanel workbench={workbench} /> : null}
     </>
-  );
-}
-
-function EpisodeScriptPanel({ workbench }: { workbench: ProjectWorkbenchState }) {
-  const project = workbench.project;
-  if (!project) return null;
-
-  return (
-    <form className="panel stack" onSubmit={workbench.saveEpisodeScript}>
-      <SectionTitle title="单集剧本" status={workbench.episodeScript?.status ?? workbench.scriptForm.status} />
-      <EpisodePicker episodeCount={project.episode_count} value={workbench.selectedEpisodeNo} onChange={workbench.setSelectedEpisodeNo} />
-      <ProductionContextSummary
-        worldSnapshots={workbench.worldSnapshots}
-        characterSnapshots={workbench.characterSnapshots}
-        storyOutlineStatus={workbench.storyOutlineStatus}
-        episodeOutline={workbench.selectedEpisodeOutline}
-        episodeContentStatus={workbench.episodeContentStatus}
-        projectId={workbench.projectId}
-      />
-      {workbench.isLoadingEpisodeArtifacts ? <div className="empty-state">正在加载剧本...</div> : null}
-      <div className="grid-2">
-        <TextArea label="场景说明" value={workbench.scriptForm.scene_text} onChange={(value) => setScriptFormValue("scene_text", value, workbench.setScriptForm)} />
-        <TextArea label="对白" value={workbench.scriptForm.dialogue} onChange={(value) => setScriptFormValue("dialogue", value, workbench.setScriptForm)} />
-        <TextArea label="动作说明" value={workbench.scriptForm.action_notes} onChange={(value) => setScriptFormValue("action_notes", value, workbench.setScriptForm)} />
-        <TextArea label="旁白" value={workbench.scriptForm.voiceover} onChange={(value) => setScriptFormValue("voiceover", value, workbench.setScriptForm)} />
-      </div>
-      <StatusSelect value={workbench.scriptForm.status} onChange={(value) => setScriptFormValue("status", value, workbench.setScriptForm)} />
-      <div className="actions">
-        <Button type="submit" disabled={workbench.isSaving}>
-          {workbench.isSaving ? "保存中..." : "保存剧本"}
-        </Button>
-      </div>
-    </form>
   );
 }
 

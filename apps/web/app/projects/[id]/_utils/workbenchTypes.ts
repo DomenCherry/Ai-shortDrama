@@ -1,4 +1,4 @@
-import type { ProjectArtifactStatus, WorldEntryStatus, WorldEntryType } from "@/lib/api";
+import type { ProjectArtifactStatus, ProjectEpisodeScriptPayload, WorldEntryStatus, WorldEntryType } from "@/lib/api";
 
 export type Stage = "settings" | "world" | "characters" | "story" | "episodes" | "content" | "script" | "storyboard";
 export type WorkspaceGroupKey = "projectAssets" | "storyText" | "production";
@@ -106,13 +106,7 @@ export type EpisodeContentForm = {
   status: ProjectArtifactStatus;
 };
 
-export type EpisodeScriptForm = {
-  scene_text: string;
-  dialogue: string;
-  action_notes: string;
-  voiceover: string;
-  status: ProjectArtifactStatus;
-};
+export type EpisodeScriptForm = ProjectEpisodeScriptPayload;
 
 export type ShotForm = {
   shot_no: string;

@@ -227,7 +227,7 @@ export function useProjectWorkbench({
   );
   const storyOutlineStatus = storyOutline?.status ?? storyForm.status;
   const episodeContentStatus = episodeContent?.status ?? contentForm.status;
-  const episodeScriptStatus = episodeScript?.status ?? scriptForm.status;
+  const episodeScriptStatus = episodeScript?.status ?? "draft";
   const copywritingStatus = copywriting?.status ?? copyForm.status;
   const contentWordCount = useMemo(() => countContentCharacters(contentForm.detailed_content), [contentForm.detailed_content]);
   const previousEpisodeSummary =
@@ -599,11 +599,8 @@ export function useProjectWorkbench({
     setStatus("");
     try {
       const saved = await updateProjectEpisodeScript(projectId, selectedEpisodeNo, {
-        scene_text: toOptional(scriptForm.scene_text),
-        dialogue: toOptional(scriptForm.dialogue),
-        action_notes: toOptional(scriptForm.action_notes),
-        voiceover: toOptional(scriptForm.voiceover),
-        status: scriptForm.status
+        ...scriptForm,
+        title: toOptional(scriptForm.title || "")
       });
       setEpisodeScript(saved);
       setScriptForm(episodeScriptToForm(saved));
