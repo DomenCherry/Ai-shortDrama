@@ -7,8 +7,6 @@ import {
   ArrowUpIcon,
   BookOpenIcon,
   CheckCircle2Icon,
-  ChevronDownIcon,
-  ChevronRightIcon,
   CircleAlertIcon,
   CopyIcon,
   FilePlus2Icon,
@@ -27,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   adoptProjectScriptGeneration,
@@ -52,7 +51,9 @@ import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import { ArtifactStatusBadge, EpisodePicker, ProductionContextSummary } from "./shared";
 
 type LocalBlock = ScriptBlockPayload & { _key: string };
-type LocalScene = Omit<ScriptScenePayload, "blocks"> & { _key: string; blocks: LocalBlock[]; collapsed?: boolean };
+type LocalScene = Omit<ScriptScenePayload, "blocks"> & { _key: string; blocks: LocalBlock[] };
+type MutateScenes = (updater: (current: LocalScene[]) => LocalScene[]) => void;
+type SupportTab = "source" | "issues" | "history";
 
 const blockLabels = { action: "动作", dialogue: "对白", voiceover: "旁白", transition: "转场" } as const;
 const timeLabels: Record<ScriptTimeOfDay, string> = { morning: "早晨", day: "白天", dusk: "黄昏", night: "夜晚", other: "其他" };
@@ -156,6 +157,13 @@ function formatDuration(seconds: number) {
   return minutes ? `${minutes} 分 ${rest} 秒` : `${rest} 秒`;
 }
 
+function selectedKeyAfterRefresh(selectedKey: string, previous: LocalScene[], next: LocalScene[]) {
+  const previousIndex = previous.findIndex((scene) => scene._key === selectedKey);
+  const previousScene = previous[previousIndex];
+  const matchingScene = previousScene?.id ? next.find((scene) => scene.id === previousScene.id) : null;
+  return matchingScene?._key ?? next[Math.min(Math.max(previousIndex, 0), Math.max(next.length - 1, 0))]?._key ?? "";
+}
+
 export function StructuredScriptPanel({ workbench }: { workbench: ProjectWorkbenchState }) {
   const project = workbench.project;
   const [script, setScript] = useState<ProjectEpisodeScript | null>(null);
@@ -178,6 +186,9 @@ export function StructuredScriptPanel({ workbench }: { workbench: ProjectWorkben
   const [preset, setPreset] = useState<ScriptRewritePreset | "none">("none");
   const [activeGeneration, setActiveGeneration] = useState<ScriptGeneration | null>(null);
   const [deleteSceneIndex, setDeleteSceneIndex] = useState<number | null>(null);
+  const [selectedSceneKey, setSelectedSceneKey] = useState("");
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportTab, setSupportTab] = useState<SupportTab>("source");
 
   const load = useCallback(async () => {
     if (!project) return;
@@ -193,6 +204,7 @@ export function StructuredScriptPanel({ workbench }: { workbench: ProjectWorkben
       setTitle(local.title);
       setManualDuration(local.manualDuration);
       setScenes(local.scenes);
+      setSelectedSceneKey(local.scenes[0]?._key ?? "");
       setGenerations(nextGenerations);
       setIssues(nextScript?.validation_issues ?? []);
       setSelectedBlocks([]);
@@ -244,10 +256,12 @@ export function StructuredScriptPanel({ workbench }: { workbench: ProjectWorkben
         localToPayload(script?.revision ?? null, title, manualDuration, scenes)
       );
       const local = scriptToLocal(saved);
+      const nextSelectedKey = selectedKeyAfterRefresh(selectedSceneKey, scenes, local.scenes);
       setScript(saved);
       setTitle(local.title);
       setManualDuration(local.manualDuration);
       setScenes(local.scenes);
+      setSelectedSceneKey(nextSelectedKey);
       setIssues(saved.validation_issues);
       setDirty(false);
       setMessage("剧本已保存；实质变化已标记同集下游内容需要检查。");
@@ -344,10 +358,12 @@ export function StructuredScriptPanel({ workbench }: { workbench: ProjectWorkben
     try {
       const result = await adoptProjectScriptGeneration(workbench.projectId, workbench.selectedEpisodeNo, activeGeneration.id, script?.revision ?? null);
       const local = scriptToLocal(result.script);
+      const nextSelectedKey = selectedKeyAfterRefresh(selectedSceneKey, scenes, local.scenes);
       setScript(result.script);
       setTitle(local.title);
       setManualDuration(local.manualDuration);
       setScenes(local.scenes);
+      setSelectedSceneKey(nextSelectedKey);
       setIssues(result.script.validation_issues);
       setGenerations((current) => current.map((item) => item.id === result.generation.id ? result.generation : item));
       setActiveGeneration(null);
@@ -392,6 +408,43 @@ export function StructuredScriptPanel({ workbench }: { workbench: ProjectWorkben
     return next;
   });
 
+  const addScene = () => {
+    const scene = emptyScene();
+    mutateScenes((current) => [...current, scene]);
+    setSelectedSceneKey(scene._key);
+    setSelectedBlocks([]);
+  };
+
+  const duplicateScene = (sceneIndex: number) => {
+    const source = scenes[sceneIndex];
+    if (!source) return;
+    const clone: LocalScene = {
+      ...source,
+      _key: localKey("scene"),
+      id: undefined,
+      blocks: source.blocks.map((block) => ({ ...block, _key: localKey("block"), id: undefined }))
+    };
+    mutateScenes((current) => [...current.slice(0, sceneIndex + 1), clone, ...current.slice(sceneIndex + 1)]);
+    setSelectedSceneKey(clone._key);
+    setSelectedBlocks([]);
+  };
+
+  const confirmDeleteScene = () => {
+    if (deleteSceneIndex === null) return;
+    const deleted = scenes[deleteSceneIndex];
+    const nextSelected = scenes[deleteSceneIndex + 1] ?? scenes[deleteSceneIndex - 1];
+    mutateScenes((current) => current.filter((_, index) => index !== deleteSceneIndex));
+    if (deleted?._key === selectedSceneKey) setSelectedSceneKey(nextSelected?._key ?? "");
+    if (deleted) {
+      const deletedBlockKeys = new Set(deleted.blocks.map((block) => block._key));
+      setSelectedBlocks((current) => current.filter((key) => !deletedBlockKeys.has(key)));
+    }
+    setDeleteSceneIndex(null);
+  };
+
+  const selectedSceneIndex = scenes.findIndex((scene) => scene._key === selectedSceneKey);
+  const selectedScene = selectedSceneIndex >= 0 ? scenes[selectedSceneIndex] : null;
+
   return (
     <section className="structured-script-workbench">
       <div className="structured-script-toolbar">
@@ -406,6 +459,10 @@ export function StructuredScriptPanel({ workbench }: { workbench: ProjectWorkben
           {script ? <Badge variant={Math.abs(script.duration_deviation_percent) > 10 ? "destructive" : "secondary"}>{script.duration_deviation_percent > 0 ? "+" : ""}{script.duration_deviation_percent}%</Badge> : null}
         </div>
         <div className="structured-script-actions">
+          <Button type="button" variant="secondary" onClick={() => setSupportOpen(true)}>
+            <BookOpenIcon data-icon="inline-start" />参考与检查
+            {issues.length ? <Badge variant={issues.some((issue) => issue.severity === "error") ? "destructive" : "outline"}>{issues.length}</Badge> : null}
+          </Button>
           <Button type="button" variant="secondary" onClick={() => openGeneration("episode")} disabled={Boolean(busy) || !workbench.episodeContent?.detailed_content}>
             <SparklesIcon data-icon="inline-start" />生成整集
           </Button>
@@ -436,103 +493,56 @@ export function StructuredScriptPanel({ workbench }: { workbench: ProjectWorkben
       {loading ? (
         <div className="structured-script-loading"><Skeleton className="h-12 w-full" /><Skeleton className="h-64 w-full" /></div>
       ) : (
-        <div className="structured-script-layout">
-          <main className="structured-script-editor">
-            <div className="structured-script-meta">
-              <div className="field"><Label htmlFor="script-title">剧本标题</Label><Input id="script-title" value={title} maxLength={120} placeholder={workbench.selectedEpisodeOutline?.title || "沿用分集标题"} onChange={(event) => { setTitle(event.target.value); setDirty(true); }} /></div>
-              <div className="field"><Label htmlFor="script-duration">人工总时长（秒）</Label><Input id="script-duration" type="number" min="0.1" max="3600" step="0.1" value={manualDuration} placeholder="留空使用场次汇总" onChange={(event) => { setManualDuration(event.target.value); setDirty(true); }} /></div>
+        <div className="structured-script-editor">
+          <div className="structured-script-meta">
+            <div className="field"><Label htmlFor="script-title">剧本标题</Label><Input id="script-title" value={title} maxLength={120} placeholder={workbench.selectedEpisodeOutline?.title || "沿用分集标题"} onChange={(event) => { setTitle(event.target.value); setDirty(true); }} /></div>
+            <div className="field"><Label htmlFor="script-duration">人工总时长（秒）</Label><Input id="script-duration" type="number" min="0.1" max="3600" step="0.1" value={manualDuration} placeholder="留空使用场次汇总" onChange={(event) => { setManualDuration(event.target.value); setDirty(true); }} /></div>
+          </div>
+
+          {scenes.length ? (
+            <div className="structured-script-layout">
+              <SceneNavigator scenes={scenes} script={script} issues={issues} selectedKey={selectedSceneKey} onSelect={(key) => { setSelectedSceneKey(key); setSelectedBlocks([]); }} onAdd={addScene} />
+              {selectedScene ? (
+                <SceneDetail
+                  scene={selectedScene}
+                  sceneIndex={selectedSceneIndex}
+                  sceneCount={scenes.length}
+                  script={script}
+                  workbench={workbench}
+                  selectedBlocks={selectedBlocks}
+                  setSelectedBlocks={setSelectedBlocks}
+                  mutateScenes={mutateScenes}
+                  onMove={moveScene}
+                  onDuplicate={() => duplicateScene(selectedSceneIndex)}
+                  onRewrite={() => openGeneration("scene", selectedScene.id)}
+                  onDelete={() => setDeleteSceneIndex(selectedSceneIndex)}
+                  onRewriteBlocks={() => openGeneration("blocks")}
+                  canRewriteBlocks={Boolean(selectedRange)}
+                />
+              ) : null}
             </div>
-
-            {scenes.length === 0 ? (
-              <div className="structured-script-empty">
-                <FilePlus2Icon />
-                <div><h3>当前集还没有正式剧本</h3><p>从故事正文生成候选，或创建空白场次开始人工整理。</p></div>
-                <Button type="button" variant="secondary" onClick={() => mutateScenes(() => [emptyScene()])}><PlusIcon data-icon="inline-start" />创建空白场次</Button>
-              </div>
-            ) : scenes.map((scene, sceneIndex) => (
-              <article className="script-scene" key={scene._key}>
-                <header className="script-scene-header">
-                  <Button type="button" size="icon-sm" variant="ghost" aria-label={scene.collapsed ? "展开场次" : "折叠场次"} onClick={() => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, collapsed: !item.collapsed } : item))}>
-                    {scene.collapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}
-                  </Button>
-                  <span className="script-scene-number">S{String(sceneIndex + 1).padStart(2, "0")}</span>
-                  <Input aria-label={`第 ${sceneIndex + 1} 场标题`} value={scene.title ?? ""} placeholder="场次标题（可选）" maxLength={120} onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, title: event.target.value } : item))} />
-                  <span className="hint">{script?.scenes[sceneIndex] ? formatDuration(script.scenes[sceneIndex].effective_duration_seconds) : "未保存"}</span>
-                  <div className="script-scene-tools">
-                    <Button type="button" size="icon-sm" variant="ghost" aria-label="上移场次" disabled={sceneIndex === 0} onClick={() => moveScene(sceneIndex, -1)}><ArrowUpIcon /></Button>
-                    <Button type="button" size="icon-sm" variant="ghost" aria-label="下移场次" disabled={sceneIndex === scenes.length - 1} onClick={() => moveScene(sceneIndex, 1)}><ArrowDownIcon /></Button>
-                    <Button type="button" size="icon-sm" variant="ghost" aria-label="复制场次" onClick={() => mutateScenes((current) => [...current.slice(0, sceneIndex + 1), { ...scene, _key: localKey("scene"), id: undefined, blocks: scene.blocks.map((block) => ({ ...block, _key: localKey("block"), id: undefined })) }, ...current.slice(sceneIndex + 1)])}><CopyIcon /></Button>
-                    <Button type="button" size="sm" variant="secondary" disabled={!scene.id} onClick={() => openGeneration("scene", scene.id)}><SparklesIcon data-icon="inline-start" />重写</Button>
-                    <Button type="button" size="icon-sm" variant="ghost" aria-label="删除场次" onClick={() => setDeleteSceneIndex(sceneIndex)}><Trash2Icon /></Button>
-                  </div>
-                </header>
-
-                {!scene.collapsed ? (
-                  <div className="script-scene-body">
-                    <div className="script-scene-fields">
-                      <div className="field"><Label>地点</Label><Input value={scene.location ?? ""} maxLength={120} placeholder="例如：林家客厅" onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, location: event.target.value } : item))} /></div>
-                      <div className="field"><Label>时间</Label><Select value={scene.time_of_day} onValueChange={(value: ScriptTimeOfDay) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, time_of_day: value } : item))}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(timeLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
-                      <div className="field"><Label>内外景</Label><Select value={scene.interior_exterior} onValueChange={(value: ScriptInteriorExterior) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, interior_exterior: value } : item))}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(interiorLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
-                      <div className="field"><Label>人工时长（秒）</Label><Input type="number" min="0.1" max="3600" step="0.1" value={scene.manual_duration_seconds ?? ""} placeholder="自动估算" onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, manual_duration_seconds: event.target.value ? Number(event.target.value) : undefined } : item))} /></div>
-                    </div>
-
-                    <div className="script-character-picker" aria-label="出场人物">
-                      <span className="field-label">出场人物</span>
-                      {workbench.characterSnapshots.length ? workbench.characterSnapshots.map((character) => (
-                        <label key={character.id}><Checkbox checked={scene.character_snapshot_ids.includes(character.id)} onCheckedChange={(checked) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, character_snapshot_ids: checked ? [...item.character_snapshot_ids, character.id] : item.character_snapshot_ids.filter((id) => id !== character.id) } : item))} /><span>{character.name}</span></label>
-                      )) : <span className="hint">项目尚未加载角色</span>}
-                    </div>
-
-                    <div className="field"><Label>剧情作用</Label><Textarea value={scene.story_purpose ?? ""} maxLength={1000} rows={2} placeholder="例如：揭示债务真相，推动母女冲突升级" onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, story_purpose: event.target.value } : item))} /></div>
-
-                    <div className="script-block-list">
-                      {scene.blocks.map((block, blockIndex) => (
-                        <div className={`script-block script-block-${block.block_type}`} key={block._key}>
-                          <div className="script-block-leading">
-                            <Checkbox aria-label="选择内容块用于局部改写" checked={selectedBlocks.includes(block._key)} onCheckedChange={(checked) => setSelectedBlocks((current) => checked ? [...current, block._key] : current.filter((id) => id !== block._key))} />
-                            <Badge variant="outline">{blockLabels[block.block_type]}</Badge>
-                          </div>
-                          <div className="script-block-content">
-                            <div className="script-block-row">
-                              <Select value={block.block_type} onValueChange={(value: ScriptBlockPayload["block_type"]) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.map((candidate, candidateIndex) => candidateIndex === blockIndex ? { ...candidate, block_type: value } : candidate) } : item))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(blockLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
-                              {block.block_type === "dialogue" ? (
-                                <><Select value={block.character_snapshot_id ?? "temporary"} onValueChange={(value) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.map((candidate, candidateIndex) => candidateIndex === blockIndex ? { ...candidate, character_snapshot_id: value === "temporary" ? undefined : value } : candidate) } : item))}><SelectTrigger><SelectValue placeholder="选择说话人" /></SelectTrigger><SelectContent><SelectItem value="temporary">临时人物</SelectItem>{workbench.characterSnapshots.map((character) => <SelectItem key={character.id} value={character.id}>{character.name}</SelectItem>)}</SelectContent></Select>{!block.character_snapshot_id ? <Input value={block.temporary_speaker_name ?? ""} maxLength={120} placeholder="临时人物名称" onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.map((candidate, candidateIndex) => candidateIndex === blockIndex ? { ...candidate, temporary_speaker_name: event.target.value } : candidate) } : item))} /> : null}</>
-                              ) : null}
-                              <Input value={block.emotion ?? ""} maxLength={120} placeholder="情绪（可选）" onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.map((candidate, candidateIndex) => candidateIndex === blockIndex ? { ...candidate, emotion: event.target.value } : candidate) } : item))} />
-                            </div>
-                            <Textarea value={block.content ?? ""} maxLength={10000} rows={2} placeholder={`${blockLabels[block.block_type]}内容`} onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.map((candidate, candidateIndex) => candidateIndex === blockIndex ? { ...candidate, content: event.target.value } : candidate) } : item))} />
-                            <Input value={block.performance_note ?? ""} maxLength={1000} placeholder="表演、语气、停顿或动作提示（可选）" onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.map((candidate, candidateIndex) => candidateIndex === blockIndex ? { ...candidate, performance_note: event.target.value } : candidate) } : item))} />
-                          </div>
-                          <div className="script-block-tools">
-                            <Button type="button" size="icon-sm" variant="ghost" aria-label="上移内容块" disabled={blockIndex === 0} onClick={() => mutateScenes((current) => current.map((item, index) => { if (index !== sceneIndex) return item; const blocks = [...item.blocks]; [blocks[blockIndex - 1], blocks[blockIndex]] = [blocks[blockIndex], blocks[blockIndex - 1]]; return { ...item, blocks }; }))}><ArrowUpIcon /></Button>
-                            <Button type="button" size="icon-sm" variant="ghost" aria-label="下移内容块" disabled={blockIndex === scene.blocks.length - 1} onClick={() => mutateScenes((current) => current.map((item, index) => { if (index !== sceneIndex) return item; const blocks = [...item.blocks]; [blocks[blockIndex + 1], blocks[blockIndex]] = [blocks[blockIndex], blocks[blockIndex + 1]]; return { ...item, blocks }; }))}><ArrowDownIcon /></Button>
-                            <Button type="button" size="icon-sm" variant="ghost" aria-label="删除内容块" onClick={() => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.filter((_, candidateIndex) => candidateIndex !== blockIndex) } : item))}><Trash2Icon /></Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="script-scene-footer">
-                      <Button type="button" variant="secondary" size="sm" onClick={() => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: [...item.blocks, emptyBlock()] } : item))}><PlusIcon data-icon="inline-start" />内容块</Button>
-                    </div>
-                  </div>
-                ) : null}
-              </article>
-            ))}
-            {scenes.length ? <Button type="button" variant="secondary" onClick={() => mutateScenes((current) => [...current, emptyScene()])}><PlusIcon data-icon="inline-start" />新增场次</Button> : null}
-          </main>
-
-          <aside className="structured-script-inspector">
-            <SourceContentReference
-              projectId={workbench.projectId}
-              episodeNo={workbench.selectedEpisodeNo}
-              content={workbench.episodeContent}
-            />
-            <section><div className="inspector-heading"><h3>结构与一致性</h3><Badge variant={issues.some((issue) => issue.severity === "error") ? "destructive" : "secondary"}>{issues.length} 项</Badge></div>{issues.length ? <div className="script-issue-list">{issues.map((issue, index) => <div className={`script-issue script-issue-${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.severity === "error" ? "错误" : issue.severity === "warning" ? "警告" : "建议"}</strong><span>{issue.message}</span></div>)}</div> : <p className="hint">保存后运行检查，查看结构和语义风险。</p>}</section>
-            <section><div className="inspector-heading"><h3>候选历史</h3><Badge variant="outline">{generations.length}</Badge></div>{generations.length ? <div className="script-generation-list">{generations.slice(0, 20).map((generation) => <button type="button" key={generation.id} onClick={() => setActiveGeneration(generation)}><span>{generation.generation_scope === "episode" ? "整集" : generation.generation_scope === "scene" ? "场次" : "局部"}</span><small>{generation.status === "candidate" ? "待处理" : generation.status === "adopted" ? "已采用" : "已放弃"} · {new Date(generation.created_at).toLocaleString("zh-CN")}</small></button>)}</div> : <p className="hint">尚无候选记录。</p>}</section>
-            {selectedBlocks.length ? <Button type="button" variant="secondary" onClick={() => openGeneration("blocks")} disabled={!selectedRange}><SparklesIcon data-icon="inline-start" />改写已选 {selectedBlocks.length} 块</Button> : null}
-          </aside>
+          ) : (
+            <div className="structured-script-empty">
+              <FilePlus2Icon />
+              <div><h3>当前集还没有正式剧本</h3><p>从故事正文生成候选，或创建空白场次开始人工整理。</p></div>
+              <Button type="button" variant="secondary" onClick={addScene}><PlusIcon data-icon="inline-start" />创建空白场次</Button>
+            </div>
+          )}
         </div>
       )}
+
+      <ScriptSupportDrawer
+        open={supportOpen}
+        onOpenChange={setSupportOpen}
+        activeTab={supportTab}
+        onTabChange={setSupportTab}
+        projectId={workbench.projectId}
+        episodeNo={workbench.selectedEpisodeNo}
+        content={workbench.episodeContent}
+        issues={issues}
+        generations={generations}
+        onOpenGeneration={(generation) => { setSupportOpen(false); setActiveGeneration(generation); }}
+      />
 
       <Sheet open={generationOpen} onOpenChange={setGenerationOpen}>
         <SheetContent className="structured-script-sheet sm:max-w-xl">
@@ -554,8 +564,191 @@ export function StructuredScriptPanel({ workbench }: { workbench: ProjectWorkben
       </Sheet>
 
       <ConfirmDialog open={pendingEpisode !== null} title="切换集数？" description="当前剧本有未保存修改。切换后这些修改会丢失。" destructive confirmLabel="放弃修改并切换" onOpenChange={(open) => !open && setPendingEpisode(null)} onConfirm={() => { if (pendingEpisode) workbench.setSelectedEpisodeNo(pendingEpisode); setPendingEpisode(null); }} />
-      <ConfirmDialog open={deleteSceneIndex !== null} title="删除场次？" description="删除场次后，已有关联分镜将需要重新检查。此操作在保存前仍可通过刷新撤销。" destructive confirmLabel="删除场次" onOpenChange={(open) => !open && setDeleteSceneIndex(null)} onConfirm={() => { if (deleteSceneIndex !== null) mutateScenes((current) => current.filter((_, index) => index !== deleteSceneIndex)); setDeleteSceneIndex(null); }} />
+      <ConfirmDialog open={deleteSceneIndex !== null} title="删除场次？" description="删除场次后，已有关联分镜将需要重新检查。此操作在保存前仍可通过刷新撤销。" destructive confirmLabel="删除场次" onOpenChange={(open) => !open && setDeleteSceneIndex(null)} onConfirm={confirmDeleteScene} />
     </section>
+  );
+}
+
+function SceneNavigator({
+  scenes,
+  script,
+  issues,
+  selectedKey,
+  onSelect,
+  onAdd
+}: {
+  scenes: LocalScene[];
+  script: ProjectEpisodeScript | null;
+  issues: ScriptCheckIssue[];
+  selectedKey: string;
+  onSelect: (key: string) => void;
+  onAdd: () => void;
+}) {
+  return (
+    <nav className="script-scene-navigator" aria-label="剧本场次列表">
+      <div className="script-scene-navigator-header">
+        <div><h3>场次列表</h3><span>{scenes.length} 场</span></div>
+        <Button type="button" size="icon-sm" variant="ghost" aria-label="新增场次" onClick={onAdd}><PlusIcon /></Button>
+      </div>
+      <div className="script-scene-list">
+        {scenes.map((scene, index) => {
+          const savedScene = scene.id ? script?.scenes.find((item) => item.id === scene.id) : null;
+          const issueCount = scene.id ? issues.filter((issue) => issue.scene_id === scene.id).length : 0;
+          return (
+            <button type="button" key={scene._key} className="script-scene-list-item" aria-current={scene._key === selectedKey ? "true" : undefined} onClick={() => onSelect(scene._key)}>
+              <span className="script-scene-list-code">S{String(index + 1).padStart(2, "0")}</span>
+              <span className="script-scene-list-copy">
+                <strong>{scene.title?.trim() || scene.location?.trim() || "未命名场次"}</strong>
+                <small>{savedScene ? formatDuration(savedScene.effective_duration_seconds) : "未保存"} · {scene.blocks.length} 块</small>
+              </span>
+              {issueCount ? <Badge variant="destructive">{issueCount}</Badge> : null}
+            </button>
+          );
+        })}
+      </div>
+      <Button type="button" variant="secondary" size="sm" onClick={onAdd}><PlusIcon data-icon="inline-start" />新增场次</Button>
+    </nav>
+  );
+}
+
+function SceneDetail({
+  scene,
+  sceneIndex,
+  sceneCount,
+  script,
+  workbench,
+  selectedBlocks,
+  setSelectedBlocks,
+  mutateScenes,
+  onMove,
+  onDuplicate,
+  onRewrite,
+  onDelete,
+  onRewriteBlocks,
+  canRewriteBlocks
+}: {
+  scene: LocalScene;
+  sceneIndex: number;
+  sceneCount: number;
+  script: ProjectEpisodeScript | null;
+  workbench: ProjectWorkbenchState;
+  selectedBlocks: string[];
+  setSelectedBlocks: React.Dispatch<React.SetStateAction<string[]>>;
+  mutateScenes: MutateScenes;
+  onMove: (index: number, delta: number) => void;
+  onDuplicate: () => void;
+  onRewrite: () => void;
+  onDelete: () => void;
+  onRewriteBlocks: () => void;
+  canRewriteBlocks: boolean;
+}) {
+  const savedScene = scene.id ? script?.scenes.find((item) => item.id === scene.id) : null;
+  return (
+    <article className="script-scene script-scene-detail" aria-label={`第 ${sceneIndex + 1} 场详情`}>
+      <header className="script-scene-header">
+        <span className="script-scene-number">S{String(sceneIndex + 1).padStart(2, "0")}</span>
+        <Input aria-label={`第 ${sceneIndex + 1} 场标题`} value={scene.title ?? ""} placeholder="场次标题（可选）" maxLength={120} onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, title: event.target.value } : item))} />
+        <span className="hint">{savedScene ? formatDuration(savedScene.effective_duration_seconds) : "未保存"}</span>
+        <div className="script-scene-tools">
+          <Button type="button" size="icon-sm" variant="ghost" aria-label="上移场次" disabled={sceneIndex === 0} onClick={() => onMove(sceneIndex, -1)}><ArrowUpIcon /></Button>
+          <Button type="button" size="icon-sm" variant="ghost" aria-label="下移场次" disabled={sceneIndex === sceneCount - 1} onClick={() => onMove(sceneIndex, 1)}><ArrowDownIcon /></Button>
+          <Button type="button" size="icon-sm" variant="ghost" aria-label="复制场次" onClick={onDuplicate}><CopyIcon /></Button>
+          <Button type="button" size="sm" variant="secondary" disabled={!scene.id} onClick={onRewrite}><SparklesIcon data-icon="inline-start" />重写</Button>
+          <Button type="button" size="icon-sm" variant="ghost" aria-label="删除场次" onClick={onDelete}><Trash2Icon /></Button>
+        </div>
+      </header>
+
+      <div className="script-scene-body">
+        <div className="script-scene-fields">
+          <div className="field"><Label>地点</Label><Input value={scene.location ?? ""} maxLength={120} placeholder="例如：林家客厅" onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, location: event.target.value } : item))} /></div>
+          <div className="field"><Label>时间</Label><Select value={scene.time_of_day} onValueChange={(value: ScriptTimeOfDay) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, time_of_day: value } : item))}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(timeLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
+          <div className="field"><Label>内外景</Label><Select value={scene.interior_exterior} onValueChange={(value: ScriptInteriorExterior) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, interior_exterior: value } : item))}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(interiorLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
+          <div className="field"><Label>人工时长（秒）</Label><Input type="number" min="0.1" max="3600" step="0.1" value={scene.manual_duration_seconds ?? ""} placeholder="自动估算" onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, manual_duration_seconds: event.target.value ? Number(event.target.value) : undefined } : item))} /></div>
+        </div>
+
+        <div className="script-character-picker" aria-label="出场人物">
+          <span className="field-label">出场人物</span>
+          {workbench.characterSnapshots.length ? workbench.characterSnapshots.map((character) => (
+            <label key={character.id}><Checkbox checked={scene.character_snapshot_ids.includes(character.id)} onCheckedChange={(checked) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, character_snapshot_ids: checked ? [...item.character_snapshot_ids, character.id] : item.character_snapshot_ids.filter((id) => id !== character.id) } : item))} /><span>{character.name}</span></label>
+          )) : <span className="hint">项目尚未加载角色</span>}
+        </div>
+
+        <div className="field"><Label>剧情作用</Label><Textarea value={scene.story_purpose ?? ""} maxLength={1000} rows={2} placeholder="例如：揭示债务真相，推动母女冲突升级" onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, story_purpose: event.target.value } : item))} /></div>
+
+        <div className="script-block-list">
+          {scene.blocks.map((block, blockIndex) => (
+            <div className={`script-block script-block-${block.block_type}`} key={block._key}>
+              <div className="script-block-leading">
+                <Checkbox aria-label="选择内容块用于局部改写" checked={selectedBlocks.includes(block._key)} onCheckedChange={(checked) => setSelectedBlocks((current) => checked ? [...current, block._key] : current.filter((id) => id !== block._key))} />
+                <Badge variant="outline">{blockLabels[block.block_type]}</Badge>
+              </div>
+              <div className="script-block-content">
+                <div className="script-block-row">
+                  <Select value={block.block_type} onValueChange={(value: ScriptBlockPayload["block_type"]) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.map((candidate, candidateIndex) => candidateIndex === blockIndex ? { ...candidate, block_type: value } : candidate) } : item))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(blockLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
+                  {block.block_type === "dialogue" ? (
+                    <><Select value={block.character_snapshot_id ?? "temporary"} onValueChange={(value) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.map((candidate, candidateIndex) => candidateIndex === blockIndex ? { ...candidate, character_snapshot_id: value === "temporary" ? undefined : value } : candidate) } : item))}><SelectTrigger><SelectValue placeholder="选择说话人" /></SelectTrigger><SelectContent><SelectItem value="temporary">临时人物</SelectItem>{workbench.characterSnapshots.map((character) => <SelectItem key={character.id} value={character.id}>{character.name}</SelectItem>)}</SelectContent></Select>{!block.character_snapshot_id ? <Input value={block.temporary_speaker_name ?? ""} maxLength={120} placeholder="临时人物名称" onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.map((candidate, candidateIndex) => candidateIndex === blockIndex ? { ...candidate, temporary_speaker_name: event.target.value } : candidate) } : item))} /> : null}</>
+                  ) : null}
+                  <Input value={block.emotion ?? ""} maxLength={120} placeholder="情绪（可选）" onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.map((candidate, candidateIndex) => candidateIndex === blockIndex ? { ...candidate, emotion: event.target.value } : candidate) } : item))} />
+                </div>
+                <Textarea value={block.content ?? ""} maxLength={10000} rows={2} placeholder={`${blockLabels[block.block_type]}内容`} onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.map((candidate, candidateIndex) => candidateIndex === blockIndex ? { ...candidate, content: event.target.value } : candidate) } : item))} />
+                <Input value={block.performance_note ?? ""} maxLength={1000} placeholder="表演、语气、停顿或动作提示（可选）" onChange={(event) => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.map((candidate, candidateIndex) => candidateIndex === blockIndex ? { ...candidate, performance_note: event.target.value } : candidate) } : item))} />
+              </div>
+              <div className="script-block-tools">
+                <Button type="button" size="icon-sm" variant="ghost" aria-label="上移内容块" disabled={blockIndex === 0} onClick={() => mutateScenes((current) => current.map((item, index) => { if (index !== sceneIndex) return item; const blocks = [...item.blocks]; [blocks[blockIndex - 1], blocks[blockIndex]] = [blocks[blockIndex], blocks[blockIndex - 1]]; return { ...item, blocks }; }))}><ArrowUpIcon /></Button>
+                <Button type="button" size="icon-sm" variant="ghost" aria-label="下移内容块" disabled={blockIndex === scene.blocks.length - 1} onClick={() => mutateScenes((current) => current.map((item, index) => { if (index !== sceneIndex) return item; const blocks = [...item.blocks]; [blocks[blockIndex + 1], blocks[blockIndex]] = [blocks[blockIndex], blocks[blockIndex + 1]]; return { ...item, blocks }; }))}><ArrowDownIcon /></Button>
+                <Button type="button" size="icon-sm" variant="ghost" aria-label="删除内容块" onClick={() => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: item.blocks.filter((_, candidateIndex) => candidateIndex !== blockIndex) } : item))}><Trash2Icon /></Button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="script-scene-footer">
+          <Button type="button" variant="secondary" size="sm" onClick={() => mutateScenes((current) => current.map((item, index) => index === sceneIndex ? { ...item, blocks: [...item.blocks, emptyBlock()] } : item))}><PlusIcon data-icon="inline-start" />内容块</Button>
+          {selectedBlocks.length ? <Button type="button" variant="secondary" size="sm" onClick={onRewriteBlocks} disabled={!canRewriteBlocks}><SparklesIcon data-icon="inline-start" />改写已选 {selectedBlocks.length} 块</Button> : null}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function ScriptSupportDrawer({
+  open,
+  onOpenChange,
+  activeTab,
+  onTabChange,
+  projectId,
+  episodeNo,
+  content,
+  issues,
+  generations,
+  onOpenGeneration
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  activeTab: SupportTab;
+  onTabChange: (tab: SupportTab) => void;
+  projectId: string;
+  episodeNo: number;
+  content: ProjectWorkbenchState["episodeContent"];
+  issues: ScriptCheckIssue[];
+  generations: ScriptGeneration[];
+  onOpenGeneration: (generation: ScriptGeneration) => void;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="structured-script-support-sheet sm:max-w-lg">
+        <SheetHeader><SheetTitle>参考与检查</SheetTitle><SheetDescription>查看当前集来源正文、剧本问题和候选记录。</SheetDescription></SheetHeader>
+        <Tabs value={activeTab} onValueChange={(value) => onTabChange(value as SupportTab)} className="script-support-tabs">
+          <TabsList className="w-full"><TabsTrigger value="source">来源正文</TabsTrigger><TabsTrigger value="issues">结构检查 {issues.length ? `(${issues.length})` : ""}</TabsTrigger><TabsTrigger value="history">候选历史</TabsTrigger></TabsList>
+          <TabsContent value="source"><SourceContentReference projectId={projectId} episodeNo={episodeNo} content={content} /></TabsContent>
+          <TabsContent value="issues">
+            {issues.length ? <div className="script-issue-list">{issues.map((issue, index) => <div className={`script-issue script-issue-${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.severity === "error" ? "错误" : issue.severity === "warning" ? "警告" : "建议"}</strong><span>{issue.message}</span></div>)}</div> : <p className="hint">保存后运行检查，查看结构和语义风险。</p>}
+          </TabsContent>
+          <TabsContent value="history">
+            {generations.length ? <div className="script-generation-list">{generations.slice(0, 20).map((generation) => <button type="button" key={generation.id} onClick={() => onOpenGeneration(generation)}><span>{generation.generation_scope === "episode" ? "整集" : generation.generation_scope === "scene" ? "场次" : "局部"}</span><small>{generation.status === "candidate" ? "待处理" : generation.status === "adopted" ? "已采用" : "已放弃"} · {new Date(generation.created_at).toLocaleString("zh-CN")}</small></button>)}</div> : <p className="hint">尚无候选记录。</p>}
+          </TabsContent>
+        </Tabs>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -568,29 +761,17 @@ function SourceContentReference({
   episodeNo: number;
   content: ProjectWorkbenchState["episodeContent"];
 }) {
-  const [open, setOpen] = useState(true);
   const detailedContent = content?.detailed_content?.trim() ?? "";
   const editHref = `/projects/${projectId}/story-text?stage=content&episode=${episodeNo}`;
 
   return (
     <section className="script-source-reference" aria-labelledby="script-source-title">
       <div className="inspector-heading">
-        <button
-          type="button"
-          className="script-source-toggle"
-          aria-expanded={open}
-          aria-controls="script-source-body"
-          onClick={() => setOpen((current) => !current)}
-        >
-          {open ? <ChevronDownIcon /> : <ChevronRightIcon />}
-          <BookOpenIcon />
-          <h3 id="script-source-title">来源正文</h3>
-        </button>
+        <div className="script-source-heading"><BookOpenIcon /><h3 id="script-source-title">来源正文</h3></div>
         {content ? <ArtifactStatusBadge status={content.status} /> : <Badge variant="outline">未创建</Badge>}
       </div>
 
-      {open ? (
-        <div id="script-source-body" className="script-source-body">
+        <div className="script-source-body">
           <div className="script-source-meta">
             <strong>第 {episodeNo} 集 · {content?.title?.trim() || "未命名正文"}</strong>
             <span>{content ? `${content.word_count} 字` : "暂无正文"}</span>
@@ -609,7 +790,6 @@ function SourceContentReference({
             <Link href={editHref}>{detailedContent ? "前往编辑正文" : "前往创建正文"}</Link>
           </Button>
         </div>
-      ) : null}
     </section>
   );
 }

@@ -2307,7 +2307,7 @@ select {
   align-items: start;
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(0, 1fr) 330px;
+  grid-template-columns: 240px minmax(0, 1fr);
 }
 
 .structured-script-editor {
@@ -2364,7 +2364,8 @@ select {
 
 .structured-script-empty h3,
 .structured-script-empty p,
-.structured-script-inspector h3,
+.script-scene-navigator h3,
+.script-source-reference h3,
 .candidate-scenes h3,
 .candidate-scenes h4 {
   margin: 0;
@@ -2388,7 +2389,7 @@ select {
   background: var(--panel-subtle);
   display: grid;
   gap: 8px;
-  grid-template-columns: auto auto minmax(180px, 1fr) auto auto;
+  grid-template-columns: auto minmax(180px, 1fr) auto auto;
   padding: 8px 10px;
 }
 
@@ -2476,49 +2477,145 @@ select {
   grid-template-columns: minmax(112px, 0.45fr) repeat(2, minmax(140px, 1fr));
 }
 
-.structured-script-inspector {
-  display: grid;
+.script-scene-navigator {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+  max-height: calc(100vh - 180px);
+  min-height: 320px;
+  padding: 10px;
   position: sticky;
   top: 112px;
 }
 
-.structured-script-inspector > section {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  display: grid;
-  gap: 10px;
-  padding: 12px;
+.script-scene-navigator-header,
+.script-scene-navigator-header > div,
+.script-scene-list-copy,
+.script-source-meta {
+  min-width: 0;
 }
 
-.script-source-toggle {
+.script-scene-navigator-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.script-scene-navigator-header > div {
+  display: grid;
+  gap: 1px;
+}
+
+.script-scene-navigator-header h3 {
+  font-size: 14px;
+  margin: 0;
+}
+
+.script-scene-navigator-header span {
+  color: var(--app-muted);
+  font-size: 12px;
+}
+
+.script-scene-list {
+  display: grid;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.script-scene-list-item {
   align-items: center;
   background: transparent;
-  border: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
   color: var(--text);
   cursor: pointer;
-  display: inline-flex;
-  gap: 6px;
-  min-width: 0;
-  padding: 0;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 9px 8px;
   text-align: left;
 }
 
-.script-source-toggle:focus-visible {
-  border-radius: 6px;
-  outline: 2px solid var(--brand);
-  outline-offset: 3px;
+.script-scene-list-item:hover {
+  background: var(--panel-subtle);
 }
 
-.script-source-toggle > svg {
-  color: var(--app-muted);
-  height: 15px;
-  width: 15px;
+.script-scene-list-item[aria-current="true"] {
+  background: #eef2ff;
+  border-color: #a5b4fc;
 }
 
-.script-source-toggle > svg:nth-of-type(2) {
+.script-scene-list-item:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.script-scene-list-code {
   color: var(--brand-strong);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.script-scene-list-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.script-scene-list-copy strong,
+.script-scene-list-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.script-scene-list-copy strong {
+  font-size: 13px;
+}
+
+.script-scene-list-copy small {
+  color: var(--app-muted);
+  font-size: 11px;
+}
+
+.script-scene-detail {
+  min-height: 420px;
+}
+
+.structured-script-support-sheet {
+  width: min(520px, 94vw);
+}
+
+.script-support-tabs {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 16px 16px;
+}
+
+.script-support-tabs [role="tablist"] {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.script-source-reference {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.script-source-heading {
+  align-items: center;
+  display: inline-flex;
+  gap: 7px;
+}
+
+.script-source-heading > svg {
+  color: var(--brand-strong);
+  height: 17px;
+  width: 17px;
 }
 
 .script-source-body {
@@ -2668,13 +2765,14 @@ select {
   white-space: pre-wrap;
 }
 
-@media (max-width: 1240px) {
+@media (max-width: 1000px) {
   .structured-script-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .structured-script-inspector {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .script-scene-navigator {
+    max-height: 240px;
+    min-height: 0;
     position: static;
   }
 }

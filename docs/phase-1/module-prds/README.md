@@ -19,7 +19,7 @@
 | 短剧制作 | 外部 AI 视频工具制作包总览 | [external-ai-production-package.md](./production/external-ai-production-package.md) | 模块边界已确认 | 单集制作流程、统一状态与跨模块规则 |
 | 短剧制作 | 人物示意图 | [character-image.md](./production/character-image.md) | 薄占位 | AI 生成角色视觉参考 |
 | 短剧制作 | 结构化剧本 | [structured-script.md](./production/structured-script.md) | 详细设计中 | 场次、剧本内容块、生成与改写 |
-| 短剧制作 | 剧本来源正文快速参考 | [script-source-reference.md](./production/script-source-reference.md) | 待实现 | 在剧本工作台只读对照当前集故事正文 |
+| 短剧制作 | 剧本来源正文快速参考 | [script-source-reference.md](./production/script-source-reference.md) | 已实现 | 在剧本工作台只读对照当前集故事正文 |
 | 短剧制作 | 分镜制作 | [storyboard-production.md](./production/storyboard-production.md) | 待细化 | 镜头拆分、提示词与 Seedance 适配 |
 | 短剧制作 | 后期准备 | [post-production-prep.md](./production/post-production-prep.md) | 待细化 | 配音、字幕、声音与剪辑准备 |
 | 短剧制作 | 制作包导出 | [production-package-export.md](./production/production-package-export.md) | 待细化 | 校验、版本、标准化文件与导出 |
