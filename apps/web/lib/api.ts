@@ -1,4 +1,7 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
+// 默认通过 Next.js 同源代理访问后端，避免 localhost/127.0.0.1 混用、CORS
+// 以及浏览器扩展包装跨域 fetch 时导致的 Failed to fetch。
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
+const API_DISPLAY_URL = API_BASE_URL || "同源 API 代理（默认转发到 http://127.0.0.1:8000）";
 
 export type ModelConfigPayload = {
   config_type: "text" | "image";
@@ -398,19 +401,84 @@ export type ScriptVersionSummary = {
 };
 
 export type ProjectStoryboardShotPayload = {
-  shot_no: number;
+  revision?: number;
+  source_scene_id?: string;
+  shot_size?: string;
+  subject_description?: string;
+  visual_description?: string;
+  action?: string;
+  camera_angle?: string;
+  camera_movement?: string;
+  composition?: string;
+  character_snapshot_ids?: string[];
+  expression?: string;
+  environment?: string;
+  props?: string[];
+  source_block_ids?: string[];
+  dialogue_snapshot?: string;
+  voiceover_snapshot?: string;
+  sound_effect?: string;
+  music_note?: string;
+  continuity_note?: string;
   scene?: string;
   visual_prompt?: string;
   camera?: string;
   duration_seconds?: number;
   dialogue_or_voiceover?: string;
-  status: ProjectArtifactStatus;
+  status: "draft" | "pending_review" | "confirmed" | "needs_review";
+  prompt?: {
+    image_prompt?: string;
+    video_prompt?: string;
+    negative_prompt?: string;
+    first_frame_description?: string;
+    last_frame_description?: string;
+    reference_asset_ids?: string[];
+    aspect_ratio?: string;
+    seedance_prompt?: string;
+  };
 };
 
 export type ProjectStoryboardShot = ProjectStoryboardShotPayload & {
   id: string;
   project_id: string;
   episode_no: number;
+  storyboard_id: string;
+  display_code: string;
+  sort_order: number;
+  revision: number;
+  source_status: "valid" | "changed" | "scene_deleted" | "unassigned";
+  prompt_freshness: "current" | "needs_update";
+  prompt_customized: boolean;
+  shot_no: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StoryboardSceneGroup = {
+  scene_id?: string;
+  scene_no?: number;
+  display_code: string;
+  title: string;
+  script_duration_seconds?: number;
+  shots_duration_seconds: number;
+  duration_deviation_percent?: number;
+  status: ProjectStoryboardShot["status"];
+  shots: ProjectStoryboardShot[];
+};
+
+export type ProjectStoryboard = {
+  id: string;
+  project_id: string;
+  episode_no: number;
+  version: number;
+  revision: number;
+  source_script_id?: string;
+  source_script_version?: number;
+  source_script_status?: string;
+  total_duration_seconds: number;
+  status: ProjectStoryboardShot["status"];
+  shot_count: number;
+  scene_groups: StoryboardSceneGroup[];
   created_at: string;
   updated_at: string;
 };
@@ -607,7 +675,7 @@ function normalizeHttpError(status: number, detail: unknown) {
 function normalizeNetworkError(err: unknown) {
   const rawMessage = err instanceof Error ? err.message : "";
   if (rawMessage === "Load failed" || rawMessage === "Failed to fetch" || rawMessage.includes("NetworkError")) {
-    return `无法连接后端服务，请确认 API 服务已启动并可访问：${API_BASE_URL}`;
+    return `无法连接后端服务，请确认 API 服务已启动并可访问：${API_DISPLAY_URL}`;
   }
   return rawMessage || "请求后端服务失败，请稍后重试。";
 }
@@ -917,8 +985,40 @@ export function listProjectStoryboardShots(projectId: string, episodeNo: number)
   return request<ProjectStoryboardShot[]>(`/api/projects/${projectId}/storyboard-shots/${episodeNo}`);
 }
 
+export function getProjectStoryboard(projectId: string, episodeNo: number) {
+  return request<ProjectStoryboard | null>(`/api/projects/${projectId}/storyboards/${episodeNo}`);
+}
+
+export function reorderProjectStoryboardScene(projectId: string, episodeNo: number, sceneId: string, shotIds: string[]) {
+  return request<ProjectStoryboard>(`/api/projects/${projectId}/storyboards/${episodeNo}/scenes/${sceneId}/reorder`, {
+    method: "POST",
+    body: JSON.stringify({ shot_ids: shotIds })
+  });
+}
+
+export function generateProjectStoryboardScene(projectId: string, episodeNo: number, sceneId: string) {
+  return request<{ scene_id: string; status: "succeeded"; shot_count: number; shot_ids: string[]; elapsed_ms: number }>(
+    `/api/projects/${projectId}/storyboards/${episodeNo}/scenes/${sceneId}/generate`,
+    { method: "POST" }
+  );
+}
+
+export function reassignProjectStoryboardShot(projectId: string, episodeNo: number, shotId: string, sourceSceneId: string) {
+  return request<ProjectStoryboardShot>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots/${shotId}/reassign`, {
+    method: "POST",
+    body: JSON.stringify({ source_scene_id: sourceSceneId })
+  });
+}
+
+export function duplicateProjectStoryboardShot(projectId: string, episodeNo: number, shotId: string, targetSceneId?: string) {
+  return request<ProjectStoryboardShot>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots/${shotId}/duplicate`, {
+    method: "POST",
+    body: JSON.stringify({ target_scene_id: targetSceneId })
+  });
+}
+
 export function createProjectStoryboardShot(projectId: string, episodeNo: number, payload: ProjectStoryboardShotPayload) {
-  return request<ProjectStoryboardShot>(`/api/projects/${projectId}/storyboard-shots/${episodeNo}`, {
+  return request<ProjectStoryboardShot>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots`, {
     method: "POST",
     body: JSON.stringify(payload)
   });
@@ -930,14 +1030,14 @@ export function updateProjectStoryboardShot(
   shotId: string,
   payload: ProjectStoryboardShotPayload
 ) {
-  return request<ProjectStoryboardShot>(`/api/projects/${projectId}/storyboard-shots/${episodeNo}/${shotId}`, {
+  return request<ProjectStoryboardShot>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots/${shotId}`, {
     method: "PUT",
     body: JSON.stringify(payload)
   });
 }
 
 export function deleteProjectStoryboardShot(projectId: string, episodeNo: number, shotId: string) {
-  return request<{ ok: boolean }>(`/api/projects/${projectId}/storyboard-shots/${episodeNo}/${shotId}`, {
+  return request<{ ok: boolean }>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots/${shotId}`, {
     method: "DELETE"
   });
 }

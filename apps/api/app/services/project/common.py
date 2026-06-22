@@ -13,6 +13,7 @@ from app.models.db_models import (
     ProjectEpisodeContent,
     ProjectEpisodeOutline,
     ProjectEpisodeScript,
+    ProjectStoryboard,
     ProjectStoryboardShot,
     ProjectStoryOutline,
     ProjectWorldSnapshot,
@@ -255,6 +256,7 @@ def mark_project_downstream_for_review(session, project_id: str) -> None:
             .values(status="needs_review", updated_at=current_time)
         )
     _mark_scripts_for_review(session, ProjectEpisodeScript.project_id == project_id, current_time)
+    _mark_storyboards_for_review(session, ProjectStoryboard.project_id == project_id, current_time)
 
 
 def mark_story_downstream_for_review(session, project_id: str) -> None:
@@ -267,6 +269,7 @@ def mark_story_downstream_for_review(session, project_id: str) -> None:
             .values(status="needs_review", updated_at=current_time)
         )
     _mark_scripts_for_review(session, ProjectEpisodeScript.project_id == project_id, current_time)
+    _mark_storyboards_for_review(session, ProjectStoryboard.project_id == project_id, current_time)
 
 
 def mark_episode_outline_downstream_for_review(session, project_id: str, episode_no: int) -> None:
@@ -283,6 +286,11 @@ def mark_episode_outline_downstream_for_review(session, project_id: str, episode
         (ProjectEpisodeScript.project_id == project_id) & (ProjectEpisodeScript.episode_no == episode_no),
         current_time,
     )
+    _mark_storyboards_for_review(
+        session,
+        (ProjectStoryboard.project_id == project_id) & (ProjectStoryboard.episode_no == episode_no),
+        current_time,
+    )
 
 
 def mark_episode_content_downstream_for_review(session, project_id: str, episode_no: int) -> None:
@@ -297,6 +305,11 @@ def mark_episode_content_downstream_for_review(session, project_id: str, episode
     _mark_scripts_for_review(
         session,
         (ProjectEpisodeScript.project_id == project_id) & (ProjectEpisodeScript.episode_no == episode_no),
+        current_time,
+    )
+    _mark_storyboards_for_review(
+        session,
+        (ProjectStoryboard.project_id == project_id) & (ProjectStoryboard.episode_no == episode_no),
         current_time,
     )
 
@@ -323,3 +336,20 @@ def mark_script_downstream_for_review(session, project_id: str, episode_no: int)
             .where(model.project_id == project_id, model.episode_no == episode_no, model.status != "needs_review")
             .values(status="needs_review", updated_at=current_time)
         )
+    _mark_storyboards_for_review(
+        session,
+        (ProjectStoryboard.project_id == project_id) & (ProjectStoryboard.episode_no == episode_no),
+        current_time,
+    )
+
+
+def _mark_storyboards_for_review(session, condition, current_time) -> None:
+    session.execute(
+        update(ProjectStoryboard)
+        .where(condition, ProjectStoryboard.status != "needs_review")
+        .values(
+            status="needs_review",
+            revision=ProjectStoryboard.revision + 1,
+            updated_at=current_time,
+        )
+    )

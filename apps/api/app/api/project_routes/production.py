@@ -6,10 +6,88 @@ from app.models.schemas import (
     ProjectCopywritingResponse,
     ProjectStoryboardShotPayload,
     ProjectStoryboardShotResponse,
+    ProjectStoryboardResponse,
+    StoryboardDuplicatePayload,
+    StoryboardReassignPayload,
+    StoryboardReorderPayload,
 )
 from app.services.project.production import copywriting, storyboard
 
 router = APIRouter()
+
+
+def _storyboard_status(exc: ValueError) -> int:
+    if isinstance(exc, storyboard.StoryboardConflictError):
+        return 409
+    if str(exc) in {"项目不存在", "项目分镜不存在"}:
+        return 404
+    return 400
+
+
+@router.get("/{project_id}/storyboards/{episode_no}", response_model=ProjectStoryboardResponse | None)
+def get_storyboard(project_id: str, episode_no: int) -> dict | None:
+    """读取按剧本场次分组的单集正式分镜。"""
+    try:
+        return storyboard.get_storyboard(project_id, episode_no)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
+
+
+@router.post("/{project_id}/storyboards/{episode_no}/shots", response_model=ProjectStoryboardShotResponse)
+def create_aggregate_shot(project_id: str, episode_no: int, payload: ProjectStoryboardShotPayload) -> dict:
+    try:
+        return storyboard.create_storyboard_shot(project_id, episode_no, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
+
+
+@router.put("/{project_id}/storyboards/{episode_no}/shots/{shot_id}", response_model=ProjectStoryboardShotResponse)
+def update_aggregate_shot(project_id: str, episode_no: int, shot_id: str, payload: ProjectStoryboardShotPayload) -> dict:
+    try:
+        return storyboard.update_storyboard_shot(project_id, episode_no, shot_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
+
+
+@router.delete("/{project_id}/storyboards/{episode_no}/shots/{shot_id}")
+def delete_aggregate_shot(project_id: str, episode_no: int, shot_id: str) -> dict:
+    try:
+        return storyboard.delete_storyboard_shot(project_id, episode_no, shot_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
+
+
+@router.post("/{project_id}/storyboards/{episode_no}/scenes/{scene_id}/reorder", response_model=ProjectStoryboardResponse)
+def reorder_storyboard_scene(project_id: str, episode_no: int, scene_id: str, payload: StoryboardReorderPayload) -> dict:
+    try:
+        return storyboard.reorder_storyboard_scene(project_id, episode_no, scene_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
+
+
+@router.post("/{project_id}/storyboards/{episode_no}/scenes/{scene_id}/generate")
+async def generate_storyboard_scene(project_id: str, episode_no: int, scene_id: str) -> dict:
+    """单场次生成；前端按场次串行调用，可独立重试失败场次。"""
+    try:
+        return await storyboard.generate_storyboard_scene(project_id, episode_no, scene_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
+
+
+@router.post("/{project_id}/storyboards/{episode_no}/shots/{shot_id}/reassign", response_model=ProjectStoryboardShotResponse)
+def reassign_storyboard_shot(project_id: str, episode_no: int, shot_id: str, payload: StoryboardReassignPayload) -> dict:
+    try:
+        return storyboard.reassign_storyboard_shot(project_id, episode_no, shot_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
+
+
+@router.post("/{project_id}/storyboards/{episode_no}/shots/{shot_id}/duplicate", response_model=ProjectStoryboardShotResponse)
+def duplicate_storyboard_shot(project_id: str, episode_no: int, shot_id: str, payload: StoryboardDuplicatePayload) -> dict:
+    try:
+        return storyboard.duplicate_storyboard_shot(project_id, episode_no, shot_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
 
 
 @router.get("/{project_id}/storyboard-shots/{episode_no}", response_model=list[ProjectStoryboardShotResponse])

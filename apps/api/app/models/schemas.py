@@ -26,6 +26,8 @@ ScriptTimeOfDay = Literal["morning", "day", "dusk", "night", "other"]
 ScriptInteriorExterior = Literal["interior", "exterior", "mixed"]
 ScriptGenerationScope = Literal["episode", "scene", "blocks"]
 ScriptGenerationStatus = Literal["candidate", "adopted", "discarded"]
+StoryboardStatus = Literal["draft", "pending_review", "confirmed", "needs_review"]
+StoryboardSourceStatus = Literal["valid", "changed", "scene_deleted", "unassigned"]
 ScriptRewritePreset = Literal[
     "more_satisfying", "more_tragic", "more_suspenseful", "more_colloquial",
     "short_video_pacing", "compress_duration", "stronger_cliffhanger",
@@ -1145,16 +1147,64 @@ class ScriptVersionSummary(BaseModel):
     created_at: str
 
 
-class ProjectStoryboardShotPayload(ProjectArtifactBase):
-    """ProjectStoryboardShotPayload 业务请求体，用于约束接口数据结构。"""
-    shot_no: int = Field(ge=1)
+class ShotPromptPayload(BaseModel):
+    image_prompt: Optional[str] = None
+    video_prompt: Optional[str] = None
+    negative_prompt: Optional[str] = None
+    first_frame_description: Optional[str] = None
+    last_frame_description: Optional[str] = None
+    reference_asset_ids: list[str] = Field(default_factory=list)
+    aspect_ratio: Optional[str] = None
+    seedance_prompt: Optional[str] = None
+
+    @field_validator(
+        "image_prompt", "video_prompt", "negative_prompt", "first_frame_description",
+        "last_frame_description", "aspect_ratio", "seedance_prompt", mode="before",
+    )
+    @classmethod
+    def normalize_prompt_text(cls, value):
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
+
+
+class ProjectStoryboardShotPayload(BaseModel):
+    """镜头编辑载荷；编号和排序由服务端维护。"""
+    revision: Optional[int] = Field(default=None, ge=1)
+    source_scene_id: Optional[str] = None
+    shot_size: Optional[str] = Field(default=None, max_length=40)
+    subject_description: Optional[str] = None
+    visual_description: Optional[str] = None
+    action: Optional[str] = None
+    duration_seconds: Optional[float] = Field(default=None, gt=0)
+    camera_angle: Optional[str] = None
+    camera_movement: Optional[str] = None
+    composition: Optional[str] = None
+    character_snapshot_ids: list[str] = Field(default_factory=list)
+    expression: Optional[str] = None
+    environment: Optional[str] = None
+    props: list[str] = Field(default_factory=list)
+    source_block_ids: list[str] = Field(default_factory=list)
+    dialogue_snapshot: Optional[str] = None
+    voiceover_snapshot: Optional[str] = None
+    sound_effect: Optional[str] = None
+    music_note: Optional[str] = None
+    continuity_note: Optional[str] = None
+    status: StoryboardStatus = "draft"
+    prompt: ShotPromptPayload = Field(default_factory=ShotPromptPayload)
+    # 兼容旧客户端；新工作台不提交以下字段。
+    shot_no: Optional[int] = Field(default=None, ge=1)
     scene: Optional[str] = None
     visual_prompt: Optional[str] = None
     camera: Optional[str] = None
-    duration_seconds: Optional[float] = None
     dialogue_or_voiceover: Optional[str] = None
 
-    @field_validator("scene", "visual_prompt", "camera", "dialogue_or_voiceover", mode="before")
+    @field_validator(
+        "shot_size", "subject_description", "visual_description", "action", "camera_angle",
+        "camera_movement", "composition", "expression", "environment", "dialogue_snapshot",
+        "voiceover_snapshot", "sound_effect", "music_note", "continuity_note", "scene",
+        "visual_prompt", "camera", "dialogue_or_voiceover", mode="before",
+    )
     @classmethod
     def normalize_text(cls, value: Optional[str]) -> Optional[str]:
         """清理分镜文本字段，保证镜头提示词和对白信息可直接用于制作。"""
@@ -1179,8 +1229,57 @@ class ProjectStoryboardShotResponse(ProjectStoryboardShotPayload):
     id: str
     project_id: str
     episode_no: int
+    storyboard_id: str
+    source_scene_id: Optional[str]
+    display_code: str
+    sort_order: int
+    revision: int
+    source_status: StoryboardSourceStatus
+    prompt_freshness: Literal["current", "needs_update"]
+    prompt_customized: bool
     created_at: str
     updated_at: str
+
+
+class StoryboardSceneGroupResponse(BaseModel):
+    scene_id: Optional[str]
+    scene_no: Optional[int]
+    display_code: str
+    title: str
+    script_duration_seconds: Optional[float]
+    shots_duration_seconds: float
+    duration_deviation_percent: Optional[float]
+    status: StoryboardStatus
+    shots: list[ProjectStoryboardShotResponse]
+
+
+class ProjectStoryboardResponse(BaseModel):
+    id: str
+    project_id: str
+    episode_no: int
+    version: int
+    revision: int
+    source_script_id: Optional[str]
+    source_script_version: Optional[int]
+    source_script_status: Optional[str]
+    total_duration_seconds: float
+    status: StoryboardStatus
+    shot_count: int
+    scene_groups: list[StoryboardSceneGroupResponse]
+    created_at: str
+    updated_at: str
+
+
+class StoryboardReorderPayload(BaseModel):
+    shot_ids: list[str] = Field(min_length=1)
+
+
+class StoryboardReassignPayload(BaseModel):
+    source_scene_id: str
+
+
+class StoryboardDuplicatePayload(BaseModel):
+    target_scene_id: Optional[str] = None
 
 
 class ProjectCopywritingPayload(ProjectArtifactBase):

@@ -460,14 +460,58 @@ class ProjectScriptCheckRun(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ProjectStoryboard(Base):
+    """单集正式分镜聚合，追溯来源结构化剧本版本。"""
+    __tablename__ = "project_storyboards"
+    __table_args__ = (
+        UniqueConstraint("project_id", "episode_no", name="uq_project_storyboards_project_episode"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    source_script_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("project_episode_scripts.id"), nullable=True)
+    source_script_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    source_script_status: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    total_duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
+    confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class ProjectStoryboardShot(Base):
-    """项目分镜表，保存单集镜头级制作信息。"""
+    """单集分镜镜头，按来源场次分组并使用稳定内部 ID。"""
     __tablename__ = "project_storyboard_shots"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
     episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    storyboard_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("project_storyboards.id"), nullable=True, index=True)
+    source_scene_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("project_script_scenes.id"), nullable=True, index=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     shot_no: Mapped[int] = mapped_column(Integer, nullable=False)
+    shot_size: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    subject_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    visual_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    action: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    camera_angle: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    camera_movement: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    composition: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    character_snapshot_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    expression: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    environment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    props: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    source_block_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    dialogue_snapshot: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    voiceover_snapshot: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    sound_effect: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    music_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    continuity_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_status: Mapped[str] = mapped_column(String(24), nullable=False, default="valid")
     scene: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     visual_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     camera: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -475,6 +519,26 @@ class ProjectStoryboardShot(Base):
     dialogue_or_voiceover: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ProjectShotPrompt(Base):
+    """镜头通用及 Seedance 提示词，独立维护新鲜度。"""
+    __tablename__ = "project_shot_prompts"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    shot_id: Mapped[str] = mapped_column(String(64), ForeignKey("project_storyboard_shots.id"), nullable=False, unique=True, index=True)
+    source_shot_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    image_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    video_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    negative_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    first_frame_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_frame_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reference_asset_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    aspect_ratio: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    seedance_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    customized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    freshness: Mapped[str] = mapped_column(String(24), nullable=False, default="current")
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 

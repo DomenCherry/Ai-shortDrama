@@ -89,7 +89,13 @@ export function WorkbenchHeader({ workbench }: { workbench: ProjectWorkbenchStat
               type="button"
               variant="ghost"
               key={stage.key}
-              onClick={() => workbench.setActiveStage(stage.key)}
+              onClick={() => {
+                if (workbench.activeStage === "storyboard" && stage.key !== "storyboard") {
+                  window.dispatchEvent(new CustomEvent("storyboard-stage-switch", { detail: stage.key }));
+                  return;
+                }
+                workbench.setActiveStage(stage.key);
+              }}
             >
               <span>{stage.label}</span>
               {workbench.currentWorkspaceGroup?.key === "projectAssets" && stage.key === "world" ? (

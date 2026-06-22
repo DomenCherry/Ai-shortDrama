@@ -354,7 +354,7 @@ export function shotToForm(shot: ProjectStoryboardShot): ShotForm {
     camera: shot.camera || "",
     duration_seconds: shot.duration_seconds ? String(shot.duration_seconds) : "",
     dialogue_or_voiceover: shot.dialogue_or_voiceover || "",
-    status: shot.status
+    status: shot.status === "pending_review" ? "needs_review" : shot.status
   };
 }
 

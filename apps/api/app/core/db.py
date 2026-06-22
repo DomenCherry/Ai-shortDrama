@@ -46,6 +46,8 @@ def initialize_database() -> None:
         ProjectScriptGeneration,
         ProjectScriptScene,
         ProjectStoryboardShot,
+        ProjectStoryboard,
+        ProjectShotPrompt,
         ProjectStoryOutline,
         ProjectWorldSnapshot,
         ReferenceStoryStructureDraft,

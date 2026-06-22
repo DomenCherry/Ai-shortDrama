@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
+from sqlalchemy import event
 
 
 os.environ["API_DATABASE_URL"] = "sqlite://"
@@ -10,6 +11,7 @@ os.environ["API_DATABASE_URL"] = "sqlite://"
 from app.core.config import get_settings
 from app.core.db import Base, get_engine, get_session, get_session_factory
 from app.models.db_models import (
+    CharacterCard,
     Project,
     ProjectCharacterSnapshot,
     ProjectCopywriting,
@@ -17,6 +19,8 @@ from app.models.db_models import (
     ProjectStoryboardShot,
 )
 from app.models.schemas import (
+    ProjectEpisodeScriptResponse,
+    ScriptGenerationAdoptResponse,
     ProjectEpisodeScriptPayload,
     ScriptGenerationCreate,
     ScriptRevisionPayload,
@@ -31,7 +35,15 @@ class StructuredEpisodeScriptTests(unittest.IsolatedAsyncioTestCase):
         get_settings.cache_clear()
         get_engine.cache_clear()
         get_session_factory.cache_clear()
-        Base.metadata.create_all(bind=get_engine())
+        engine = get_engine()
+
+        @event.listens_for(engine, "connect")
+        def enable_sqlite_foreign_keys(dbapi_connection, _connection_record) -> None:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+        Base.metadata.create_all(bind=engine)
         self.project_id = "project-structured"
         self.character_id = "character-snapshot-1"
         self._seed()
@@ -53,6 +65,11 @@ class StructuredEpisodeScriptTests(unittest.IsolatedAsyncioTestCase):
                 id="content-1", project_id=self.project_id, episode_no=1,
                 detailed_content="林晚推门而入，发现遗嘱已经被调换。",
                 word_count=18, status="confirmed", created_at=now, updated_at=now,
+            ))
+            session.add(CharacterCard(
+                id="source-card-1", name="林晚", gender="女", role_type="主角",
+                identity="调查记者", goal="找回遗嘱", status="active",
+                created_at=now, updated_at=now,
             ))
             session.add(ProjectCharacterSnapshot(
                 id=self.character_id, project_id=self.project_id, source_character_card_id="source-card-1",
@@ -168,6 +185,8 @@ class StructuredEpisodeScriptTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(adopted["generation"]["status"], "adopted")
         self.assertEqual(adopted["script"]["version"], 1)
         self.assertEqual(adopted["script"]["scenes"][0]["location"], "林家客厅")
+        ProjectEpisodeScriptResponse.model_validate(adopted["script"])
+        ScriptGenerationAdoptResponse.model_validate(adopted)
 
 
 if __name__ == "__main__":

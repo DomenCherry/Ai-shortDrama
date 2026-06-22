@@ -344,6 +344,7 @@ def _save_in_session(
 
     total_auto = 0.0
     total_scene_effective = 0.0
+    pending_blocks: list[tuple[str, list[ScriptBlockPayload]]] = []
     for scene_order, scene_payload in enumerate(payload.scenes):
         scene_id = scene_payload.id or str(uuid4())
         scene_created = existing_scenes.get(scene_id).created_at if scene_id in existing_scenes else now
@@ -359,7 +360,13 @@ def _save_in_session(
             effective_duration_seconds=effective_duration, story_purpose=scene_payload.story_purpose,
             sort_order=scene_order, created_at=scene_created, updated_at=now,
         ))
-        for block_order, block_payload in enumerate(scene_payload.blocks):
+        pending_blocks.append((scene_id, scene_payload.blocks))
+
+    # 场次与内容块没有 ORM relationship，SQLAlchemy 无法仅根据对象引用推导
+    # 插入顺序。先显式写入全部父场次，避免 PostgreSQL 外键拒绝内容块。
+    session.flush()
+    for scene_id, block_payloads in pending_blocks:
+        for block_order, block_payload in enumerate(block_payloads):
             block_id = block_payload.id or str(uuid4())
             block_created = existing_blocks.get(block_id).created_at if block_id in existing_blocks else now
             session.add(ProjectScriptBlock(

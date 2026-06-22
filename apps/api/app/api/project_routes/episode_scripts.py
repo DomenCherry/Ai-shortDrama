@@ -1,5 +1,6 @@
 """结构化剧本路由。"""
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.exc import IntegrityError
 
 from app.models.schemas import (
     ProjectEpisodeScriptPayload,
@@ -30,6 +31,14 @@ def _raise(exc: ValueError) -> None:
     raise HTTPException(status_code=status, detail=detail) from exc
 
 
+def _raise_integrity(exc: IntegrityError) -> None:
+    """数据库约束异常不暴露 SQL 和参数，只返回可恢复的业务提示。"""
+    raise HTTPException(
+        status_code=409,
+        detail={"message": "剧本写入发生数据冲突，请刷新后重试", "issues": []},
+    ) from exc
+
+
 @router.get("/{project_id}/episode-scripts/{episode_no}", response_model=ProjectEpisodeScriptResponse | None)
 def get_episode_script(project_id: str, episode_no: int) -> dict | None:
     try:
@@ -42,6 +51,8 @@ def get_episode_script(project_id: str, episode_no: int) -> dict | None:
 def upsert_episode_script(project_id: str, episode_no: int, payload: ProjectEpisodeScriptPayload) -> dict:
     try:
         return episode_scripts.upsert_episode_script(project_id, episode_no, payload)
+    except IntegrityError as exc:
+        _raise_integrity(exc)
     except ValueError as exc:
         _raise(exc)
 
@@ -74,6 +85,8 @@ def get_script_generation(project_id: str, episode_no: int, generation_id: str) 
 def adopt_script_generation(project_id: str, episode_no: int, generation_id: str, payload: ScriptRevisionPayload) -> dict:
     try:
         return episode_scripts.adopt_script_generation(project_id, episode_no, generation_id, payload)
+    except IntegrityError as exc:
+        _raise_integrity(exc)
     except ValueError as exc:
         _raise(exc)
 
