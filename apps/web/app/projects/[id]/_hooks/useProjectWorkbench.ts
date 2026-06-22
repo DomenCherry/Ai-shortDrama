@@ -108,11 +108,13 @@ type PendingConfirmation = {
 export function useProjectWorkbench({
   projectId,
   mode,
-  requestedStage
+  requestedStage,
+  requestedEpisodeNo
 }: {
   projectId: string;
   mode: WorkspaceMode;
   requestedStage: string | null;
+  requestedEpisodeNo: number | null;
 }) {
   const isLandingMode = mode === "landing";
   const visibleGroups = useMemo(
@@ -123,7 +125,7 @@ export function useProjectWorkbench({
   const normalizedRequestedStage = requestedStage === "assets" ? "world" : requestedStage;
   const [project, setProject] = useState<ProjectSummary | null>(null);
   const [activeStage, setActiveStage] = useState<Stage>(() => defaultStageForMode(mode));
-  const [selectedEpisodeNo, setSelectedEpisodeNo] = useState(1);
+  const [selectedEpisodeNo, setSelectedEpisodeNo] = useState(requestedEpisodeNo ?? 1);
 
   const [worldSnapshots, setWorldSnapshots] = useState<ProjectWorldSnapshot[]>([]);
   const [characterSnapshots, setCharacterSnapshots] = useState<ProjectCharacterSnapshot[]>([]);

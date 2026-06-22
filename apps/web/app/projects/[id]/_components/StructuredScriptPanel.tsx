@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  BookOpenIcon,
   CheckCircle2Icon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -520,6 +522,11 @@ export function StructuredScriptPanel({ workbench }: { workbench: ProjectWorkben
           </main>
 
           <aside className="structured-script-inspector">
+            <SourceContentReference
+              projectId={workbench.projectId}
+              episodeNo={workbench.selectedEpisodeNo}
+              content={workbench.episodeContent}
+            />
             <section><div className="inspector-heading"><h3>结构与一致性</h3><Badge variant={issues.some((issue) => issue.severity === "error") ? "destructive" : "secondary"}>{issues.length} 项</Badge></div>{issues.length ? <div className="script-issue-list">{issues.map((issue, index) => <div className={`script-issue script-issue-${issue.severity}`} key={`${issue.code}-${index}`}><strong>{issue.severity === "error" ? "错误" : issue.severity === "warning" ? "警告" : "建议"}</strong><span>{issue.message}</span></div>)}</div> : <p className="hint">保存后运行检查，查看结构和语义风险。</p>}</section>
             <section><div className="inspector-heading"><h3>候选历史</h3><Badge variant="outline">{generations.length}</Badge></div>{generations.length ? <div className="script-generation-list">{generations.slice(0, 20).map((generation) => <button type="button" key={generation.id} onClick={() => setActiveGeneration(generation)}><span>{generation.generation_scope === "episode" ? "整集" : generation.generation_scope === "scene" ? "场次" : "局部"}</span><small>{generation.status === "candidate" ? "待处理" : generation.status === "adopted" ? "已采用" : "已放弃"} · {new Date(generation.created_at).toLocaleString("zh-CN")}</small></button>)}</div> : <p className="hint">尚无候选记录。</p>}</section>
             {selectedBlocks.length ? <Button type="button" variant="secondary" onClick={() => openGeneration("blocks")} disabled={!selectedRange}><SparklesIcon data-icon="inline-start" />改写已选 {selectedBlocks.length} 块</Button> : null}
@@ -548,6 +555,61 @@ export function StructuredScriptPanel({ workbench }: { workbench: ProjectWorkben
 
       <ConfirmDialog open={pendingEpisode !== null} title="切换集数？" description="当前剧本有未保存修改。切换后这些修改会丢失。" destructive confirmLabel="放弃修改并切换" onOpenChange={(open) => !open && setPendingEpisode(null)} onConfirm={() => { if (pendingEpisode) workbench.setSelectedEpisodeNo(pendingEpisode); setPendingEpisode(null); }} />
       <ConfirmDialog open={deleteSceneIndex !== null} title="删除场次？" description="删除场次后，已有关联分镜将需要重新检查。此操作在保存前仍可通过刷新撤销。" destructive confirmLabel="删除场次" onOpenChange={(open) => !open && setDeleteSceneIndex(null)} onConfirm={() => { if (deleteSceneIndex !== null) mutateScenes((current) => current.filter((_, index) => index !== deleteSceneIndex)); setDeleteSceneIndex(null); }} />
+    </section>
+  );
+}
+
+function SourceContentReference({
+  projectId,
+  episodeNo,
+  content
+}: {
+  projectId: string;
+  episodeNo: number;
+  content: ProjectWorkbenchState["episodeContent"];
+}) {
+  const [open, setOpen] = useState(true);
+  const detailedContent = content?.detailed_content?.trim() ?? "";
+  const editHref = `/projects/${projectId}/story-text?stage=content&episode=${episodeNo}`;
+
+  return (
+    <section className="script-source-reference" aria-labelledby="script-source-title">
+      <div className="inspector-heading">
+        <button
+          type="button"
+          className="script-source-toggle"
+          aria-expanded={open}
+          aria-controls="script-source-body"
+          onClick={() => setOpen((current) => !current)}
+        >
+          {open ? <ChevronDownIcon /> : <ChevronRightIcon />}
+          <BookOpenIcon />
+          <h3 id="script-source-title">来源正文</h3>
+        </button>
+        {content ? <ArtifactStatusBadge status={content.status} /> : <Badge variant="outline">未创建</Badge>}
+      </div>
+
+      {open ? (
+        <div id="script-source-body" className="script-source-body">
+          <div className="script-source-meta">
+            <strong>第 {episodeNo} 集 · {content?.title?.trim() || "未命名正文"}</strong>
+            <span>{content ? `${content.word_count} 字` : "暂无正文"}</span>
+          </div>
+          {detailedContent ? (
+            <div className="script-source-content" tabIndex={0} aria-label={`第 ${episodeNo} 集故事正文`}>
+              {detailedContent}
+            </div>
+          ) : (
+            <div className="script-source-empty">
+              <p>当前集还没有可供对照的故事正文。</p>
+              <span>先完成正文后，才能生成完整的结构化剧本。</span>
+            </div>
+          )}
+          <Button type="button" variant="secondary" size="sm" asChild>
+            <Link href={editHref}>{detailedContent ? "前往编辑正文" : "前往创建正文"}</Link>
+          </Button>
+        </div>
+      ) : null}
     </section>
   );
 }

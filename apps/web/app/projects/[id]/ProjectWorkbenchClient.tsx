@@ -15,7 +15,13 @@ export default function ProjectWorkbenchClient({ mode = "landing" }: { mode?: Wo
   const searchParams = useSearchParams();
   const projectId = params.id;
   const requestedStage = searchParams.get("stage");
-  const workbench = useProjectWorkbench({ projectId, mode, requestedStage });
+  const requestedEpisodeNo = Number(searchParams.get("episode"));
+  const workbench = useProjectWorkbench({
+    projectId,
+    mode,
+    requestedStage,
+    requestedEpisodeNo: Number.isInteger(requestedEpisodeNo) && requestedEpisodeNo > 0 ? requestedEpisodeNo : null
+  });
 
   if (workbench.isLoading) {
     return <LoadingWorkbench />;
