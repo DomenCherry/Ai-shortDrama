@@ -22,7 +22,7 @@ from app.models.schemas import (
     ProjectEpisodeContentPayload,
 )
 from app.services import model_configs
-from app.services.project.generation_common import call_text_generation_raw, read_rule
+from app.services.project.generation_common import call_text_generation_raw, read_rule, rules_root
 from app.services.project.common import (
     character_snapshot_to_response,
     count_content_characters,
@@ -112,7 +112,11 @@ def _clean_content(value: str | None) -> str:
 
 def _generation_system_prompt(generation_type: str) -> str:
     base_rule = read_rule("episode-content-writing-rule.md")
-    humanizer_rule = read_rule("episode-content-humanizer-rule.md")
+    humanizer_skill_path = rules_root().parent / "runtime-skills" / "humanizer-zh" / "SKILL.md"
+    if not humanizer_skill_path.exists():
+        raise ValueError("Humanizer-zh skill 未安装，请先安装到项目 runtime-skills/humanizer-zh")
+    humanizer_skill = humanizer_skill_path.read_text(encoding="utf-8")
+    humanizer_adaptation_rule = read_rule("episode-content-humanizer-rule.md")
     operation_rule = {
         "create": "本次任务：创作当前集完整候选正文。不要引用或改写当前正式正文。",
         "continue": (
@@ -124,7 +128,15 @@ def _generation_system_prompt(generation_type: str) -> str:
             "不要新增关键剧情，不要改变事实、人物关系、事件顺序和结尾信息。"
         ),
     }[generation_type]
-    return "\n\n".join([base_rule, humanizer_rule, operation_rule])
+    return "\n\n".join(
+        [
+            base_rule,
+            "# Humanizer-zh 原始 skill 规则\n\n以下规则来自项目内安装的 runtime-skills/humanizer-zh/SKILL.md。只采用其去 AI 味原则；输出格式以本服务规则为准。",
+            humanizer_skill,
+            humanizer_adaptation_rule,
+            operation_rule,
+        ]
+    )
 
 
 def _generation_prompt(snapshot: dict[str, Any], instruction: str | None, generation_type: str) -> str:

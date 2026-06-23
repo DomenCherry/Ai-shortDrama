@@ -33,4 +33,4 @@ workspace/assets/*
 
 # Local-only AI coding skills
 .local-skills/
-.agents/skills/
+.agents/skills/*
