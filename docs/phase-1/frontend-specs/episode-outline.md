@@ -15,7 +15,7 @@
 
 用户进入页面时通常已经创建项目，并可能已经加载世界观、角色和整体故事大纲。用户离开页面时，应至少能够保存分集大纲或某一集单集故事正文。保存单集故事正文后，短剧制作应以该正文作为剧本、分镜、字幕和发布文案的主要输入。
 
-AI 创作能力当前已接入“正文创作”：生成结果先持久化为候选稿，用户确认采用后才更新正式正文。续写、润色、撤销润色、摘要、一致性质检、角色参考、设定参考、文风和灵感面板仍保持后续入口。钩子提取和传播点沉淀归入短剧制作模块。
+AI 创作能力当前已接入“正文创作 / 续写 / 润色”：生成结果先持久化为候选稿，用户确认采用后才更新正式正文。撤销润色、摘要、一致性质检、角色参考、设定参考、文风和灵感面板仍保持后续入口。钩子提取和传播点沉淀归入短剧制作模块。
 
 ## 3. 用户流程
 
@@ -138,13 +138,13 @@ AI 创作能力当前已接入“正文创作”：生成结果先持久化为�
 
 ### 6.3 AI 创作控件
 
-“正文创作”已形成可用闭环，其余控件仍只展示入口：
+“正文创作 / 续写 / 润色”已形成可用闭环，其余控件仍只展示入口：
 
 | 控件 | 类型 | 状态 | 展示说明 |
 | --- | --- | --- | --- |
 | 正文创作 | 按钮 | 有有效本集大纲时可用 | 基于固定上下文生成候选稿，采用前不覆盖正文 |
-| 续写 | 按钮 | 禁用或展示“暂未接入”提示 | 后续基于正文末尾续写 |
-| 润色 | 按钮 | 禁用或展示“暂未接入”提示 | 后续优化语言和节奏 |
+| 续写 | 按钮 | 当前正文已保存且非空时可用 | 基于正文末尾续写，返回完整候选正文 |
+| 润色 | 按钮 | 当前正文已保存且非空时可用 | 基于 Humanizer-zh 去 AI 味规则润色全文，返回完整候选正文 |
 | 撤销润色 | 按钮 | 禁用或展示“暂未接入”提示 | 后续回退润色版本 |
 | 摘要 | 按钮 | 禁用或展示“暂未接入”提示 | 后续自动生成正文摘要 |
 | 一致性质检 | 按钮 | 禁用或展示“暂未接入”提示 | 后续检查设定、角色和前文冲突 |
@@ -163,7 +163,7 @@ AI 创作能力当前已接入“正文创作”：生成结果先持久化为�
 - 空数据：当前集未保存过大纲或正文时展示空表单，不阻止编辑。
 - 未保存状态：用户修改当前表单后切换集数或离开页面，应提示保存或放弃修改。
 - `needs_review` 状态：展示“需要检查”，但不阻止继续编辑和保存。
-- 正文创作：生成期间锁定当前集切换；刷新后恢复最近未处理候选稿。
+- 正文创作 / 续写 / 润色：生成期间锁定当前集切换；刷新后恢复最近未处理候选稿。
 - 其余 AI 展示按钮：点击时不发送请求，应展示“该 AI 能力暂未接入，后续完善”。
 
 ## 8. API 依赖
@@ -180,13 +180,13 @@ AI 创作能力当前已接入“正文创作”：生成结果先持久化为�
 | 保存分集大纲 | `updateProjectEpisodeOutline` | `PUT /api/projects/{project_id}/episode-outlines/{episode_no}` | 分集大纲字段 | 分集大纲 | 展示分集大纲保存失败 |
 | 读取单集故事正文 | `getProjectEpisodeContent` | `GET /api/projects/{project_id}/episode-contents/{episode_no}` | project_id、episode_no | 单集故事正文或空 | 展示正文加载失败；单集正文页同时读取上一集正文用于前文参考 |
 | 保存单集故事正文 | `updateProjectEpisodeContent` | `PUT /api/projects/{project_id}/episode-contents/{episode_no}` | 单集故事正文字段 | 单集故事正文 | 展示正文保存失败 |
-| 生成正文候选稿 | `generateProjectEpisodeContent` | `POST /api/projects/{project_id}/episode-contents/{episode_no}/generations` | 创作要求、请求 ID | 持久化候选版本 | 展示模型配置、超时或生成结果错误 |
+| 生成正文候选稿 | `generateProjectEpisodeContent` | `POST /api/projects/{project_id}/episode-contents/{episode_no}/generations` | 创作要求、请求 ID、`generation_type` | 持久化候选版本 | 展示模型配置、超时或生成结果错误 |
 | 读取候选历史 | `listProjectEpisodeContentGenerations` | `GET /api/projects/{project_id}/episode-contents/{episode_no}/generations` | project_id、episode_no | 最近十个版本 | 候选历史不可用时保留正式正文编辑 |
 | 保存候选编辑 | `updateProjectEpisodeContentGeneration` | `PUT /api/projects/{project_id}/episode-contents/{episode_no}/generations/{generation_id}` | 候选正文 | 候选版本 | 已处理版本不可编辑 |
 | 采用候选稿 | `adoptProjectEpisodeContentGeneration` | `POST .../{generation_id}/adopt` | generation_id | 正式正文与已采用版本 | 正文并发变化时要求重新生成 |
 | 放弃候选稿 | `discardProjectEpisodeContentGeneration` | `POST .../{generation_id}/discard` | generation_id | 已放弃版本 | 已处理版本不可重复放弃 |
 
-续写、润色、撤销润色、摘要和一致性质检按钮仍不得调用后端。
+撤销润色、摘要和一致性质检按钮仍不得调用后端。
 
 ## 9. 错误提示
 

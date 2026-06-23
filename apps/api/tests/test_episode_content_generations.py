@@ -165,13 +165,112 @@ class EpisodeContentGenerationTests(unittest.IsolatedAsyncioTestCase):
         generated = await self._generate()
 
         self.assertEqual(generated["status"], "candidate")
+        self.assertEqual(generated["generation_type"], "create")
         self.assertEqual(generated["input_snapshot"]["episode_outline"]["episode_no"], 2)
+        self.assertEqual(generated["input_snapshot"]["generation_type"], "create")
+        self.assertEqual(generated["input_snapshot"]["humanizer"]["source"], "op7418/Humanizer-zh")
         self.assertEqual(
             generated["input_snapshot"]["previous_episode_summary"],
             "记者收到失踪好友的异常语音。",
         )
         self.assertEqual(generated["input_snapshot"]["target_chinese_characters"], {"min": 600, "max": 900})
         self.assertIsNone(episode_contents.get_episode_content(self.project_id, 2))
+
+    async def test_create_prompt_includes_humanizer_rule_without_current_content(self) -> None:
+        model_config = {"id": "model-1", "model_name": "test-model", "last_test_status": "success"}
+        model_call = AsyncMock(return_value=TextGenerationResponse(content="候选正文", finish_reason="stop"))
+        with (
+            patch.object(episode_contents.model_configs, "get_enabled_config", return_value=model_config),
+            patch.object(episode_contents, "call_text_generation_raw", new=model_call),
+        ):
+            await episode_contents.generate_episode_content(
+                self.project_id,
+                2,
+                EpisodeContentGenerationCreate(client_request_id="humanizer-create"),
+            )
+
+        system_prompt, user_prompt = model_call.await_args.args[:2]
+        self.assertIn("Humanizer-zh", system_prompt)
+        self.assertIn("去 AI 味", system_prompt)
+        self.assertIn('"generation_type": "create"', user_prompt)
+        self.assertNotIn('"current_content"', user_prompt)
+
+    async def test_continue_requires_non_empty_saved_content(self) -> None:
+        with self.assertRaisesRegex(ValueError, "续写需要当前正文非空"):
+            await episode_contents.generate_episode_content(
+                self.project_id,
+                2,
+                EpisodeContentGenerationCreate(client_request_id="continue-empty", generation_type="continue"),
+            )
+
+    async def test_continue_generates_full_candidate_without_overwriting_content(self) -> None:
+        episode_contents.upsert_episode_content(
+            self.project_id,
+            2,
+            ProjectEpisodeContentPayload(detailed_content="她把手机扣在桌上，门外再次响起敲门声。", status="draft"),
+        )
+        model_config = {"id": "model-1", "model_name": "test-model", "last_test_status": "success"}
+        model_call = AsyncMock(
+            return_value=TextGenerationResponse(
+                content="她把手机扣在桌上，门外再次响起敲门声。\n\n她没有立刻开门，而是屏住呼吸看向猫眼。",
+                finish_reason="stop",
+            )
+        )
+        with (
+            patch.object(episode_contents.model_configs, "get_enabled_config", return_value=model_config),
+            patch.object(episode_contents, "call_text_generation_raw", new=model_call),
+        ):
+            generated = await episode_contents.generate_episode_content(
+                self.project_id,
+                2,
+                EpisodeContentGenerationCreate(client_request_id="continue-ok", generation_type="continue"),
+            )
+
+        self.assertEqual(generated["generation_type"], "continue")
+        self.assertIn("她把手机扣在桌上", generated["input_snapshot"]["current_content"]["text"])
+        self.assertIn("她没有立刻开门", generated["output_text"])
+        self.assertEqual(
+            episode_contents.get_episode_content(self.project_id, 2)["detailed_content"],
+            "她把手机扣在桌上，门外再次响起敲门声。",
+        )
+        self.assertIn('"generation_type": "continue"', model_call.await_args.args[1])
+
+    async def test_polish_requires_non_empty_saved_content(self) -> None:
+        with self.assertRaisesRegex(ValueError, "润色需要当前正文非空"):
+            await episode_contents.generate_episode_content(
+                self.project_id,
+                2,
+                EpisodeContentGenerationCreate(client_request_id="polish-empty", generation_type="polish"),
+            )
+
+    async def test_polish_generates_candidate_with_humanizer_rule(self) -> None:
+        episode_contents.upsert_episode_content(
+            self.project_id,
+            2,
+            ProjectEpisodeContentPayload(detailed_content="她感到前所未有的恐惧，因此决定深入探讨真相。", status="draft"),
+        )
+        model_config = {"id": "model-1", "model_name": "test-model", "last_test_status": "success"}
+        model_call = AsyncMock(
+            return_value=TextGenerationResponse(
+                content="她的指尖贴着冰冷的门把手，迟迟没有拧下去。真相就在门外，可那阵敲门声像是在等她先露出破绽。",
+                finish_reason="stop",
+            )
+        )
+        with (
+            patch.object(episode_contents.model_configs, "get_enabled_config", return_value=model_config),
+            patch.object(episode_contents, "call_text_generation_raw", new=model_call),
+        ):
+            generated = await episode_contents.generate_episode_content(
+                self.project_id,
+                2,
+                EpisodeContentGenerationCreate(client_request_id="polish-ok", generation_type="polish"),
+            )
+
+        system_prompt, user_prompt = model_call.await_args.args[:2]
+        self.assertEqual(generated["generation_type"], "polish")
+        self.assertIn("Humanizer-zh", system_prompt)
+        self.assertIn('"generation_type": "polish"', user_prompt)
+        self.assertIn("她的指尖贴着冰冷的门把手", generated["output_text"])
 
     async def test_edit_and_adopt_candidate_updates_content_and_downstream_status(self) -> None:
         generated = await self._generate()

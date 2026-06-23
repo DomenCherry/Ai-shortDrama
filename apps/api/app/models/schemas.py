@@ -20,6 +20,7 @@ ReferenceStoryApplyMode = Literal["fill_empty", "overwrite"]
 StoryOutlineAssistAction = Literal["start", "reply"]
 StoryOutlineAssistMessageRole = Literal["user", "assistant"]
 EpisodeContentGenerationStatus = Literal["candidate", "adopted", "discarded"]
+EpisodeContentGenerationType = Literal["create", "continue", "polish"]
 ScriptStatus = Literal["draft", "pending_review", "confirmed", "needs_review"]
 ScriptBlockType = Literal["action", "dialogue", "voiceover", "transition"]
 ScriptTimeOfDay = Literal["morning", "day", "dusk", "night", "other"]
@@ -909,6 +910,7 @@ class EpisodeContentGenerationCreate(BaseModel):
     """创建单集正文候选稿的请求。"""
     instruction: Optional[str] = None
     client_request_id: str = Field(min_length=1, max_length=80)
+    generation_type: EpisodeContentGenerationType = "create"
 
     @field_validator("instruction", "client_request_id", mode="before")
     @classmethod
@@ -940,6 +942,7 @@ class EpisodeContentGenerationResponse(BaseModel):
     id: str
     project_id: str
     episode_no: int
+    generation_type: EpisodeContentGenerationType
     instruction: Optional[str]
     input_snapshot: dict
     output_text: str

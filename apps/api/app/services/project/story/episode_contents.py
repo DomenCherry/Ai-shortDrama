@@ -99,10 +99,44 @@ def _get_generation(session, project_id: str, episode_no: int, generation_id: st
     return generation
 
 
-def _generation_prompt(snapshot: dict[str, Any], instruction: str | None) -> str:
-    """把固定上下文快照组装为模型输入，不包含当前正式正文。"""
+GENERATION_TYPE_LABELS = {
+    "create": "正文创作",
+    "continue": "续写",
+    "polish": "润色",
+}
+
+
+def _clean_content(value: str | None) -> str:
+    return (value or "").strip()
+
+
+def _generation_system_prompt(generation_type: str) -> str:
+    base_rule = read_rule("episode-content-writing-rule.md")
+    humanizer_rule = read_rule("episode-content-humanizer-rule.md")
+    operation_rule = {
+        "create": "本次任务：创作当前集完整候选正文。不要引用或改写当前正式正文。",
+        "continue": (
+            "本次任务：基于当前正文末尾续写，并返回“当前正文 + 新增续写”的完整候选正文。"
+            "不要重写已存在正文，不要省略当前正文。"
+        ),
+        "polish": (
+            "本次任务：润色当前正文全文，并返回完整润色候选正文。"
+            "不要新增关键剧情，不要改变事实、人物关系、事件顺序和结尾信息。"
+        ),
+    }[generation_type]
+    return "\n\n".join([base_rule, humanizer_rule, operation_rule])
+
+
+def _generation_prompt(snapshot: dict[str, Any], instruction: str | None, generation_type: str) -> str:
+    """把上下文快照组装为模型输入；create 不把当前正式正文作为重写输入。"""
+    task = {
+        "create": "基于给定上下文创作当前集完整的小说化故事正文",
+        "continue": "基于当前正文末尾续写，返回当前正文加续写内容后的完整候选正文",
+        "polish": "基于去 AI 味规则润色当前正文全文，返回完整候选正文",
+    }[generation_type]
     payload = {
-        "task": "基于给定上下文创作当前集完整的小说化故事正文",
+        "task": task,
+        "generation_type": generation_type,
         "project": snapshot["project"],
         "story_outline": snapshot["story_outline"],
         "episode_outline": snapshot["episode_outline"],
@@ -112,7 +146,25 @@ def _generation_prompt(snapshot: dict[str, Any], instruction: str | None) -> str
         "target_chinese_characters": snapshot["target_chinese_characters"],
         "user_instruction": instruction or "无额外要求",
     }
+    if generation_type in {"continue", "polish"}:
+        payload["current_content"] = snapshot.get("current_content", {})
     return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def _max_tokens_for_generation(generation_type: str, target_max: int, current_content_text: str | None = None) -> int:
+    if generation_type == "polish":
+        return min(6000, max(1600, round(max(target_max, len(current_content_text or "")) * 1.8)))
+    if generation_type == "continue":
+        return min(6000, max(1600, round(max(target_max, len(current_content_text or "")) * 1.8)))
+    return min(3600, max(1600, round(target_max * 1.6)))
+
+
+def _truncated_generation_message(generation_type: str) -> str:
+    if generation_type == "continue":
+        return "续写候选稿生成不完整，请重试"
+    if generation_type == "polish":
+        return "润色候选稿生成不完整，请重试"
+    return "候选稿生成不完整，请重试"
 
 
 async def generate_episode_content(
@@ -121,6 +173,7 @@ async def generate_episode_content(
     payload: EpisodeContentGenerationCreate,
 ) -> dict[str, Any]:
     """生成并持久化候选稿；相同请求 ID 直接返回已有结果。"""
+    generation_type = payload.generation_type
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -164,6 +217,10 @@ async def generate_episode_content(
                 ProjectEpisodeContent.episode_no == episode_no,
             )
         ).first()
+        current_content_text = _clean_content(current_content.detailed_content if current_content else None)
+        if generation_type in {"continue", "polish"} and not current_content_text:
+            label = GENERATION_TYPE_LABELS[generation_type]
+            raise ValueError(f"{label}需要当前正文非空，请先填写并保存正文")
         previous_content = None
         if episode_no > 1:
             previous_content = session.scalars(
@@ -177,6 +234,14 @@ async def generate_episode_content(
         target_min = max(60, round(duration * 600))
         target_max = max(target_min, round(duration * 900))
         snapshot = {
+            "generation_type": generation_type,
+            "humanizer": {
+                "source": "op7418/Humanizer-zh",
+                "source_url": "https://github.com/op7418/Humanizer-zh",
+                "license": "MIT",
+                "adaptation_rule": "episode-content-humanizer-rule.md",
+                "mode": "single_pass_fusion",
+            },
             "project": project_to_response(project),
             "story_outline": story_outline_to_response(story_outline) if story_outline else None,
             "episode_outline": episode_outline_to_response(episode_outline),
@@ -185,24 +250,30 @@ async def generate_episode_content(
             "previous_episode_summary": previous_content.chapter_summary if previous_content else None,
             "target_chinese_characters": {"min": target_min, "max": target_max},
             "current_content_updated_at": current_content.updated_at.isoformat() if current_content else None,
-            "has_existing_content": bool(current_content and current_content.detailed_content),
+            "has_existing_content": bool(current_content_text),
         }
+        if generation_type in {"continue", "polish"}:
+            snapshot["current_content"] = {
+                "word_count": count_content_characters(current_content_text),
+                "updated_at": current_content.updated_at.isoformat() if current_content else None,
+                "text": current_content_text,
+            }
 
     text_config = model_configs.get_enabled_config("text")
     if not text_config or text_config["last_test_status"] != "success":
         raise ValueError("请先配置并测试成功文本生成模型 API")
 
     started_at = time.perf_counter()
-    system_prompt = read_rule("episode-content-writing-rule.md")
-    max_tokens = min(3600, max(1600, round(target_max * 1.6)))
+    system_prompt = _generation_system_prompt(generation_type)
+    max_tokens = _max_tokens_for_generation(generation_type, target_max, current_content_text)
     response = await call_text_generation_raw(
         system_prompt,
-        _generation_prompt(snapshot, payload.instruction),
+        _generation_prompt(snapshot, payload.instruction, generation_type),
         max_tokens=max_tokens,
     )
     elapsed_ms = round((time.perf_counter() - started_at) * 1000)
     if response.finish_reason in {"length", "max_tokens"}:
-        raise ValueError("候选稿生成不完整，请重试")
+        raise ValueError(_truncated_generation_message(generation_type))
     output_text = response.content.strip()
     if not output_text:
         raise ValueError("正文生成结果为空，请调整创作要求后重试")
@@ -223,6 +294,7 @@ async def generate_episode_content(
             id=str(uuid4()),
             project_id=project_id,
             episode_no=episode_no,
+            generation_type=generation_type,
             instruction=payload.instruction,
             input_snapshot=json.dumps(snapshot, ensure_ascii=False),
             output_text=output_text,

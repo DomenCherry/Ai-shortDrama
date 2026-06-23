@@ -244,11 +244,13 @@ export type ProjectEpisodeContent = ProjectEpisodeContentPayload & {
 };
 
 export type EpisodeContentGenerationStatus = "candidate" | "adopted" | "discarded";
+export type EpisodeContentGenerationType = "create" | "continue" | "polish";
 
 export type EpisodeContentGeneration = {
   id: string;
   project_id: string;
   episode_no: number;
+  generation_type: EpisodeContentGenerationType;
   instruction?: string;
   input_snapshot: Record<string, unknown>;
   output_text: string;
@@ -858,7 +860,7 @@ export function updateProjectEpisodeContent(projectId: string, episodeNo: number
 export function generateProjectEpisodeContent(
   projectId: string,
   episodeNo: number,
-  payload: { instruction?: string; client_request_id: string }
+  payload: { instruction?: string; client_request_id: string; generation_type?: EpisodeContentGenerationType }
 ) {
   return request<EpisodeContentGeneration>(`/api/projects/${projectId}/episode-contents/${episodeNo}/generations`, {
     method: "POST",

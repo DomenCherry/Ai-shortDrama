@@ -154,6 +154,7 @@ def episode_content_generation_to_response(generation: EpisodeContentGenerationV
         "id": generation.id,
         "project_id": generation.project_id,
         "episode_no": generation.episode_no,
+        "generation_type": getattr(generation, "generation_type", None) or "create",
         "instruction": generation.instruction,
         "input_snapshot": input_snapshot if isinstance(input_snapshot, dict) else {},
         "output_text": generation.output_text,

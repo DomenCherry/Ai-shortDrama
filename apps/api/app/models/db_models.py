@@ -316,6 +316,7 @@ class EpisodeContentGenerationVersion(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
     episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    generation_type: Mapped[str] = mapped_column(String(24), nullable=False, default="create", index=True)
     instruction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     input_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
     output_text: Mapped[str] = mapped_column(Text, nullable=False)

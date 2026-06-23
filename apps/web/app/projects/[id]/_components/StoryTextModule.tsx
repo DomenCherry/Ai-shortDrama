@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SimpleSelect } from "@/components/ui/simple-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import type { ProjectArtifactStatus } from "@/lib/api";
+import type { EpisodeContentGenerationType, ProjectArtifactStatus } from "@/lib/api";
 import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import {
   setContentFormValue,
@@ -287,8 +287,10 @@ function EpisodeContentPanel({ workbench }: { workbench: ProjectWorkbenchState }
               <TabsContent value="candidate">
                 {workbench.isGeneratingContent ? (
                   <div className="generation-loading" role="status" aria-live="polite">
-                    <strong>正在生成第 {workbench.selectedEpisodeNo} 集候选稿</strong>
-                    <span>模型正在读取大纲、世界观、角色和前文摘要，通常需要 20–60 秒。</span>
+                    <strong>
+                      正在生成第 {workbench.selectedEpisodeNo} 集{generationTypeLabel(workbench.contentGenerationType)}候选稿
+                    </strong>
+                    <span>模型正在读取上下文与 Humanizer-zh 规则，通常需要 20–60 秒。</span>
                     <Skeleton className="h-4 w-full" />
                     <Skeleton className="h-4 w-11/12" />
                     <Skeleton className="h-4 w-4/5" />
@@ -296,6 +298,7 @@ function EpisodeContentPanel({ workbench }: { workbench: ProjectWorkbenchState }
                 ) : workbench.activeContentGeneration ? (
                   <div className="candidate-editor">
                     <div className="candidate-meta">
+                      <Badge variant="outline">{generationTypeLabel(workbench.activeContentGeneration.generation_type)}</Badge>
                       <Badge variant="secondary">{generationStatusLabel(workbench.activeContentGeneration.status)}</Badge>
                       <span>{formatGenerationTime(workbench.activeContentGeneration.created_at)}</span>
                       {workbench.activeContentGeneration.model_name ? <span>{workbench.activeContentGeneration.model_name}</span> : null}
@@ -357,12 +360,14 @@ function EpisodeContentPanel({ workbench }: { workbench: ProjectWorkbenchState }
 function EpisodeContentCreator({ workbench }: { workbench: ProjectWorkbenchState }) {
   const project = workbench.project;
   if (!project) return null;
+  const generationType = workbench.contentGenerationType;
   const duration = workbench.selectedEpisodeOutline?.duration_minutes || project.episode_duration || 1;
   const targetMin = Math.max(60, Math.round(duration * 600));
   const targetMax = Math.max(targetMin, Math.round(duration * 900));
+  const canGenerateCurrentType = canGenerateContentType(workbench, generationType);
   const historyOptions = workbench.episodeContentGenerations.map((generation) => ({
     value: generation.id,
-    label: `${formatGenerationTime(generation.created_at)} · ${generationStatusLabel(generation.status)}`
+    label: `${formatGenerationTime(generation.created_at)} · ${generationTypeLabel(generation.generation_type)} · ${generationStatusLabel(generation.status)}`
   }));
 
   return (
@@ -370,7 +375,7 @@ function EpisodeContentCreator({ workbench }: { workbench: ProjectWorkbenchState
       <div className="content-generation-heading">
         <div>
           <h4 id="content-generation-title">生成第 {workbench.selectedEpisodeNo} 集候选稿</h4>
-          <p>AI 结果会先保存为候选版本，不会直接覆盖当前正文。</p>
+          <p>{generationTypeDescription(generationType)}AI 结果会先保存为候选版本，不会直接覆盖当前正文。</p>
         </div>
         <Button type="button" variant="ghost" disabled={workbench.isGeneratingContent} onClick={() => workbench.setShowContentCreator(false)}>
           收起
@@ -385,13 +390,27 @@ function EpisodeContentCreator({ workbench }: { workbench: ProjectWorkbenchState
         <Badge variant="secondary">
           前文摘要 {workbench.selectedEpisodeNo === 1 ? "首集无需" : workbench.previousEpisodeSummary.includes("尚未填写") ? "未填写" : "已读取"}
         </Badge>
+        <Badge variant="secondary">Humanizer-zh 已启用</Badge>
+        <Badge variant="outline">{generationTypeLabel(generationType)}</Badge>
         <Badge variant="outline">目标约 {targetMin}–{targetMax} 字</Badge>
       </div>
 
-      {!workbench.canGenerateEpisodeContent ? (
+      {generationType === "create" && !workbench.canGenerateEpisodeContent ? (
         <Alert variant="destructive">
           <AlertTitle>当前集缺少可用大纲</AlertTitle>
           <AlertDescription>请先填写并保存本集标题、梗概、钩子、冲突、反转或悬念，再生成正文。</AlertDescription>
+        </Alert>
+      ) : null}
+      {generationType === "continue" && !workbench.canContinueEpisodeContent ? (
+        <Alert variant="destructive">
+          <AlertTitle>当前正文为空</AlertTitle>
+          <AlertDescription>请先填写并保存当前正文，再使用续写。</AlertDescription>
+        </Alert>
+      ) : null}
+      {generationType === "polish" && !workbench.canPolishEpisodeContent ? (
+        <Alert variant="destructive">
+          <AlertTitle>当前正文为空</AlertTitle>
+          <AlertDescription>请先填写并保存当前正文，再使用润色。</AlertDescription>
         </Alert>
       ) : null}
 
@@ -401,7 +420,7 @@ function EpisodeContentCreator({ workbench }: { workbench: ProjectWorkbenchState
           id="episode-content-instruction"
           value={workbench.contentGenerationInstruction}
           disabled={workbench.isGeneratingContent}
-          placeholder="例如：加强女主发现证据时的压迫感，结尾停在门外脚步声响起。"
+          placeholder={generationTypePlaceholder(generationType)}
           onChange={(event) => workbench.setContentGenerationInstruction(event.target.value)}
         />
         <span className="hint">补充本次节奏、情绪或桥段要求；项目设定和本集关键节点仍会优先遵守。</span>
@@ -422,10 +441,10 @@ function EpisodeContentCreator({ workbench }: { workbench: ProjectWorkbenchState
         ) : <span className="hint">当前集还没有生成记录。</span>}
         <Button
           type="button"
-          disabled={!workbench.canGenerateEpisodeContent || workbench.isGeneratingContent}
+          disabled={!canGenerateCurrentType || workbench.isGeneratingContent}
           onClick={() => void workbench.generateEpisodeContentCandidate()}
         >
-          {workbench.isGeneratingContent ? "正在生成候选稿..." : "生成候选稿"}
+          {workbench.isGeneratingContent ? "正在生成候选稿..." : `生成${generationTypeLabel(generationType)}候选`}
         </Button>
       </div>
     </section>
@@ -440,6 +459,30 @@ function generationStatusLabel(status: "candidate" | "adopted" | "discarded") {
   if (status === "adopted") return "已采用";
   if (status === "discarded") return "已放弃";
   return "候选中";
+}
+
+function generationTypeLabel(generationType: EpisodeContentGenerationType) {
+  if (generationType === "continue") return "续写";
+  if (generationType === "polish") return "润色";
+  return "正文创作";
+}
+
+function generationTypeDescription(generationType: EpisodeContentGenerationType) {
+  if (generationType === "continue") return "基于当前正文末尾继续写作，并返回完整候选正文。";
+  if (generationType === "polish") return "基于当前正文全文去 AI 味润色，并返回完整候选正文。";
+  return "基于大纲、世界观、角色和前文摘要生成完整候选正文。";
+}
+
+function generationTypePlaceholder(generationType: EpisodeContentGenerationType) {
+  if (generationType === "continue") return "例如：继续推进女主追查定位，保持压迫感，结尾停在电梯门打开。";
+  if (generationType === "polish") return "例如：压低AI腔，增加现场感和人物反应，保留原剧情事实。";
+  return "例如：加强女主发现证据时的压迫感，结尾停在门外脚步声响起。";
+}
+
+function canGenerateContentType(workbench: ProjectWorkbenchState, generationType: EpisodeContentGenerationType) {
+  if (generationType === "continue") return workbench.canContinueEpisodeContent;
+  if (generationType === "polish") return workbench.canPolishEpisodeContent;
+  return workbench.canGenerateEpisodeContent;
 }
 
 function formatGenerationTime(value: string) {

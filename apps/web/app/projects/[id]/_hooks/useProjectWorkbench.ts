@@ -37,6 +37,7 @@ import {
 import type {
   CharacterCard,
   EpisodeContentGeneration,
+  EpisodeContentGenerationType,
   ProjectCharacterSnapshot,
   ProjectCopywriting,
   ProjectEpisodeContent,
@@ -138,6 +139,7 @@ export function useProjectWorkbench({
   const [copywriting, setCopywriting] = useState<ProjectCopywriting | null>(null);
   const [episodeContentGenerations, setEpisodeContentGenerations] = useState<EpisodeContentGeneration[]>([]);
   const [activeContentGenerationId, setActiveContentGenerationId] = useState("");
+  const [contentGenerationType, setContentGenerationType] = useState<EpisodeContentGenerationType>("create");
   const [contentGenerationInstruction, setContentGenerationInstruction] = useState("");
   const [contentGenerationDraft, setContentGenerationDraft] = useState("");
   const [contentEditorMode, setContentEditorMode] = useState<"current" | "candidate">("current");
@@ -220,6 +222,9 @@ export function useProjectWorkbench({
         selectedEpisodeOutline.reversal ||
         selectedEpisodeOutline.cliffhanger)
   );
+  const hasSavedEpisodeContent = Boolean(episodeContent?.detailed_content?.trim());
+  const canContinueEpisodeContent = hasSavedEpisodeContent;
+  const canPolishEpisodeContent = hasSavedEpisodeContent;
   const activeWorkspaceGroup =
     workspaceGroups.find((group) => group.stages.some((stage) => stage.key === activeStage)) ?? workspaceGroups[0];
   const currentWorkspaceGroup = isLandingMode ? null : workspaceGroups.find((group) => group.key === mode) ?? activeWorkspaceGroup;
@@ -338,6 +343,7 @@ export function useProjectWorkbench({
       setEpisodeContentGenerations(generations);
       const recoverableCandidate = generations.find((item) => item.status === "candidate") ?? null;
       setActiveContentGenerationId(recoverableCandidate?.id ?? "");
+      setContentGenerationType(recoverableCandidate?.generation_type ?? "create");
       setContentGenerationDraft(recoverableCandidate?.output_text ?? "");
       setContentGenerationInstruction(recoverableCandidate?.instruction ?? "");
       setContentEditorMode(recoverableCandidate ? "candidate" : "current");
@@ -470,32 +476,48 @@ export function useProjectWorkbench({
     return `episode-content-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   };
 
-  const openEpisodeContentCreator = () => {
+  const openEpisodeContentCreator = (generationType: EpisodeContentGenerationType = "create") => {
     setArtifactError("");
-    if (!canGenerateEpisodeContent) {
+    if (generationType === "create" && !canGenerateEpisodeContent) {
       setStatus("");
       setArtifactError("请先完善并保存本集分集大纲，再生成正文。");
       return;
     }
+    if (generationType === "continue" && !canContinueEpisodeContent) {
+      setStatus("");
+      setArtifactError("续写需要当前正文非空，请先填写并保存正文。");
+      return;
+    }
+    if (generationType === "polish" && !canPolishEpisodeContent) {
+      setStatus("");
+      setArtifactError("润色需要当前正文非空，请先填写并保存正文。");
+      return;
+    }
+    setContentGenerationType(generationType);
     setShowContentCreator(true);
   };
 
   const generateEpisodeContentCandidate = async () => {
-    if (!canGenerateEpisodeContent || isGeneratingContent) return;
+    if (isGeneratingContent) return;
+    if (contentGenerationType === "create" && !canGenerateEpisodeContent) return;
+    if (contentGenerationType === "continue" && !canContinueEpisodeContent) return;
+    if (contentGenerationType === "polish" && !canPolishEpisodeContent) return;
     setIsGeneratingContent(true);
     setArtifactError("");
     setStatus("");
     try {
       const generated = await generateProjectEpisodeContent(projectId, selectedEpisodeNo, {
         instruction: toOptional(contentGenerationInstruction),
-        client_request_id: createContentGenerationRequestId()
+        client_request_id: createContentGenerationRequestId(),
+        generation_type: contentGenerationType
       });
       setEpisodeContentGenerations((current) => [generated, ...current.filter((item) => item.id !== generated.id)].slice(0, 10));
       setActiveContentGenerationId(generated.id);
       setContentGenerationDraft(generated.output_text);
       setContentEditorMode("candidate");
       setShowContentCreator(true);
-      setStatus(`第 ${selectedEpisodeNo} 集候选稿已生成，采用前不会覆盖当前正文。`);
+      setContentGenerationType(generated.generation_type);
+      setStatus(`第 ${selectedEpisodeNo} 集${episodeContentGenerationTypeLabel(generated.generation_type)}候选稿已生成，采用前不会覆盖当前正文。`);
     } catch (err) {
       setArtifactError(err instanceof Error ? err.message : "正文候选稿生成失败，请稍后重试");
     } finally {
@@ -507,6 +529,7 @@ export function useProjectWorkbench({
     const generation = episodeContentGenerations.find((item) => item.id === generationId);
     if (!generation) return;
     setActiveContentGenerationId(generation.id);
+    setContentGenerationType(generation.generation_type);
     setContentGenerationDraft(generation.output_text);
     setContentGenerationInstruction(generation.instruction ?? "");
     setContentEditorMode("candidate");
@@ -954,6 +977,12 @@ export function useProjectWorkbench({
     setStatus(`${label}暂未接入，后续完善。`);
   };
 
+  const episodeContentGenerationTypeLabel = (generationType: EpisodeContentGenerationType) => {
+    if (generationType === "continue") return "续写";
+    if (generationType === "polish") return "润色";
+    return "正文创作";
+  };
+
   return {
     projectId,
     mode,
@@ -972,6 +1001,8 @@ export function useProjectWorkbench({
     episodeContent,
     episodeContentGenerations,
     activeContentGeneration,
+    contentGenerationType,
+    setContentGenerationType,
     episodeScript,
     storyboardShots,
     copywriting,
@@ -1038,6 +1069,8 @@ export function useProjectWorkbench({
     episodeRows,
     selectedEpisodeOutline,
     canGenerateEpisodeContent,
+    canContinueEpisodeContent,
+    canPolishEpisodeContent,
     activeWorkspaceGroup,
     currentWorkspaceGroup,
     filledEpisodeOutlineCount,
