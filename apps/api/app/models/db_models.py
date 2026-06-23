@@ -54,6 +54,16 @@ class ModelApiTestLog(Base):
     tested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class UserSkillSetting(Base):
+    """用户侧业务 Skill 全局开关配置表。"""
+    __tablename__ = "user_skill_settings"
+
+    skill_name: Mapped[str] = mapped_column(String(120), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class Project(Base):
     """短剧项目表，保存项目基础设定和时长约束。"""
     __tablename__ = "projects"

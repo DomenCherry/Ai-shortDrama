@@ -74,6 +74,13 @@ skills/
 
 - `skills/short-drama-creator/SKILL.md`
 
+用户侧业务 skill 需要进入产品内 Skill 管理能力：
+
+- 系统只展示 `skills/` 下的用户侧业务 skill。
+- 默认启用，用户可以在「Skill 管理」中全局禁用或重新启用。
+- 禁用后，依赖该 skill 的 AI 生成入口必须由后端阻断，不得只在前端隐藏入口。
+- 运行时依赖 skill（例如 `runtime-skills/` 下的文本处理或质量增强规则）不纳入第一版菜单。
+
 ## 5. 后续扩展建议
 
 开发辅助 skill 可以继续增加：

@@ -29,6 +29,7 @@ from app.models.schemas import (
 from app.services.project.common import now_utc, validate_episode_no
 from app.services import model_configs
 from app.services.project.generation_common import call_text_generation_api
+from app.services.user_skills import ensure_user_skill_enabled
 
 
 CORE_FIELDS = (
@@ -222,6 +223,8 @@ def get_storyboard(project_id: str, episode_no: int) -> dict[str, Any] | None:
 
 async def generate_storyboard_scene(project_id: str, episode_no: int, scene_id: str) -> dict[str, Any]:
     """按场次生成，避免整集长请求导致前端 fetch 中断。"""
+    ensure_user_skill_enabled("short-drama-creator")
+
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:

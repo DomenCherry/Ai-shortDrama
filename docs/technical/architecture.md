@@ -76,6 +76,7 @@ Projects 后端已做行为不变的结构性拆分：
 ## 5. 一期核心模块
 
 - Settings：模型 API 配置与连通性测试。
+- Skills：用户侧业务 Skill 展示与全局启用开关。
 - Projects：项目创建与时长配置。
 - Generation：后续承载选题、故事大纲、人物、分集和剧本生成。
 
@@ -85,6 +86,7 @@ Projects 后端已做行为不变的结构性拆分：
 
 - 模型 API 配置。
 - 模型 API 测试记录。
+- 用户侧业务 Skill 全局启用设置。
 - 项目基础信息。
 
 API Key 当前仅做接口返回脱敏，后续需要在产品化前增加系统级加密存储。
@@ -108,6 +110,11 @@ postgresql+psycopg://ai_short_drama:ai_short_drama@127.0.0.1:5432/ai_short_drama
 - `GET /api/model-configs`
 - `POST /api/model-configs`
 - `POST /api/model-configs/{config_id}/test`
+
+用户侧 Skill 管理接口：
+
+- `GET /api/skills`
+- `PATCH /api/skills/{skill_name}`
 
 项目接口：
 

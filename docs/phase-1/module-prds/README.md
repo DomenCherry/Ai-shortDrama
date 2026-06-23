@@ -7,6 +7,7 @@
 | 业务域 | 模块 | 文档 | 状态 | 说明 |
 |--------|------|------|------|------|
 | 平台配置 | 模型 API 配置 | [model-api-settings.md](./platform/model-api-settings.md) | 已实现 | 文本/图片模型配置与连通性测试 |
+| 平台配置 | 用户侧 Skill 管理 | [user-skill-management.md](./platform/user-skill-management.md) | 已实现 | 用户侧业务 Skill 展示与全局启用开关 |
 | 项目管理 | 项目管理 | [project-management.md](./projects/project-management.md) | 已实现 | 项目创建、时长配置、列表管理 |
 | 项目管理 | 项目工作台 | [project-workbench.md](./projects/project-workbench.md) | 已实现 | 三类入口、内容状态机、人工编辑 |
 | 创作资产 | 创作资产库 | [creative-asset-library.md](./creative-assets/creative-asset-library.md) | 已实现 | 资产-项目架构总则 |
@@ -30,6 +31,7 @@
 
 ```text
 模型 API 配置 ──────────────────────────────────┐
+用户侧 Skill 管理 ──────────────────────────────┤
                                                  │ 所有 AI 生成任务的前置
 项目管理 ────────────────────────────────────────┤
   │                                              │
@@ -65,6 +67,8 @@
 | TopicPlan | [topic-planning.md](./story-creation/topic-planning.md) |
 | ModelApiConfig | [model-api-settings.md](./platform/model-api-settings.md) |
 | ModelApiTestLog | [model-api-settings.md](./platform/model-api-settings.md) |
+| UserSkill | [user-skill-management.md](./platform/user-skill-management.md) |
+| UserSkillSetting | [user-skill-management.md](./platform/user-skill-management.md) |
 | WorldBook | [world-book-library.md](./creative-assets/world-book-library.md) |
 | WorldEntry | [world-book-library.md](./creative-assets/world-book-library.md) |
 | ProjectWorldSnapshot | [world-book-library.md](./creative-assets/world-book-library.md) |

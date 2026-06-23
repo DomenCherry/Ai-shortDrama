@@ -51,6 +51,7 @@ def initialize_database() -> None:
         ProjectStoryOutline,
         ProjectWorldSnapshot,
         ReferenceStoryStructureDraft,
+        UserSkillSetting,
         WorldBook,
         WorldEntry,
     )

@@ -53,6 +53,7 @@ docs/phase-1/frontend-specs/<page-name>.md
 - [世界观库](./world-book-library.md)
 - [角色卡库](./character-card-library.md)
 - [模型 API 配置](./model-api-settings.md)
+- [Skill 管理](./user-skill-management.md)
 - [项目故事大纲](./story-outline.md)
 - [结构化剧本工作台](./structured-script.md) - 场次与内容块编辑、候选预览、时长和确认流程
 

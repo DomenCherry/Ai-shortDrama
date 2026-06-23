@@ -45,6 +45,7 @@ from app.services.project.common import (
     world_snapshot_to_response,
 )
 from app.services.project.generation_common import call_text_generation_api
+from app.services.user_skills import ensure_user_skill_enabled
 
 
 BLOCK_TYPES = {"action", "dialogue", "voiceover", "transition"}
@@ -478,6 +479,8 @@ def _validate_generation_output(scope: str, output: dict[str, Any]) -> dict[str,
 
 
 async def generate_episode_script(project_id: str, episode_no: int, payload: ScriptGenerationCreate) -> dict[str, Any]:
+    ensure_user_skill_enabled("short-drama-creator")
+
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:

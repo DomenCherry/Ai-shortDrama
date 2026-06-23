@@ -39,6 +39,18 @@ export type ModelConfig = {
   updated_at: string;
 };
 
+export type UserSkill = {
+  name: string;
+  description: string;
+  source_dir: string;
+  enabled: boolean;
+  updated_at?: string;
+};
+
+export type UserSkillUpdatePayload = {
+  enabled: boolean;
+};
+
 export type ModelConfigUpdatePayload = Omit<ModelConfigPayload, "config_type" | "enabled" | "api_key"> & {
   api_key?: string;
   enabled?: boolean;
@@ -720,6 +732,17 @@ export function enableModelConfig(configId: string) {
 export function testModelConfig(configId: string) {
   return request(`/api/model-configs/${configId}/test`, {
     method: "POST"
+  });
+}
+
+export function listUserSkills() {
+  return request<UserSkill[]>("/api/skills");
+}
+
+export function updateUserSkill(skillName: string, payload: UserSkillUpdatePayload) {
+  return request<UserSkill>(`/api/skills/${encodeURIComponent(skillName)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
   });
 }
 

@@ -36,6 +36,7 @@ from app.services.project.common import (
     validate_episode_no,
     world_snapshot_to_response,
 )
+from app.services.user_skills import ensure_user_skill_enabled
 
 
 def get_episode_content(project_id: str, episode_no: int) -> dict[str, Any] | None:
@@ -185,6 +186,8 @@ async def generate_episode_content(
     payload: EpisodeContentGenerationCreate,
 ) -> dict[str, Any]:
     """生成并持久化候选稿；相同请求 ID 直接返回已有结果。"""
+    ensure_user_skill_enabled("short-drama-creator")
+
     generation_type = payload.generation_type
     with get_session() as session:
         project = session.get(Project, project_id)

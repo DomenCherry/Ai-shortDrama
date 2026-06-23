@@ -139,6 +139,20 @@ class ModelApiTestResponse(BaseModel):
     tested_at: str
 
 
+class UserSkillUpdate(BaseModel):
+    """UserSkillUpdate 更新请求体，用于切换用户侧业务 Skill。"""
+    enabled: bool
+
+
+class UserSkillResponse(BaseModel):
+    """UserSkillResponse 响应体，用于展示用户侧业务 Skill。"""
+    name: str
+    description: str
+    source_dir: str
+    enabled: bool
+    updated_at: Optional[str] = None
+
+
 class ProjectCreate(BaseModel):
     """ProjectCreate 创建请求体，用于约束接口数据结构。"""
     title: Optional[str] = None

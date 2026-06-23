@@ -9,6 +9,7 @@ from app.api.character_cards import router as character_cards_router
 from app.api.health import router as health_router
 from app.api.model_configs import router as model_configs_router
 from app.api.projects import router as projects_router
+from app.api.skills import router as skills_router
 from app.api.world_books import router as world_books_router
 from app.core.config import get_settings
 
@@ -30,6 +31,7 @@ def create_app() -> FastAPI:
     app.include_router(character_cards_router)
     app.include_router(model_configs_router)
     app.include_router(projects_router)
+    app.include_router(skills_router)
     app.include_router(world_books_router)
 
     asset_root = Path(settings.asset_root)

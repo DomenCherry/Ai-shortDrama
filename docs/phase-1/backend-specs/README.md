@@ -9,6 +9,7 @@
 | 文档 | 说明 |
 | --- | --- |
 | [模型 API 配置](./model-api-settings.md) | 文本/图片模型配置、测试、启用、软删除和生成前置校验 |
+| [用户侧 Skill 管理](./user-skill-management.md) | 用户侧业务 Skill 列表、全局启用开关和生成前置校验 |
 | [世界观库](./world-book-library.md) | 世界观 CRUD、条目管理、状态与版本规则 |
 | [角色卡库](./character-card-library.md) | 角色卡 CRUD、参考图上传、三视图生成和兼容规则 |
 | [项目工作台](./project-workbench.md) | 三类入口、故事文本、短剧制作内容接口和状态传播 |

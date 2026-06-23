@@ -10,6 +10,7 @@ const navItems = [
   { href: "/", label: "项目管理", shortLabel: "项" },
   { href: "/character-cards", label: "角色卡库", shortLabel: "角" },
   { href: "/world-books", label: "世界观库", shortLabel: "世" },
+  { href: "/skills", label: "Skill 管理", shortLabel: "技" },
   { href: "/settings", label: "模型配置", shortLabel: "模" }
 ];
 

@@ -42,6 +42,7 @@ from app.services.project.generation_common import (
     reference_extraction_prompt,
     rewrite_prompt,
 )
+from app.services.user_skills import ensure_user_skill_enabled
 
 
 logger = logging.getLogger(__name__)
@@ -376,6 +377,8 @@ def upsert_story_outline(project_id: str, payload: ProjectStoryOutlinePayload) -
 
 async def generate_story_outline(project_id: str, payload: StoryOutlineGeneratePayload) -> dict[str, Any]:
     """调用文本模型生成项目整体故事大纲。"""
+    ensure_user_skill_enabled("short-drama-creator")
+
     with get_session() as session:
         project = session.get(Project, project_id)
         if not project:
@@ -423,6 +426,8 @@ async def generate_story_outline(project_id: str, payload: StoryOutlineGenerateP
 
 async def rewrite_story_outline(project_id: str, payload: StoryOutlineRewritePayload) -> dict[str, Any]:
     """调用文本模型局部改写故事大纲指定字段。"""
+    ensure_user_skill_enabled("short-drama-creator")
+
     if payload.field not in REWRITEABLE_STORY_FIELDS:
         raise ValueError("该故事大纲字段不支持局部改写")
 
@@ -461,6 +466,8 @@ async def rewrite_story_outline(project_id: str, payload: StoryOutlineRewritePay
 
 async def assist_story_outline(project_id: str, payload: StoryOutlineAssistPayload) -> dict[str, Any]:
     """调用文本模型根据对话辅助补全故事大纲。"""
+    ensure_user_skill_enabled("short-drama-creator")
+
     request_id = payload.client_request_id or uuid4().hex[:12]
     started_at = time.perf_counter()
     stage_timings: dict[str, int] = {}
@@ -601,6 +608,8 @@ def get_reference_story_structure_draft(project_id: str, draft_id: str) -> dict[
 
 async def extract_reference_story_structure(project_id: str, payload: ReferenceStoryStructureExtractPayload) -> dict[str, Any]:
     """从参考文本中抽取可复用故事结构草稿。"""
+    ensure_user_skill_enabled("short-drama-creator")
+
     if not normalize_optional_text(payload.source_text):
         raise ValueError("请先上传或粘贴参考故事文本")
 
