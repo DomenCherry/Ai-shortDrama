@@ -27,7 +27,6 @@ from app.models.schemas import (
     StoryboardReorderPayload,
 )
 from app.services.project.common import now_utc, validate_episode_no
-from app.services import model_configs
 from app.services.project.generation_common import call_text_generation_api
 from app.services.user_skills import ensure_user_skill_enabled
 
@@ -249,9 +248,6 @@ async def generate_storyboard_scene(project_id: str, episode_no: int, scene_id: 
                             "character_snapshot_id": block.character_snapshot_id} for block in blocks],
             },
         }
-    text_config = model_configs.get_enabled_config("text")
-    if not text_config or text_config["last_test_status"] != "success":
-        raise ValueError("请先配置并测试成功文本生成模型 API")
     prompt = (
         "将以下单个短剧场次拆为可拍摄镜头。只返回 JSON："
         "{shots:[{shot_size,subject_description,visual_description,action,duration_seconds,"
