@@ -88,6 +88,8 @@ async def call_text_generation_raw(
             data = response.json()
     except httpx.HTTPStatusError as exc:
         raise ValueError(f"文本生成接口返回错误状态：{exc.response.status_code}") from exc
+    except httpx.TimeoutException as exc:
+        raise ValueError("文本生成接口响应超时，请缩短输入或降低生成规模后重试") from exc
     except httpx.RequestError as exc:
         raise ValueError("文本生成接口无法访问，请检查 API 地址或网络连接") from exc
 

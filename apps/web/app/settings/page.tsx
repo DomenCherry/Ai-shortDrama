@@ -13,8 +13,6 @@ import {
 } from "@/lib/api";
 import type { ModelConfig } from "@/lib/api";
 
-type ConfigType = "text" | "image";
-
 function formatDateTime(iso?: string) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -31,6 +29,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const [textConfigs, setTextConfigs] = useState<ModelConfig[]>([]);
   const [imageConfigs, setImageConfigs] = useState<ModelConfig[]>([]);
+  const [videoConfigs, setVideoConfigs] = useState<ModelConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
@@ -40,12 +39,14 @@ export default function SettingsPage() {
     setLoading(true);
     setError("");
     try {
-      const [text, image] = await Promise.all([
+      const [text, image, video] = await Promise.all([
         listModelConfigs("text"),
         listModelConfigs("image"),
+        listModelConfigs("video"),
       ]);
       setTextConfigs(text);
       setImageConfigs(image);
+      setVideoConfigs(video);
     } catch (err) {
       setError(err instanceof Error ? err.message : "模型配置列表加载失败");
     } finally {
@@ -108,7 +109,7 @@ export default function SettingsPage() {
         <div>
           <h1 className="page-title">模型 API 配置</h1>
           <p className="page-description">
-            配置文本生成模型和图片生成模型。保存后点击测试连接，测试成功后才能执行对应生成任务。
+            配置文本生成、图片生成和文生视频模型。保存后点击测试连接，测试成功后才能执行对应生成任务。
           </p>
         </div>
       </header>
@@ -116,26 +117,33 @@ export default function SettingsPage() {
       {statusMessage ? <div className="success">{statusMessage}</div> : null}
       {error ? <div className="error">{error}</div> : null}
 
-      <div className="grid-2">
+      <div className="model-config-grid">
         <ConfigList
           title="文本生成模型"
-          configType="text"
           configs={textConfigs}
           loading={loading}
           onEnable={handleEnable}
           onDelete={handleDelete}
-          onEdit={(id) => router.push(`/settings/edit?id=${id}`)}
+          onEdit={(config) => router.push(`/settings/edit?id=${config.id}&type=${config.config_type}`)}
           onNew={() => router.push("/settings/edit?type=text")}
         />
         <ConfigList
           title="图片生成模型"
-          configType="image"
           configs={imageConfigs}
           loading={loading}
           onEnable={handleEnable}
           onDelete={handleDelete}
-          onEdit={(id) => router.push(`/settings/edit?id=${id}`)}
+          onEdit={(config) => router.push(`/settings/edit?id=${config.id}&type=${config.config_type}`)}
           onNew={() => router.push("/settings/edit?type=image")}
+        />
+        <ConfigList
+          title="文生视频模型"
+          configs={videoConfigs}
+          loading={loading}
+          onEnable={handleEnable}
+          onDelete={handleDelete}
+          onEdit={(config) => router.push(`/settings/edit?id=${config.id}&type=${config.config_type}`)}
+          onNew={() => router.push("/settings/edit?type=video")}
         />
       </div>
     </div>
@@ -152,12 +160,11 @@ function ConfigList({
   onNew,
 }: {
   title: string;
-  configType: ConfigType;
   configs: ModelConfig[];
   loading: boolean;
   onEnable: (config: ModelConfig) => void;
   onDelete: (config: ModelConfig) => void;
-  onEdit: (id: string) => void;
+  onEdit: (config: ModelConfig) => void;
   onNew: () => void;
 }) {
   return (
@@ -207,7 +214,7 @@ function ConfigList({
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => onEdit(config.id)}
+                  onClick={() => onEdit(config)}
                 >
                   编辑
                 </Button>

@@ -1,4 +1,4 @@
-"""模型配置路由模块，提供文本和图片模型配置的增删改查与连通性测试。"""
+"""模型配置路由模块，提供文本、图片和视频模型配置的增删改查与连通性测试。"""
 from fastapi import APIRouter, HTTPException, Query
 
 from app.models.schemas import (
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/model-configs", tags=["model-configs"])
 
 @router.get("", response_model=list[ModelApiConfigResponse])
 def list_model_configs(config_type: str | None = Query(None)) -> list[dict]:
-    """读取模型配置列表，可按文本或图片模型类型过滤。"""
+    """读取模型配置列表，可按文本、图片或视频模型类型过滤。"""
     configs = model_configs.list_configs()
     if config_type:
         return [c for c in configs if c["config_type"] == config_type]

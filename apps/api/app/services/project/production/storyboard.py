@@ -249,19 +249,18 @@ async def generate_storyboard_scene(project_id: str, episode_no: int, scene_id: 
             },
         }
     prompt = (
-        "将以下单个短剧场次拆为可拍摄镜头。只返回 JSON："
-        "{shots:[{shot_size,subject_description,visual_description,action,duration_seconds,"
-        "camera_angle,camera_movement,composition,character_snapshot_ids,expression,environment,props,"
-        "source_block_ids,dialogue_snapshot,voiceover_snapshot,sound_effect,music_note,continuity_note,"
-        "prompt:{image_prompt,video_prompt,negative_prompt,first_frame_description,last_frame_description,"
-        "reference_asset_ids,aspect_ratio,seedance_prompt}}]}。"
-        "只能使用上下文中给出的人物和内容块 ID；镜头数 1-30；时长必须大于 0。\n"
+        "将以下单个短剧场次拆为可拍摄的核心分镜草稿。只返回紧凑 JSON，不要返回 Markdown。\n"
+        "JSON 结构：{shots:[{shot_size,subject_description,visual_description,action,duration_seconds,"
+        "camera_angle,camera_movement,composition,character_snapshot_ids,source_block_ids,dialogue_snapshot}]}。\n"
+        "不要返回 prompt、声音、道具、环境等扩展字段；这些字段后续再补。"
+        "只能使用上下文中给出的人物和内容块 ID；镜头数按场次时长控制，通常 6-10 个，最多 12 个；"
+        "每个文本字段不超过 40 个中文字；时长必须大于 0。\n"
         f"上下文：{json.dumps(snapshot, ensure_ascii=False)}"
     )
     started = time.perf_counter()
-    output = await call_text_generation_api("生成顺序明确、连续性可检查的中文短剧分镜。", prompt, max_tokens=6000)
+    output = await call_text_generation_api("生成顺序明确、连续性可检查的中文短剧核心分镜。", prompt, max_tokens=1800)
     raw_shots = output.get("shots") if isinstance(output, dict) else None
-    if not isinstance(raw_shots, list) or not 1 <= len(raw_shots) <= 30:
+    if not isinstance(raw_shots, list) or not 1 <= len(raw_shots) <= 12:
         raise ValueError("模型未返回有效镜头列表")
     allowed_blocks = {block["id"] for block in snapshot["scene"]["blocks"]}
     payloads = []

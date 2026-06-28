@@ -3,8 +3,10 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ?? "";
 const API_DISPLAY_URL = API_BASE_URL || "同源 API 代理（默认转发到 http://127.0.0.1:8000）";
 
+export type ModelConfigType = "text" | "image" | "video";
+
 export type ModelConfigPayload = {
-  config_type: "text" | "image";
+  config_type: ModelConfigType;
   provider_mode?: "preset" | "custom";
   provider_preset?: string;
   provider_name: string;
@@ -20,7 +22,7 @@ export type ModelConfigPayload = {
 
 export type ModelConfig = {
   id: string;
-  config_type: "text" | "image";
+  config_type: ModelConfigType;
   provider_mode: "preset" | "custom";
   provider_preset?: string;
   provider_name: string;
@@ -694,7 +696,7 @@ function normalizeNetworkError(err: unknown) {
   return rawMessage || "请求后端服务失败，请稍后重试。";
 }
 
-export function listModelConfigs(configType?: "text" | "image") {
+export function listModelConfigs(configType?: ModelConfigType) {
   const query = configType ? `?config_type=${configType}` : "";
   return request<ModelConfig[]>(`/api/model-configs${query}`);
 }

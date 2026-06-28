@@ -96,12 +96,21 @@ def _validate_url(value: str | None) -> str:
     return normalized
 
 
-def _image_endpoint_path(value: str | None) -> str:
-    """标准化图片生成接口路径，兼容用户是否填写前导斜杠。"""
+def _generation_endpoint_path(value: str | None, default_path: str) -> str:
+    """标准化生成接口路径，兼容用户是否填写前导斜杠。"""
     if not value:
-        return "/images/generations"
+        return default_path
     endpoint_path = value.strip()
     return endpoint_path if endpoint_path.startswith("/") else f"/{endpoint_path}"
+
+
+def _default_endpoint_path(config_type: str) -> str | None:
+    """返回需要单独配置 endpoint 的生成模型默认接口路径。"""
+    if config_type == "image":
+        return "/images/generations"
+    if config_type == "video":
+        return "/videos/generations"
+    return None
 
 
 def _resolve_provider_fields(payload: ModelApiConfigCreate) -> dict[str, Any]:
@@ -125,12 +134,14 @@ def _resolve_provider_fields(payload: ModelApiConfigCreate) -> dict[str, Any]:
     if not payload.provider_name:
         raise ValueError("请填写供应商名称")
 
+    default_endpoint_path = _default_endpoint_path(payload.config_type)
+
     return {
         "provider_mode": "custom",
         "provider_preset": None,
         "provider_name": payload.provider_name,
         "api_base_url": _validate_url(payload.api_base_url),
-        "endpoint_path": _image_endpoint_path(payload.endpoint_path) if payload.config_type == "image" else None,
+        "endpoint_path": _generation_endpoint_path(payload.endpoint_path, default_endpoint_path) if default_endpoint_path else None,
         "supports_reference_image": payload.supports_reference_image if payload.config_type == "image" else False,
     }
 
@@ -231,8 +242,12 @@ async def test_config(config_id: str) -> dict[str, Any]:
     try:
         if config_snapshot["config_type"] == "text":
             response_summary = await _test_text_config(config_snapshot)
-        else:
+        elif config_snapshot["config_type"] == "image":
             response_summary = await _test_image_config(config_snapshot)
+        elif config_snapshot["config_type"] == "video":
+            response_summary = await _test_video_config(config_snapshot)
+        else:
+            raise ValueError("不支持的模型配置类型")
         success = True
         message = "接口测试成功"
     except httpx.HTTPStatusError as exc:
@@ -326,6 +341,35 @@ async def _test_image_config(config: dict[str, Any]) -> str:
     return "image result received"
 
 
+async def _test_video_config(config: dict[str, Any]) -> str:
+    """调用视频模型测试接口，验证文生视频配置可用。"""
+    url = _join_api_url(config["api_base_url"], config.get("endpoint_path") or "/videos/generations")
+    payload = {
+        "model": config["model_name"],
+        "prompt": "一个 2 秒的简单测试视频：现代城市街角，镜头缓慢推进。",
+        "size": config["image_size"] or "1280x720",
+        "duration": 2,
+        "n": 1,
+    }
+    headers = {"Authorization": f"Bearer {config['api_key_secret']}"}
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+
+    first_item = data.get("data", [{}])[0] if isinstance(data.get("data"), list) and data.get("data") else {}
+    video_result = (
+        first_item.get("url")
+        or first_item.get("b64_json")
+        or first_item.get("id")
+        or data.get("id")
+        or data.get("status")
+    )
+    if not video_result:
+        raise ValueError("接口响应格式无法解析")
+    return "video result received"
+
+
 def _join_api_url(api_base_url: str, endpoint_path: str) -> str:
     """拼接 API 基础地址和接口路径，避免重复或缺失斜杠。"""
     return f"{api_base_url.rstrip('/')}/{endpoint_path.lstrip('/')}"
@@ -399,12 +443,14 @@ def _resolve_provider_fields_for_update(config_type: str, payload: ModelApiConfi
     if not payload.provider_name:
         raise ValueError("请填写供应商名称")
 
+    default_endpoint_path = _default_endpoint_path(config_type)
+
     return {
         "provider_mode": "custom",
         "provider_preset": None,
         "provider_name": payload.provider_name,
         "api_base_url": _validate_url(payload.api_base_url),
-        "endpoint_path": _image_endpoint_path(payload.endpoint_path) if config_type == "image" else None,
+        "endpoint_path": _generation_endpoint_path(payload.endpoint_path, default_endpoint_path) if default_endpoint_path else None,
         "supports_reference_image": payload.supports_reference_image if config_type == "image" else False,
     }
 

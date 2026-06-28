@@ -267,7 +267,7 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
 
   const navigator = <ShotNavigator groups={groups} selectedId={selectedId} query={query} filter={filter} collapsed={collapsed} generationStates={generationStates}
     onQuery={setQuery} onFilter={setFilter} onToggle={(key) => setCollapsed((current) => { const next = new Set(current); next.has(key) ? next.delete(key) : next.add(key); return next; })}
-    onSelect={(id) => requestSwitch({ kind: "shot", id })} onMove={move} onGenerate={(sceneId) => void generateScene(sceneId).then(() => load())} />;
+    onSelect={(id) => requestSwitch({ kind: "shot", id })} onMove={move} onGenerate={(sceneId) => void generateScene(sceneId).then((ok) => ok ? load() : undefined)} />;
 
   return (
     <section className="overflow-hidden rounded-xl border bg-background shadow-sm">

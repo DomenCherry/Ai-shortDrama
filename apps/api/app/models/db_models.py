@@ -11,7 +11,7 @@ from app.core.db import Base
 
 
 class ModelApiConfig(Base):
-    """模型 API 配置表，保存文本和图片模型的调用参数。"""
+    """模型 API 配置表，保存文本、图片和视频模型的调用参数。"""
     __tablename__ = "model_api_configs"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)

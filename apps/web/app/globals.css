@@ -331,6 +331,12 @@ select {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.model-config-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
 .field {
   display: grid;
   gap: 6px;
@@ -2079,7 +2085,8 @@ select {
     padding: 6px 8px;
   }
 
-  .grid-2 {
+  .grid-2,
+  .model-config-grid {
     grid-template-columns: 1fr;
   }
 

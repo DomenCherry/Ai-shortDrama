@@ -4,7 +4,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
-ConfigType = Literal["text", "image"]
+ConfigType = Literal["text", "image", "video"]
 ProviderMode = Literal["preset", "custom"]
 CharacterGender = Literal["男", "女"]
 CharacterCardStatus = Literal["draft", "active", "archived"]

@@ -13,9 +13,8 @@ import {
   updateModelConfig,
   testModelConfig,
 } from "@/lib/api";
-import type { ModelConfigPayload, ModelConfigUpdatePayload } from "@/lib/api";
+import type { ModelConfigPayload, ModelConfigType, ModelConfigUpdatePayload } from "@/lib/api";
 
-type ConfigType = "text" | "image";
 type ProviderMode = "custom" | "preset";
 
 type FormState = {
@@ -58,10 +57,11 @@ const imageProviderPresets = {
 export default function SettingsEditPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const configType = (searchParams.get("type") as ConfigType) || "text";
+  const requestedConfigType = parseConfigType(searchParams.get("type"));
   const editingId = searchParams.get("id");
 
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [loadedConfigType, setLoadedConfigType] = useState<ModelConfigType | null>(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string>("");
   const [error, setError] = useState<string>("");
@@ -74,6 +74,7 @@ export default function SettingsEditPage() {
       setLoading(true);
       getModelConfig(editingId)
         .then((config) => {
+          setLoadedConfigType(config.config_type);
           setForm({
             provider_mode: config.provider_mode,
             provider_preset: config.provider_preset || "",
@@ -81,8 +82,8 @@ export default function SettingsEditPage() {
             api_base_url: config.api_base_url,
             api_key: "",
             model_name: config.model_name,
-            image_size: config.image_size || "1024x1024",
-            endpoint_path: config.endpoint_path || "/images/generations",
+            image_size: config.image_size || defaultSizeForConfigType(config.config_type),
+            endpoint_path: config.endpoint_path || defaultEndpointForConfigType(config.config_type),
             supports_reference_image: config.supports_reference_image,
             remark: config.remark || "",
           });
@@ -90,8 +91,22 @@ export default function SettingsEditPage() {
         })
         .catch(() => setError("加载配置失败"))
         .finally(() => setLoading(false));
+      return;
     }
-  }, [editingId]);
+    setLoadedConfigType(null);
+    setTestConfigId(null);
+    setForm({
+      ...emptyForm,
+      image_size: defaultSizeForConfigType(requestedConfigType),
+      endpoint_path: defaultEndpointForConfigType(requestedConfigType),
+    });
+  }, [editingId, requestedConfigType]);
+
+  const configType = loadedConfigType || requestedConfigType;
+  const isImageConfig = configType === "image";
+  const isVideoConfig = configType === "video";
+  const usesEndpointConfig = isImageConfig || isVideoConfig;
+  const configTypeLabel = getConfigTypeLabel(configType);
 
   const updateField = (field: keyof FormState, value: string | boolean) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -133,17 +148,17 @@ export default function SettingsEditPage() {
     try {
       if (editingId) {
         const payload: ModelConfigUpdatePayload = {
-          provider_mode: configType === "image" ? form.provider_mode : "custom",
+          provider_mode: isImageConfig ? form.provider_mode : "custom",
           provider_preset:
-            configType === "image" && form.provider_mode === "preset"
+            isImageConfig && form.provider_mode === "preset"
               ? form.provider_preset
               : undefined,
           provider_name: form.provider_name,
           api_base_url: form.api_base_url,
           model_name: form.model_name,
-          image_size: configType === "image" ? form.image_size : undefined,
-          endpoint_path: configType === "image" ? form.endpoint_path : undefined,
-          supports_reference_image: configType === "image" ? form.supports_reference_image : undefined,
+          image_size: usesEndpointConfig ? form.image_size : undefined,
+          endpoint_path: usesEndpointConfig ? form.endpoint_path : undefined,
+          supports_reference_image: isImageConfig ? form.supports_reference_image : undefined,
           remark: form.remark,
         };
         if (form.api_key.trim()) {
@@ -154,18 +169,18 @@ export default function SettingsEditPage() {
       } else {
         const payload: ModelConfigPayload = {
           config_type: configType,
-          provider_mode: configType === "image" ? form.provider_mode : "custom",
+          provider_mode: isImageConfig ? form.provider_mode : "custom",
           provider_preset:
-            configType === "image" && form.provider_mode === "preset"
+            isImageConfig && form.provider_mode === "preset"
               ? form.provider_preset
               : undefined,
           provider_name: form.provider_name,
           api_base_url: form.api_base_url,
           api_key: form.api_key,
           model_name: form.model_name,
-          image_size: configType === "image" ? form.image_size : undefined,
-          endpoint_path: configType === "image" ? form.endpoint_path : undefined,
-          supports_reference_image: configType === "image" ? form.supports_reference_image : undefined,
+          image_size: usesEndpointConfig ? form.image_size : undefined,
+          endpoint_path: usesEndpointConfig ? form.endpoint_path : undefined,
+          supports_reference_image: isImageConfig ? form.supports_reference_image : undefined,
           remark: form.remark,
           enabled: true,
         };
@@ -228,14 +243,14 @@ export default function SettingsEditPage() {
           <div>
             <h1 className="page-title">{editingId ? "编辑配置" : "新建配置"}</h1>
             <p className="page-description">
-              {configType === "text" ? "文本生成模型" : "图片生成模型"}
+              {configTypeLabel}
             </p>
           </div>
         </header>
 
         <div className="panel stack">
           <form className="stack" onSubmit={saveConfig}>
-            {configType === "image" ? (
+            {isImageConfig ? (
               <Field label="配置方式" hint="预设用于快速填充常见供应商参数，自定义配置可接入其他图片模型。">
                 <SimpleSelect
                   value={form.provider_mode}
@@ -247,7 +262,7 @@ export default function SettingsEditPage() {
                 />
               </Field>
             ) : null}
-            {configType === "image" && form.provider_mode === "preset" ? (
+            {isImageConfig && form.provider_mode === "preset" ? (
               <Field
                 label="供应商预设"
                 hint="火山方舟 Seedream 支持角色三视图和参考图输入，模型名称仍需填写你实际开通的模型。"
@@ -263,23 +278,19 @@ export default function SettingsEditPage() {
               <Input
                 value={form.provider_name}
                 onChange={(event) => updateField("provider_name", event.target.value)}
-                readOnly={configType === "image" && form.provider_mode === "preset"}
-                placeholder="例如 OpenAI-compatible"
+                readOnly={isImageConfig && form.provider_mode === "preset"}
+                placeholder={isVideoConfig ? "例如 OpenAI-compatible 视频供应商" : "例如 OpenAI-compatible"}
               />
             </Field>
             <Field
               label="API Base URL"
-              hint={configType === "text" ? "文本模型只填写 Base URL，系统会自动调用 /chat/completions。" : undefined}
+              hint={getApiBaseUrlHint(configType)}
             >
               <Input
                 value={form.api_base_url}
                 onChange={(event) => updateField("api_base_url", event.target.value)}
-                readOnly={configType === "image" && form.provider_mode === "preset"}
-                placeholder={
-                  configType === "text"
-                    ? "例如 https://ark.cn-beijing.volces.com/api/v3"
-                    : "https://api.example.com/v1"
-                }
+                readOnly={isImageConfig && form.provider_mode === "preset"}
+                placeholder={configType === "text" ? "例如 https://ark.cn-beijing.volces.com/api/v3" : "https://api.example.com/v1"}
               />
             </Field>
             <Field label="API Key" hint="密钥不会出现在 Markdown 导出中。">
@@ -294,40 +305,39 @@ export default function SettingsEditPage() {
               <Input
                 value={form.model_name}
                 onChange={(event) => updateField("model_name", event.target.value)}
-                placeholder={configType === "text" ? "text-model" : "image-model"}
+                placeholder={getModelNamePlaceholder(configType)}
               />
             </Field>
-            {configType === "image" ? (
+            {usesEndpointConfig ? (
               <>
-                <Field label="图片尺寸">
+                <Field label={isVideoConfig ? "视频分辨率" : "图片尺寸"}>
                   <SimpleSelect
                     value={form.image_size}
                     onValueChange={(value) => updateField("image_size", value)}
-                    options={[
-                      { label: "1024x1024", value: "1024x1024" },
-                      { label: "1024x1536", value: "1024x1536" },
-                      { label: "1536x1024", value: "1536x1024" },
-                      { label: "2K", value: "2K" },
-                      { label: "4K", value: "4K" }
-                    ]}
+                    options={getSizeOptions(configType)}
                   />
                 </Field>
-                <Field label="图片接口路径" hint="系统会将 API Base URL 和接口路径拼接后调用图片生成接口。">
+                <Field
+                  label={isVideoConfig ? "视频接口路径" : "图片接口路径"}
+                  hint={`系统会将 API Base URL 和接口路径拼接后调用${isVideoConfig ? "文生视频" : "图片生成"}接口。`}
+                >
                   <Input
                     value={form.endpoint_path}
                     onChange={(event) => updateField("endpoint_path", event.target.value)}
                     readOnly={form.provider_mode === "preset"}
-                    placeholder="/images/generations"
+                    placeholder={defaultEndpointForConfigType(configType)}
                   />
                 </Field>
-                <label className="checkbox-field">
-                  <Checkbox
-                    checked={form.supports_reference_image}
-                    disabled={form.provider_mode === "preset"}
-                    onCheckedChange={(checked) => updateField("supports_reference_image", checked === true)}
-                  />
-                  <span>该图片模型支持参考图输入</span>
-                </label>
+                {isImageConfig ? (
+                  <label className="checkbox-field">
+                    <Checkbox
+                      checked={form.supports_reference_image}
+                      disabled={form.provider_mode === "preset"}
+                      onCheckedChange={(checked) => updateField("supports_reference_image", checked === true)}
+                    />
+                    <span>该图片模型支持参考图输入</span>
+                  </label>
+                ) : null}
               </>
             ) : null}
             <Field label="备注">
@@ -364,4 +374,57 @@ export default function SettingsEditPage() {
       </div>
     </div>
   );
+}
+
+function parseConfigType(value: string | null): ModelConfigType {
+  if (value === "image" || value === "video") return value;
+  return "text";
+}
+
+function defaultEndpointForConfigType(configType: ModelConfigType) {
+  if (configType === "image") return "/images/generations";
+  if (configType === "video") return "/videos/generations";
+  return "";
+}
+
+function defaultSizeForConfigType(configType: ModelConfigType) {
+  if (configType === "video") return "1280x720";
+  return "1024x1024";
+}
+
+function getConfigTypeLabel(configType: ModelConfigType) {
+  if (configType === "image") return "图片生成模型";
+  if (configType === "video") return "文生视频模型";
+  return "文本生成模型";
+}
+
+function getApiBaseUrlHint(configType: ModelConfigType) {
+  if (configType === "text") return "文本模型只填写 Base URL，系统会自动调用 /chat/completions。";
+  if (configType === "video") return "文生视频模型填写 Base URL，接口路径在下方单独配置。";
+  return undefined;
+}
+
+function getModelNamePlaceholder(configType: ModelConfigType) {
+  if (configType === "image") return "image-model";
+  if (configType === "video") return "video-model";
+  return "text-model";
+}
+
+function getSizeOptions(configType: ModelConfigType) {
+  if (configType === "video") {
+    return [
+      { label: "1280x720", value: "1280x720" },
+      { label: "720x1280", value: "720x1280" },
+      { label: "1920x1080", value: "1920x1080" },
+      { label: "1080x1920", value: "1080x1920" },
+      { label: "1024x1024", value: "1024x1024" },
+    ];
+  }
+  return [
+    { label: "1024x1024", value: "1024x1024" },
+    { label: "1024x1536", value: "1024x1536" },
+    { label: "1536x1024", value: "1536x1024" },
+    { label: "2K", value: "2K" },
+    { label: "4K", value: "4K" },
+  ];
 }
