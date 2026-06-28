@@ -30,7 +30,3 @@ workspace/assets/*
 
 # AI agent runtime artifacts
 .agent/
-
-# Local-only AI coding skills
-.local-skills/
-.agents/skills/*
