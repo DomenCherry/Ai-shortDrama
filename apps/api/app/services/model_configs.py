@@ -1,6 +1,7 @@
 """模型配置服务模块，封装模型配置存储、启用、软删除和外部接口测试逻辑。"""
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from time import perf_counter
 from typing import Any, Optional
@@ -21,6 +22,25 @@ IMAGE_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
         "endpoint_path": "/images/generations",
         "supports_reference_image": True,
     }
+}
+
+VIDEO_PROVIDER_PRESETS: dict[str, dict[str, Any]] = {
+    "volcengine_seedance_1_5": {
+        "provider_name": "火山方舟",
+        "api_base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "endpoint_path": "/contents/generations/tasks",
+    }
+}
+
+SEEDANCE_VIDEO_PRESET = "volcengine_seedance_1_5"
+SEEDANCE_TEST_OPTIONS = {
+    "resolution": "480p",
+    "ratio": "16:9",
+    "duration": 4,
+    "generate_audio": False,
+    "watermark": False,
+    "camera_fixed": False,
+    "draft": True,
 }
 
 
@@ -116,20 +136,35 @@ def _default_endpoint_path(config_type: str) -> str | None:
 def _resolve_provider_fields(payload: ModelApiConfigCreate) -> dict[str, Any]:
     """根据预设或自定义模式解析模型供应商字段。"""
     if payload.provider_mode == "preset":
-        if payload.config_type != "image":
-            raise ValueError("供应商预设目前仅用于图片模型配置")
-        if not payload.provider_preset or payload.provider_preset not in IMAGE_PROVIDER_PRESETS:
-            raise ValueError("该供应商预设暂不可用，请选择自定义配置")
+        if payload.config_type == "image":
+            if not payload.provider_preset or payload.provider_preset not in IMAGE_PROVIDER_PRESETS:
+                raise ValueError("该供应商预设暂不可用，请选择自定义配置")
 
-        preset = IMAGE_PROVIDER_PRESETS[payload.provider_preset]
-        return {
-            "provider_mode": "preset",
-            "provider_preset": payload.provider_preset,
-            "provider_name": preset["provider_name"],
-            "api_base_url": preset["api_base_url"],
-            "endpoint_path": preset["endpoint_path"],
-            "supports_reference_image": preset["supports_reference_image"],
-        }
+            preset = IMAGE_PROVIDER_PRESETS[payload.provider_preset]
+            return {
+                "provider_mode": "preset",
+                "provider_preset": payload.provider_preset,
+                "provider_name": preset["provider_name"],
+                "api_base_url": preset["api_base_url"],
+                "endpoint_path": preset["endpoint_path"],
+                "supports_reference_image": preset["supports_reference_image"],
+            }
+
+        if payload.config_type == "video":
+            if not payload.provider_preset or payload.provider_preset not in VIDEO_PROVIDER_PRESETS:
+                raise ValueError("该供应商预设暂不可用，请选择自定义配置")
+
+            preset = VIDEO_PROVIDER_PRESETS[payload.provider_preset]
+            return {
+                "provider_mode": "preset",
+                "provider_preset": payload.provider_preset,
+                "provider_name": preset["provider_name"],
+                "api_base_url": preset["api_base_url"],
+                "endpoint_path": preset["endpoint_path"],
+                "supports_reference_image": False,
+            }
+
+        raise ValueError("该供应商预设暂不可用，请选择自定义配置")
 
     if not payload.provider_name:
         raise ValueError("请填写供应商名称")
@@ -170,7 +205,7 @@ def create_config(payload: ModelApiConfigCreate) -> dict[str, Any]:
             api_base_url=provider_fields["api_base_url"],
             api_key_secret=payload.api_key,
             model_name=payload.model_name,
-            image_size=payload.image_size,
+            image_size=payload.image_size if payload.config_type == "image" else None,
             endpoint_path=provider_fields["endpoint_path"],
             supports_reference_image=provider_fields["supports_reference_image"],
             remark=payload.remark,
@@ -230,6 +265,8 @@ async def test_config(config_id: str) -> dict[str, Any]:
             "model_name": config.model_name,
             "image_size": config.image_size,
             "endpoint_path": config.endpoint_path,
+            "provider_mode": config.provider_mode,
+            "provider_preset": config.provider_preset,
             "supports_reference_image": config.supports_reference_image,
         }
 
@@ -251,7 +288,7 @@ async def test_config(config_id: str) -> dict[str, Any]:
         success = True
         message = "接口测试成功"
     except httpx.HTTPStatusError as exc:
-        message = f"接口返回错误状态：{exc.response.status_code}"
+        message = _format_http_status_error(exc, config_snapshot)
     except httpx.RequestError:
         message = "接口无法访问，请检查 API 地址或网络连接"
     except ValueError as exc:
@@ -343,6 +380,9 @@ async def _test_image_config(config: dict[str, Any]) -> str:
 
 async def _test_video_config(config: dict[str, Any]) -> str:
     """调用视频模型测试接口，验证文生视频配置可用。"""
+    if config.get("provider_preset") == SEEDANCE_VIDEO_PRESET:
+        return await _test_seedance_video_config(config)
+
     url = _join_api_url(config["api_base_url"], config.get("endpoint_path") or "/videos/generations")
     payload = {
         "model": config["model_name"],
@@ -368,6 +408,77 @@ async def _test_video_config(config: dict[str, Any]) -> str:
     if not video_result:
         raise ValueError("接口响应格式无法解析")
     return "video result received"
+
+
+async def _test_seedance_video_config(config: dict[str, Any]) -> str:
+    """按火山方舟 Seedance 视频生成任务接口创建异步测试任务。"""
+    url = _join_api_url(config["api_base_url"], config.get("endpoint_path") or "/contents/generations/tasks")
+    payload = {
+        "model": config["model_name"],
+        "content": [
+            {
+                "type": "text",
+                "text": "接口连通性测试：现代城市街角，镜头缓慢推进，画面干净稳定。",
+            }
+        ],
+        **SEEDANCE_TEST_OPTIONS,
+    }
+    headers = {"Authorization": f"Bearer {config['api_key_secret']}"}
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+
+    task_id = data.get("id")
+    if not task_id:
+        raise ValueError("接口响应格式无法解析")
+    return f"video task created: {task_id}"
+
+
+def _format_http_status_error(exc: httpx.HTTPStatusError, config: dict[str, Any]) -> str:
+    """将外部接口 HTTP 错误转换为可排查的信息，避免只显示状态码。"""
+    status_code = exc.response.status_code
+    message = f"接口返回错误状态：{status_code}"
+    response_detail = _summarize_response_body(exc.response)
+    if response_detail:
+        message = f"{message}；响应：{response_detail}"
+
+    if (
+        status_code == 404
+        and config.get("config_type") == "video"
+        and config.get("provider_preset") == SEEDANCE_VIDEO_PRESET
+    ):
+        message = (
+            f"{message}。请确认“模型名称”填写的是火山方舟控制台中已开通的 Seedance Model ID "
+            "或推理接入点 Endpoint ID，并且 API Key 属于同一地域/账号。"
+        )
+    return message[:600]
+
+
+def _summarize_response_body(response: httpx.Response) -> str:
+    """提取外部接口响应体中的关键错误信息，并限制长度。"""
+    try:
+        data = response.json()
+    except ValueError:
+        text = response.text.strip()
+        return text[:300]
+
+    if not isinstance(data, dict):
+        return json.dumps(data, ensure_ascii=False)[:300]
+
+    candidates: list[str] = []
+    for key in ("message", "msg", "error", "code"):
+        value = data.get(key)
+        if isinstance(value, str) and value:
+            candidates.append(f"{key}={value}")
+        elif isinstance(value, dict):
+            nested = value.get("message") or value.get("code") or value.get("type")
+            if nested:
+                candidates.append(f"{key}={nested}")
+
+    if not candidates:
+        candidates.append(json.dumps(data, ensure_ascii=False))
+    return "；".join(candidates)[:300]
 
 
 def _join_api_url(api_base_url: str, endpoint_path: str) -> str:
@@ -409,7 +520,7 @@ def update_config(config_id: str, payload: ModelApiConfigUpdate) -> dict[str, An
         if payload.api_key:
             config.api_key_secret = payload.api_key
         config.model_name = payload.model_name
-        config.image_size = payload.image_size
+        config.image_size = payload.image_size if config.config_type == "image" else None
         config.endpoint_path = provider_fields["endpoint_path"]
         config.supports_reference_image = provider_fields["supports_reference_image"]
         config.remark = payload.remark
@@ -425,20 +536,35 @@ def update_config(config_id: str, payload: ModelApiConfigUpdate) -> dict[str, An
 def _resolve_provider_fields_for_update(config_type: str, payload: ModelApiConfigUpdate) -> dict[str, Any]:
     """更新配置时解析供应商字段，并保护预设配置的固定接口参数。"""
     if payload.provider_mode == "preset":
-        if config_type != "image":
-            raise ValueError("供应商预设目前仅用于图片模型配置")
-        if not payload.provider_preset or payload.provider_preset not in IMAGE_PROVIDER_PRESETS:
-            raise ValueError("该供应商预设暂不可用，请选择自定义配置")
+        if config_type == "image":
+            if not payload.provider_preset or payload.provider_preset not in IMAGE_PROVIDER_PRESETS:
+                raise ValueError("该供应商预设暂不可用，请选择自定义配置")
 
-        preset = IMAGE_PROVIDER_PRESETS[payload.provider_preset]
-        return {
-            "provider_mode": "preset",
-            "provider_preset": payload.provider_preset,
-            "provider_name": preset["provider_name"],
-            "api_base_url": preset["api_base_url"],
-            "endpoint_path": preset["endpoint_path"],
-            "supports_reference_image": preset["supports_reference_image"],
-        }
+            preset = IMAGE_PROVIDER_PRESETS[payload.provider_preset]
+            return {
+                "provider_mode": "preset",
+                "provider_preset": payload.provider_preset,
+                "provider_name": preset["provider_name"],
+                "api_base_url": preset["api_base_url"],
+                "endpoint_path": preset["endpoint_path"],
+                "supports_reference_image": preset["supports_reference_image"],
+            }
+
+        if config_type == "video":
+            if not payload.provider_preset or payload.provider_preset not in VIDEO_PROVIDER_PRESETS:
+                raise ValueError("该供应商预设暂不可用，请选择自定义配置")
+
+            preset = VIDEO_PROVIDER_PRESETS[payload.provider_preset]
+            return {
+                "provider_mode": "preset",
+                "provider_preset": payload.provider_preset,
+                "provider_name": preset["provider_name"],
+                "api_base_url": preset["api_base_url"],
+                "endpoint_path": preset["endpoint_path"],
+                "supports_reference_image": False,
+            }
+
+        raise ValueError("该供应商预设暂不可用，请选择自定义配置")
 
     if not payload.provider_name:
         raise ValueError("请填写供应商名称")
