@@ -150,6 +150,10 @@ class StoryboardAggregateTests(unittest.TestCase):
 
     def test_revision_conflict_does_not_overwrite(self) -> None:
         shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
+        missing_revision = self.payload(self.scene_a, "缺少修订号")
+        with self.assertRaisesRegex(storyboard.StoryboardConflictError, "缺少镜头修订号"):
+            storyboard.update_storyboard_shot("project-storyboard", 1, shot["id"], missing_revision)
+
         payload = self.payload(self.scene_a, "改写")
         payload.revision = shot["revision"] + 1
         with self.assertRaises(storyboard.StoryboardConflictError):
@@ -159,7 +163,7 @@ class StoryboardAggregateTests(unittest.TestCase):
         shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
         legacy = ProjectStoryboardShotPayload.model_validate({
             "shot_no": 1, "scene": "客厅近景", "visual_prompt": "低照度客厅",
-            "duration_seconds": 4, "status": "draft",
+            "duration_seconds": 4, "status": "draft", "revision": shot["revision"],
         })
         updated = storyboard.update_storyboard_shot("project-storyboard", 1, shot["id"], legacy)
         self.assertEqual(updated["source_scene_id"], self.scene_a)
@@ -192,9 +196,23 @@ class StoryboardAggregateTests(unittest.TestCase):
         self.assertTrue(adopted["adopted"])
         self.assertFalse(adopted["is_stale"])
 
+    def test_delete_shot_with_video_generation_is_blocked(self) -> None:
+        shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
+        fake_client = _FakeVideoClient(post_data={"id": "seedance-task-delete", "status": "queued"})
+        with patch.object(shot_videos.httpx, "AsyncClient", return_value=fake_client):
+            asyncio.run(shot_videos.create_video_generation("project-storyboard", 1, shot["id"]))
+
+        with self.assertRaisesRegex(ValueError, "镜头已有视频生成记录"):
+            storyboard.delete_storyboard_shot("project-storyboard", 1, shot["id"])
+
+        generations = shot_videos.list_video_generations("project-storyboard", 1, shot["id"])
+        self.assertEqual(len(generations), 1)
+        self.assertEqual(generations[0]["provider_task_id"], "seedance-task-delete")
+
     def test_shot_video_generation_requires_prompt_and_valid_video_config(self) -> None:
         shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
         empty_prompt = self.payload(self.scene_a, "林晚")
+        empty_prompt.revision = shot["revision"]
         empty_prompt.prompt = ShotPromptPayload()
         storyboard.update_storyboard_shot("project-storyboard", 1, shot["id"], empty_prompt)
 

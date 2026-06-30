@@ -17,6 +17,7 @@ from app.models.db_models import (
     ProjectScriptBlock,
     ProjectScriptScene,
     ProjectShotPrompt,
+    ProjectShotVideoGeneration,
     ProjectStoryboard,
     ProjectStoryboardShot,
 )
@@ -309,8 +310,11 @@ def _next_order(session, storyboard_id: str, scene_id: str | None) -> int:
 
 
 def _apply_payload(session, shot: ProjectStoryboardShot, payload: ProjectStoryboardShotPayload, *, creating: bool) -> ProjectShotPrompt:
-    if not creating and payload.revision is not None and payload.revision != shot.revision:
-        raise StoryboardConflictError("镜头已在其他操作中更新，请刷新后合并")
+    if not creating:
+        if payload.revision is None:
+            raise StoryboardConflictError("缺少镜头修订号，请刷新后重试")
+        if payload.revision != shot.revision:
+            raise StoryboardConflictError("镜头已在其他操作中更新，请刷新后合并")
     before = {field: getattr(shot, field) for field in CORE_FIELDS if hasattr(shot, field)}
     supplied = payload.model_fields_set
     for field in (
@@ -447,6 +451,13 @@ def delete_storyboard_shot(project_id: str, episode_no: int, shot_id: str) -> di
             raise ValueError("项目分镜不存在")
         storyboard = session.get(ProjectStoryboard, shot.storyboard_id)
         scene_id = shot.source_scene_id
+        has_video_generation = session.scalar(
+            select(ProjectShotVideoGeneration.id)
+            .where(ProjectShotVideoGeneration.shot_id == shot.id)
+            .limit(1)
+        )
+        if has_video_generation:
+            raise ValueError("镜头已有视频生成记录，暂不支持删除")
         prompt = _prompt(session, shot.id)
         if prompt:
             session.delete(prompt)

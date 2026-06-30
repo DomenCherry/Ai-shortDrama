@@ -194,8 +194,8 @@
 
 失败重试规则：
 
-- 失败任务的“重试”应创建一条新视频生成记录。
-- 不覆盖旧失败记录。
+- 失败任务的“重试”可以复用原视频生成记录，重新提交供应商任务并覆盖该记录的任务状态、供应商任务 ID、失败原因和结果字段。
+- 重试只作用于该失败任务记录，不修改镜头核心字段、提示词或已采用视频结果。
 
 ### 5.6 参考与检查 Tab
 
@@ -258,7 +258,7 @@
 | 生成单场分镜 | `generateProjectStoryboardScene` | `POST /api/projects/{project_id}/storyboards/{episode_no}/scenes/{scene_id}/generate` | 场次标记失败并允许重试 |
 | 新增镜头 | `createProjectStoryboardShot` | `POST /api/projects/{project_id}/storyboards/{episode_no}/shots` | 展示创建镜头失败 |
 | 更新镜头 | `updateProjectStoryboardShot` | `PUT /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}` | 保留本地修改，展示保存失败 |
-| 删除镜头 | `deleteProjectStoryboardShot` | `DELETE /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}` | 展示删除失败 |
+| 删除镜头 | `deleteProjectStoryboardShot` | `DELETE /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}` | 有视频生成记录时展示后端返回原因，否则展示删除失败 |
 | 复制镜头 | `duplicateProjectStoryboardShot` | `POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/duplicate` | 展示复制失败 |
 | 重新归属 | `reassignProjectStoryboardShot` | `POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/reassign` | 展示重新归属失败 |
 | 场次内排序 | `reorderProjectStoryboardScene` | `POST /api/projects/{project_id}/storyboards/{episode_no}/scenes/{scene_id}/reorder` | 展示排序失败 |
@@ -275,6 +275,7 @@
 | --- | --- |
 | 分镜加载失败 | 读取分镜失败 |
 | 镜头保存失败 | 保存失败 |
+| 镜头已有视频生成记录 | 镜头已有视频生成记录，暂不支持删除 |
 | 修订冲突 | 分镜已在其他操作中更新，请刷新后合并 |
 | 重新归属被禁用 | 请先保存当前修改 |
 | 无视频提示词 | 请先填写 Seedance 提示词或视频提示词 |
@@ -298,7 +299,7 @@
 - 视频生成 Tab 能展示空态、运行中、失败、成功和已采用结果。
 - 生成按钮在缺少提示词、模型不可用、提示词需更新或有未保存修改时禁用并显示原因。
 - 切换镜头时加载对应镜头视频生成历史。
-- 失败任务可重试，新建一条任务记录，不覆盖旧记录。
+- 失败任务可重试，并允许在原失败任务记录上覆盖新的任务状态和结果。
 - 采用视频结果后，同一镜头只显示一个已采用结果。
 - 镜头或提示词后续变化时，已采用结果显示可能过期。
 - `npm --prefix apps/web run typecheck` 通过。

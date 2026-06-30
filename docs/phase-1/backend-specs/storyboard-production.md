@@ -58,7 +58,6 @@
 - `project_storyboard_shots`
 - `project_shot_prompts`
 - `project_shot_video_generations`
-- 与分镜变化相关的下游状态标记
 
 分镜服务不得修改：
 
@@ -70,7 +69,7 @@
 
 - 结构化剧本实质变化后，同集分镜、镜头、后期准备和制作包应标记为 `needs_review`。
 - 镜头核心字段、排序、归属、提示词发生实质变化后，后期准备和制作包应标记为 `needs_review`。
-- 采用、取消采用或导致视频素材过期的操作，应标记制作包为 `needs_review`。
+- 采用、取消视频结果只更新镜头级视频素材采用状态，不标记制作包或其他下游内容为 `needs_review`。
 - 仅展示编号派生变化不单独触发下游状态传播。
 
 ## 3. 数据对象
@@ -270,7 +269,7 @@ DELETE /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}
 业务要求：
 
 - 删除镜头及其提示词。
-- 不删除视频生成历史；如需要保留外键完整性，视频历史可保留并通过删除限制阻止删除，具体实现以后端迁移为准。
+- 不删除视频生成历史；首版采用删除限制，镜头已有任意视频生成记录时禁止删除该镜头。
 - 重新计算场次排序、展示编号和总时长。
 
 ### 4.6 复制镜头
@@ -378,6 +377,7 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-g
 - 同一镜头最多一条记录 `adopted=true`。
 - 采用时将同镜头其他记录 `adopted=false`。
 - 采用结果不修改镜头核心字段、提示词或剧本来源。
+- 采用结果不标记制作包或其他下游内容为 `needs_review`；制作包导出时按当前采用结果读取素材引用。
 
 ### 4.13 取消视频任务
 
@@ -405,6 +405,7 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-g
 | 视频模型未配置 | 400 | 请先配置并启用视频生成模型 |
 | 视频模型未测试成功 | 400 | 视频生成模型暂不可用，请先完成接口测试 |
 | 视频生成记录不存在 | 404 | 视频生成记录不存在 |
+| 镜头已有视频生成记录 | 400 | 镜头已有视频生成记录，暂不支持删除 |
 | 采用失败 | 400 | 只能采用已生成成功的视频结果 |
 
 ## 6. 验收标准
@@ -415,9 +416,10 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-g
 - 更新镜头时正确校验 `revision`。
 - 镜头核心字段变化后，提示词标记为 `needs_update`。
 - 来源剧本变化后，分镜和镜头保留并标记为 `needs_review`。
+- 镜头已有视频生成记录时删除镜头返回明确错误，且不删除视频生成历史。
 - 视频任务创建会校验启用且测试成功的视频模型。
 - `seedance_prompt` 优先于 `video_prompt`。
-- 视频任务失败不覆盖旧结果和已采用素材。
+- 视频任务失败不覆盖已采用素材；失败任务重试允许覆盖原失败记录的任务状态和结果字段。
 - 刷新任务能保存成功、失败和进行中状态。
 - 同一镜头最多一个视频结果 `adopted=true`。
 - 已采用结果在镜头或提示词变化后响应中显示 `is_stale=true`。
