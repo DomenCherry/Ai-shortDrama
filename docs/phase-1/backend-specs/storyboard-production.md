@@ -146,6 +146,8 @@
 | created_at | datetime | 创建时间 |
 | updated_at | datetime | 更新时间 |
 
+`shot_size`、`camera_angle`、`camera_movement`、`composition`、`expression` 在前端以预设下拉为主，但后端仍按字符串保存，允许保留历史值和自定义导演术语。
+
 ### 3.4 ShotPrompt
 
 | 字段 | 类型 | 说明 |
@@ -173,7 +175,7 @@
 | prompt_id | string \| null | 使用的提示词记录 |
 | source_shot_revision | integer | 提交时镜头修订号 |
 | source_prompt_revision | integer \| null | 提交时提示词修订号 |
-| video_prompt_snapshot | string | 提交给模型的提示词快照 |
+| video_prompt_snapshot | string | 后端组装后实际提交给模型的提示词快照 |
 | negative_prompt_snapshot | string \| null | 负面词快照 |
 | reference_asset_ids | string[] | 提交时参考素材 |
 | model_config_id | string | 使用的视频模型配置 |
@@ -354,6 +356,11 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-g
 - 使用当前启用且最近测试成功的 `config_type=video` 模型配置。
 - 首版默认使用 Seedance 适配器；无 Seedance 预设时可走通用视频生成接口。
 - 提示词优先级：`seedance_prompt` 优先；缺失时使用 `video_prompt`。
+- 后端必须统一组装最终视频提示词，并把组装结果保存到 `video_prompt_snapshot`。
+- 最终视频提示词必须包含基础提示词、出镜角色视觉锚点、关键镜头视觉字段、首尾帧约束和负面提示词。
+- 角色视觉锚点来自 `character_snapshot_ids` 对应的项目角色快照，使用 `name`、`gender`、`role_type`、`visual_description`；参考图只记录风险和素材状态，首版不发送给 Seedance 文生视频请求。
+- 关键镜头视觉字段包括 `subject_description`、`visual_description`、`action`、`shot_size`、`camera_angle`、`camera_movement`、`composition`、`expression`、`environment`、`props`。
+- `dialogue_snapshot`、`voiceover_snapshot`、`sound_effect`、`music_note`、`source_block_ids`、`source_scene_id`、`continuity_note`、`image_prompt` 不直接进入文生视频请求。
 - 分辨率、画幅、时长为单次生成参数，不写回模型配置、镜头或提示词。
 - 缺少可用提示词时返回明确错误。
 - 提示词为 `needs_update` 时第一版阻止生成。

@@ -97,6 +97,9 @@
 
 - 支持从单个镜头调用当前启用的视频生成模型。
 - 默认使用 Seedance 适配提示词；没有适配提示词时可使用通用视频提示词。
+- 视频生成前由后端统一组装最终提示词：基础视频提示词 + 出镜角色视觉锚点 + 关键镜头视觉字段 + 首尾帧约束 + 负面提示词。
+- 出镜角色视觉锚点来自项目角色快照的 `name`、`gender`、`role_type` 和 `visual_description`；缺少视觉描述或参考图时只提示一致性风险，不阻止生成。
+- 核心画面、主体、动作、景别、机位、运镜、构图、表情、环境和道具会进入文生视频提示词；对白、旁白、音效、音乐和连续性备注不直接进入文生视频请求。
 - 生成前检查视频模型配置、提示词、镜头时长、参考素材可读性和提示词新鲜度。
 - 视频生成任务必须异步执行并展示 queued / running / succeeded / failed / canceled 状态。
 - 任务提交后保存输入快照、模型配置、供应商任务 ID、请求摘要和幂等键。
@@ -158,7 +161,7 @@
 | source_scene_id | string | 是 | 来源剧本场次；场次删除后保留原 ID |
 | display_code | string | 是 | 派生展示编号，如 S01-001 |
 | sort_order | integer | 是 | 场次内稳定排序字段 |
-| shot_size | enum | 是 | 景别 |
+| shot_size | string | 是 | 景别；前端使用预设下拉并允许自定义 |
 | subject_description | string | 是 | 人物、物体、环境或其他主要主体 |
 | visual_description | string | 是 | 镜头画面描述 |
 | action | string | 是 | 主体动作或画面变化 |
@@ -182,6 +185,8 @@
 | updated_at | datetime | 是 | 更新时间 |
 
 `subject_description` 可以描述人物，也可以描述空镜中的环境、物体或视觉主体，因此镜头不强制关联角色。
+
+景别、机位或拍摄角度、运镜方式、构图说明和人物表情应在前端提供常用预设下拉，并保留自定义输入，避免限制导演术语和历史数据。
 
 ### 6.3 ShotPrompt
 
@@ -346,7 +351,14 @@
 - 存在可用的视频提示词或 Seedance 适配提示词。
 - 使用的提示词不是 `needs_update`，或用户明确选择带风险继续生成。
 - 引用的参考素材可以读取；缺失参考素材时应提示风险。
+- 主角人物一致性依赖项目角色快照的视觉描述和参考图状态；缺失时前端提示风险，后端仍允许提交单镜头生成任务。
 - 用户可以在视频生成界面为本次任务手动调整分辨率、画幅和时长；不调整时使用默认参数。
+
+### 12.1.1 视频提示词字段来源
+
+- 必须进入：`seedance_prompt` 或 `video_prompt`、`negative_prompt`、`first_frame_description`、`last_frame_description`、出镜角色快照视觉锚点。
+- 作为镜头视觉补充进入：`subject_description`、`visual_description`、`action`、`shot_size`、`camera_angle`、`camera_movement`、`composition`、`expression`、`environment`、`props`。
+- 本期不进入文生视频：`dialogue_snapshot`、`voiceover_snapshot`、`sound_effect`、`music_note`、`source_block_ids`、`source_scene_id`、`continuity_note`、`image_prompt`。
 
 ### 12.2 任务与轮询
 

@@ -81,6 +81,8 @@ class StoryboardAggregateTests(unittest.TestCase):
             session.add(ProjectCharacterSnapshot(
                 id="snapshot", project_id="project-storyboard", source_character_card_id="character",
                 source_version=1, name="林晚", gender="女", role_type="主角", snapshot_content="{}",
+                visual_description="短发，白色衬衫，深色风衣，冷静坚定的年轻女记者",
+                reference_image_url="https://cdn.test/linwan-ref.png",
                 loaded_at=now, updated_at=now,
             ))
             session.add(ModelApiConfig(
@@ -111,8 +113,19 @@ class StoryboardAggregateTests(unittest.TestCase):
         return ProjectStoryboardShotPayload(
             source_scene_id=scene_id, shot_size="中景", subject_description=subject,
             visual_description=f"{subject}进入画面", duration_seconds=3,
-            character_snapshot_ids=["snapshot"], props=[], source_block_ids=[], status="draft",
-            prompt=ShotPromptPayload(image_prompt=f"{subject}，电影感", video_prompt=f"{subject}走入画面", seedance_prompt=f"Seedance {subject}走入画面"),
+            action="推门后停步观察", camera_angle="平视", camera_movement="缓慢推进",
+            composition="人物居中，门框形成前景", expression="警觉", environment="低照度客厅",
+            character_snapshot_ids=["snapshot"], props=["旧信封"], source_block_ids=[],
+            dialogue_snapshot="这不是我的东西。", voiceover_snapshot="她意识到遗嘱另有秘密。",
+            sound_effect="门轴轻响", music_note="低频悬疑铺底", continuity_note="承接上一镜推门动作",
+            status="draft",
+            prompt=ShotPromptPayload(
+                image_prompt=f"{subject}，电影感",
+                video_prompt=f"{subject}走入画面",
+                seedance_prompt=f"Seedance {subject}走入画面",
+                first_frame_description="门把手被推开",
+                last_frame_description="林晚停在门内侧",
+            ),
         )
 
     def test_grouped_crud_reorder_reassign_and_stable_codes(self) -> None:
@@ -187,9 +200,16 @@ class StoryboardAggregateTests(unittest.TestCase):
 
         self.assertEqual(created["provider_task_id"], "seedance-task-1")
         self.assertEqual(created["status"], "running")
-        self.assertEqual(created["video_prompt_snapshot"], "Seedance 林晚走入画面")
+        self.assertIn("Seedance 林晚走入画面", created["video_prompt_snapshot"])
+        self.assertIn("角色一致性", created["video_prompt_snapshot"])
+        self.assertIn("短发，白色衬衫", created["video_prompt_snapshot"])
+        self.assertIn("镜头视觉", created["video_prompt_snapshot"])
+        self.assertIn("核心画面：林晚进入画面", created["video_prompt_snapshot"])
+        self.assertIn("首帧：门把手被推开", created["video_prompt_snapshot"])
+        self.assertNotIn("这不是我的东西", created["video_prompt_snapshot"])
+        self.assertNotIn("门轴轻响", created["video_prompt_snapshot"])
         self.assertEqual(fake_client.posts[0]["url"], "https://ark.test/api/v3/contents/generations/tasks")
-        self.assertEqual(fake_client.posts[0]["json"]["content"][0]["text"], "Seedance 林晚走入画面")
+        self.assertEqual(fake_client.posts[0]["json"]["content"][0]["text"], created["video_prompt_snapshot"])
         self.assertEqual(fake_client.posts[0]["json"]["resolution"], "720p")
         self.assertEqual(fake_client.posts[0]["json"]["ratio"], "16:9")
         self.assertEqual(fake_client.posts[0]["json"]["duration"], 3)

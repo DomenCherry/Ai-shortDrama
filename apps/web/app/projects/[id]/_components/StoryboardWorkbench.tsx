@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, ChevronDown, ChevronRight, Copy, ExternalLink, List, Menu, Play, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Copy, ExternalLink, List, Menu, Play, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +25,7 @@ import {
 } from "@/lib/api";
 import type {
   ModelConfig,
+  ProjectCharacterSnapshot,
   ProjectStoryboard,
   ProjectStoryboardShot,
   ProjectStoryboardShotPayload,
@@ -56,6 +57,96 @@ const videoAspectRatioOptions = [
   { label: "4:3 横屏", value: "4:3" },
   { label: "3:4 竖屏", value: "3:4" },
   { label: "21:9 宽银幕", value: "21:9" }
+];
+
+const customPresetValue = "__custom__";
+
+const shotSizeOptions = [
+  { label: "未设置", value: "" },
+  { label: "大远景", value: "大远景" },
+  { label: "远景", value: "远景" },
+  { label: "全景", value: "全景" },
+  { label: "中全景", value: "中全景" },
+  { label: "中景", value: "中景" },
+  { label: "中近景", value: "中近景" },
+  { label: "近景", value: "近景" },
+  { label: "特写", value: "特写" },
+  { label: "大特写", value: "大特写" },
+  { label: "插入镜头", value: "插入镜头" },
+  { label: "过肩镜头", value: "过肩镜头" },
+  { label: "双人镜头", value: "双人镜头" },
+  { label: "群像镜头", value: "群像镜头" },
+];
+
+const cameraAngleOptions = [
+  { label: "未设置", value: "" },
+  { label: "平视", value: "平视" },
+  { label: "低角度仰拍", value: "低角度仰拍" },
+  { label: "高角度俯拍", value: "高角度俯拍" },
+  { label: "鸟瞰 / 顶拍", value: "鸟瞰 / 顶拍" },
+  { label: "虫视角", value: "虫视角" },
+  { label: "主观视角 POV", value: "主观视角 POV" },
+  { label: "过肩视角", value: "过肩视角" },
+  { label: "侧面机位", value: "侧面机位" },
+  { label: "背面跟拍", value: "背面跟拍" },
+  { label: "正反打", value: "正反打" },
+  { label: "倾斜构图 / 荷兰角", value: "倾斜构图 / 荷兰角" },
+  { label: "镜中视角", value: "镜中视角" },
+  { label: "监控视角", value: "监控视角" },
+  { label: "手机屏幕视角", value: "手机屏幕视角" },
+];
+
+const cameraMovementOptions = [
+  { label: "未设置", value: "" },
+  { label: "固定机位", value: "固定机位" },
+  { label: "缓慢推进", value: "缓慢推进" },
+  { label: "快速推进", value: "快速推进" },
+  { label: "缓慢拉远", value: "缓慢拉远" },
+  { label: "横向摇镜", value: "横向摇镜" },
+  { label: "上下摇镜", value: "上下摇镜" },
+  { label: "横移跟拍", value: "横移跟拍" },
+  { label: "前后跟拍", value: "前后跟拍" },
+  { label: "环绕运镜", value: "环绕运镜" },
+  { label: "手持晃动", value: "手持晃动" },
+  { label: "稳定器跟随", value: "稳定器跟随" },
+  { label: "升降机位", value: "升降机位" },
+  { label: "变焦推进", value: "变焦推进" },
+  { label: "甩镜转场", value: "甩镜转场" },
+  { label: "快速摇移", value: "快速摇移" },
+  { label: "延时 / 慢动作运动", value: "延时 / 慢动作运动" },
+];
+
+const compositionOptions = [
+  { label: "未设置", value: "" },
+  { label: "人物居中", value: "人物居中" },
+  { label: "三分法构图", value: "三分法构图" },
+  { label: "对称构图", value: "对称构图" },
+  { label: "前景遮挡", value: "前景遮挡" },
+  { label: "框架式构图", value: "框架式构图" },
+  { label: "引导线构图", value: "引导线构图" },
+  { label: "浅景深突出主体", value: "浅景深突出主体" },
+  { label: "留白构图", value: "留白构图" },
+  { label: "压迫式近距离构图", value: "压迫式近距离构图" },
+  { label: "主体偏一侧", value: "主体偏一侧" },
+  { label: "多人层次站位", value: "多人层次站位" },
+  { label: "门框 / 窗框分割画面", value: "门框 / 窗框分割画面" },
+];
+
+const expressionOptions = [
+  { label: "未设置", value: "" },
+  { label: "平静", value: "平静" },
+  { label: "警觉", value: "警觉" },
+  { label: "惊讶", value: "惊讶" },
+  { label: "恐惧", value: "恐惧" },
+  { label: "愤怒", value: "愤怒" },
+  { label: "压抑克制", value: "压抑克制" },
+  { label: "悲伤", value: "悲伤" },
+  { label: "含泪", value: "含泪" },
+  { label: "冷笑", value: "冷笑" },
+  { label: "怀疑", value: "怀疑" },
+  { label: "坚定", value: "坚定" },
+  { label: "崩溃", value: "崩溃" },
+  { label: "恍然大悟", value: "恍然大悟" },
 ];
 
 const statusLabels: Record<ShotStatus, string> = {
@@ -135,6 +226,71 @@ function videoCreatePayload(options: VideoGenerationOptions): ShotVideoGeneratio
   const duration = Number(options.duration_seconds);
   if (Number.isFinite(duration) && duration > 0) payload.duration_seconds = duration;
   return Object.keys(payload).length ? payload : undefined;
+}
+
+function cleanText(value?: string | null) {
+  return value?.trim() ?? "";
+}
+
+function previewLine(label: string, value?: string | null) {
+  const text = cleanText(value);
+  return text ? `${label}：${text}` : "";
+}
+
+function buildVideoPromptPreview(draft: ProjectStoryboardShotPayload, characterSnapshots: ProjectCharacterSnapshot[]) {
+  const baseText = cleanText(draft.prompt?.seedance_prompt) || cleanText(draft.prompt?.video_prompt);
+  const promptSource = cleanText(draft.prompt?.seedance_prompt) ? "Seedance" : "通用视频";
+  const snapshotById = new Map(characterSnapshots.map((snapshot) => [snapshot.id, snapshot]));
+  const shotCharacters = (draft.character_snapshot_ids ?? []).map((id) => snapshotById.get(id)).filter(Boolean) as ProjectCharacterSnapshot[];
+  const missingCharacterIds = (draft.character_snapshot_ids ?? []).filter((id) => !snapshotById.has(id));
+  const isMainCharacter = (snapshot: ProjectCharacterSnapshot) => /主角|男主|女主|protagonist/i.test(snapshot.role_type);
+  const mainCharacters = shotCharacters.filter(isMainCharacter);
+  const charactersToCheck = mainCharacters.length ? mainCharacters : shotCharacters;
+  const characterLines = shotCharacters.map((snapshot) => {
+    const identity = [snapshot.gender, snapshot.role_type].filter(Boolean).join("，");
+    const prefix = identity ? `${snapshot.name}（${identity}）` : snapshot.name;
+    const visual = cleanText(snapshot.visual_description);
+    return visual ? `${prefix}：${visual}` : prefix;
+  });
+  const visualLines = [
+    previewLine("主体", draft.subject_description),
+    previewLine("核心画面", draft.visual_description),
+    previewLine("动作", draft.action),
+    previewLine("景别", draft.shot_size),
+    previewLine("机位/角度", draft.camera_angle),
+    previewLine("运镜", draft.camera_movement),
+    previewLine("构图", draft.composition),
+    previewLine("表情", draft.expression),
+    previewLine("环境", draft.environment),
+    (draft.props ?? []).length ? `道具：${(draft.props ?? []).join("、")}` : "",
+  ].filter(Boolean);
+  const frameLines = [
+    previewLine("首帧", draft.prompt?.first_frame_description),
+    previewLine("尾帧", draft.prompt?.last_frame_description),
+  ].filter(Boolean);
+  const missingVisualCharacters = charactersToCheck.filter((snapshot) => !cleanText(snapshot.visual_description));
+  const missingReferenceCharacters = charactersToCheck.filter((snapshot) => !cleanText(snapshot.reference_image_url) && !cleanText(snapshot.reference_local_path));
+  const referenceCount = shotCharacters.filter((snapshot) => cleanText(snapshot.reference_image_url) || cleanText(snapshot.reference_local_path)).length;
+  const finalSections = [
+    baseText,
+    characterLines.length ? `角色一致性：\n${characterLines.map((line) => `- ${line}`).join("\n")}` : "",
+    visualLines.length ? `镜头视觉：\n${visualLines.map((line) => `- ${line}`).join("\n")}` : "",
+    frameLines.length ? `首尾帧约束：\n${frameLines.map((line) => `- ${line}`).join("\n")}` : "",
+    cleanText(draft.prompt?.negative_prompt) ? `负面提示：${cleanText(draft.prompt?.negative_prompt)}` : "",
+  ].filter(Boolean);
+
+  return {
+    promptSource,
+    baseText,
+    characterLines,
+    visualLines,
+    frameLines,
+    finalText: finalSections.join("\n"),
+    referenceCount,
+    missingCharacterIds,
+    missingVisualCharacters,
+    missingReferenceCharacters,
+  };
 }
 
 export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbenchState }) {
@@ -433,7 +589,7 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
                   <TabsContent value="visual" className="pt-5"><VisualForm draft={draft} update={update} /></TabsContent>
                   <TabsContent value="sound" className="pt-5"><SoundForm draft={draft} update={update} /></TabsContent>
                   <TabsContent value="prompt" className="pt-5"><PromptForm draft={draft} update={updatePrompt} /></TabsContent>
-                  <TabsContent value="video" className="pt-5"><VideoGenerationPanel shot={selectedShot} draft={draft} generations={videoGenerations} videoConfigs={videoConfigs} options={videoOptions} loading={videoLoading} busy={videoBusy} isDirty={isDirty} onOptionsChange={setVideoOptions} onCreate={() => void createVideo()} onRefresh={(id) => void refreshVideo(id)} onAdopt={(id) => void adoptVideo(id)} onCancel={(id) => void cancelVideo(id)} /></TabsContent>
+                  <TabsContent value="video" className="pt-5"><VideoGenerationPanel shot={selectedShot} draft={draft} characterSnapshots={workbench.characterSnapshots} generations={videoGenerations} videoConfigs={videoConfigs} options={videoOptions} loading={videoLoading} busy={videoBusy} isDirty={isDirty} onOptionsChange={setVideoOptions} onCreate={() => void createVideo()} onRefresh={(id) => void refreshVideo(id)} onAdopt={(id) => void adoptVideo(id)} onCancel={(id) => void cancelVideo(id)} /></TabsContent>
                   <TabsContent value="reference" className="pt-5"><ReferencePanel shot={selectedShot} groups={groups} storyboard={storyboard} script={workbench.episodeScript} onReassign={(sceneId) => void reassign(sceneId)} disabled={saving || isDirty} /></TabsContent>
                 </Tabs>
               </div>
@@ -518,18 +674,31 @@ function ShotNavigator({ groups, selectedId, query, filter, collapsed, generatio
 
 function Field({ label, value, onChange, placeholder }: { label: string; value?: string; onChange: (value: string) => void; placeholder?: string }) { return <label className="space-y-1.5 text-sm"><span className="font-medium">{label}</span><Input value={value ?? ""} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} /></label>; }
 function Area({ label, value, onChange, rows = 4 }: { label: string; value?: string; onChange: (value: string) => void; rows?: number }) { return <label className="space-y-1.5 text-sm"><span className="font-medium">{label}</span><Textarea rows={rows} value={value ?? ""} onChange={(event) => onChange(event.target.value)} /></label>; }
+function PresetField({ label, value, options, onChange, placeholder }: { label: string; value?: string; options: { label: string; value: string }[]; onChange: (value: string) => void; placeholder?: string }) {
+  const currentValue = value ?? "";
+  const knownValue = options.some((option) => option.value === currentValue);
+  const isCustom = Boolean(currentValue) && !knownValue;
+  const selectValue = isCustom ? customPresetValue : currentValue;
+  return <label className="space-y-1.5 text-sm">
+    <span className="font-medium">{label}</span>
+    <SimpleSelect value={selectValue} onValueChange={(nextValue) => onChange(nextValue === customPresetValue ? (isCustom ? currentValue : "") : nextValue)} options={[...options, { label: "自定义", value: customPresetValue }]} />
+    {selectValue === customPresetValue ? <Input value={isCustom ? currentValue : ""} onChange={(event) => onChange(event.target.value)} placeholder={placeholder ?? `输入自定义${label}`} /> : null}
+  </label>;
+}
 
 function VisualForm({ draft, update }: { draft: ProjectStoryboardShotPayload; update: (field: keyof ProjectStoryboardShotPayload, value: unknown) => void }) { return <div className="grid gap-4 md:grid-cols-2">
-  <Field label="景别" value={draft.shot_size} onChange={(value) => update("shot_size", value)} placeholder="特写 / 中景 / 全景" />
+  <PresetField label="景别" value={draft.shot_size} options={shotSizeOptions} onChange={(value) => update("shot_size", value)} placeholder="例如：极近特写" />
   <label className="space-y-1.5 text-sm"><span className="font-medium">时长（秒）</span><Input type="number" min="0.1" step="0.1" value={draft.duration_seconds ?? ""} onChange={(event) => update("duration_seconds", Number(event.target.value))} /></label>
   <Area label="主体" value={draft.subject_description} onChange={(value) => update("subject_description", value)} />
   <Area label="核心画面" value={draft.visual_description} onChange={(value) => update("visual_description", value)} />
   <Area label="动作" value={draft.action} onChange={(value) => update("action", value)} />
   <Area label="连续性备注" value={draft.continuity_note} onChange={(value) => update("continuity_note", value)} />
-  <Field label="机位 / 角度" value={draft.camera_angle} onChange={(value) => update("camera_angle", value)} />
-  <Field label="运镜" value={draft.camera_movement} onChange={(value) => update("camera_movement", value)} />
-  <Area label="构图" value={draft.composition} onChange={(value) => update("composition", value)} rows={3} />
+  <PresetField label="机位 / 角度" value={draft.camera_angle} options={cameraAngleOptions} onChange={(value) => update("camera_angle", value)} placeholder="例如：车内后视镜视角" />
+  <PresetField label="运镜" value={draft.camera_movement} options={cameraMovementOptions} onChange={(value) => update("camera_movement", value)} placeholder="例如：从门缝缓慢推入" />
+  <PresetField label="构图" value={draft.composition} options={compositionOptions} onChange={(value) => update("composition", value)} placeholder="例如：人物被楼梯扶手切割在画面右侧" />
+  <PresetField label="表情" value={draft.expression} options={expressionOptions} onChange={(value) => update("expression", value)} placeholder="例如：强装镇定但眼神闪躲" />
   <Area label="环境" value={draft.environment} onChange={(value) => update("environment", value)} rows={3} />
+  <Field label="道具（逗号分隔）" value={(draft.props ?? []).join("，")} onChange={(value) => update("props", value.split(/[，,]/).map((item) => item.trim()).filter(Boolean))} />
 </div>; }
 
 function SoundForm({ draft, update }: { draft: ProjectStoryboardShotPayload; update: (field: keyof ProjectStoryboardShotPayload, value: unknown) => void }) { return <div className="grid gap-4 md:grid-cols-2">
@@ -552,12 +721,13 @@ const videoStatusLabels: Record<ShotVideoGeneration["status"], string> = {
   queued: "排队中", running: "生成中", succeeded: "成功", failed: "失败", canceled: "已取消"
 };
 
-function VideoGenerationPanel({ shot, draft, generations, videoConfigs, options, loading, busy, isDirty, onOptionsChange, onCreate, onRefresh, onAdopt, onCancel }: {
-  shot: ProjectStoryboardShot; draft: ProjectStoryboardShotPayload; generations: ShotVideoGeneration[]; videoConfigs: ModelConfig[];
+function VideoGenerationPanel({ shot, draft, characterSnapshots, generations, videoConfigs, options, loading, busy, isDirty, onOptionsChange, onCreate, onRefresh, onAdopt, onCancel }: {
+  shot: ProjectStoryboardShot; draft: ProjectStoryboardShotPayload; characterSnapshots: ProjectCharacterSnapshot[]; generations: ShotVideoGeneration[]; videoConfigs: ModelConfig[];
   options: VideoGenerationOptions; loading: boolean; busy: boolean; isDirty: boolean; onOptionsChange: (options: VideoGenerationOptions) => void;
   onCreate: () => void; onRefresh: (id: string) => void; onAdopt: (id: string) => void; onCancel: (id: string) => void;
 }) {
   const promptText = draft.prompt?.seedance_prompt?.trim() || draft.prompt?.video_prompt?.trim() || "";
+  const promptPreview = buildVideoPromptPreview(draft, characterSnapshots);
   const enabledVideoConfig = videoConfigs.find((config) => config.enabled);
   const adopted = generations.find((item) => item.adopted);
   const optionDuration = Number(options.duration_seconds);
@@ -571,15 +741,30 @@ function VideoGenerationPanel({ shot, draft, generations, videoConfigs, options,
               : "";
   const updateOption = (field: keyof VideoGenerationOptions, value: string) => onOptionsChange({ ...options, [field]: value });
   const defaultDuration = `${Math.max(1, Math.round(shot.duration_seconds || 4))}`;
+  const consistencyWarnings = [
+    promptPreview.missingCharacterIds.length ? `有 ${promptPreview.missingCharacterIds.length} 个出镜角色快照未加载，无法写入人物锚点。` : "",
+    promptPreview.missingVisualCharacters.length ? `${promptPreview.missingVisualCharacters.map((item) => item.name).join("、")} 缺少视觉描述，人物一致性会更依赖基础提示词。` : "",
+    promptPreview.missingReferenceCharacters.length ? `${promptPreview.missingReferenceCharacters.map((item) => item.name).join("、")} 缺少参考图，本期不会阻止生成。` : "",
+  ].filter(Boolean);
   return <div className="space-y-4">
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div className="rounded-lg border p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-semibold">本次使用提示词</h3>
-          <Badge variant="secondary">{draft.prompt?.seedance_prompt?.trim() ? "Seedance" : "通用视频"}</Badge>
+          <h3 className="font-semibold">本次发送给模型的内容预览</h3>
+          <Badge variant="secondary">{promptPreview.promptSource}</Badge>
+          <Badge variant="outline">角色 {promptPreview.characterLines.length}</Badge>
+          <Badge variant="outline">参考图 {promptPreview.referenceCount}</Badge>
           {shot.prompt_freshness === "needs_update" ? <Badge variant="outline">需更新</Badge> : null}
         </div>
-        <p className="mt-3 whitespace-pre-wrap rounded-md bg-muted/60 p-3 text-sm text-muted-foreground">{promptText || "暂无可用视频提示词。"}</p>
+        {consistencyWarnings.length ? <div className="mt-3 flex gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <div>
+            <p className="font-medium text-foreground">人物一致性风险提示</p>
+            <p className="mt-1">{consistencyWarnings.join(" ")}</p>
+          </div>
+        </div> : null}
+        <p className="mt-3 whitespace-pre-wrap rounded-md bg-muted/60 p-3 text-sm text-muted-foreground">{promptPreview.finalText || "暂无可用视频提示词。"}</p>
+        <p className="mt-2 text-xs text-muted-foreground">声音、对白、旁白、音效和音乐字段不会发送给文生视频模型，会留给后续配音、剪辑和合成流程。</p>
       </div>
       <div className="rounded-lg border p-4">
         <h3 className="font-semibold">视频模型</h3>

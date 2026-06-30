@@ -13,6 +13,7 @@ from app.core.db import get_session
 from app.models.db_models import (
     ModelApiConfig,
     Project,
+    ProjectCharacterSnapshot,
     ProjectShotPrompt,
     ProjectShotVideoGeneration,
     ProjectStoryboardShot,
@@ -146,15 +147,83 @@ def _video_config_by_id(config_id: str) -> dict[str, Any]:
         }
 
 
+def _clean(value: Any) -> str:
+    return str(value).strip() if value is not None else ""
+
+
 def _prompt_text(prompt: ProjectShotPrompt | None) -> str:
     if not prompt:
         raise ValueError("请先填写视频提示词")
-    text = (prompt.seedance_prompt or prompt.video_prompt or "").strip()
+    text = _clean(prompt.seedance_prompt or prompt.video_prompt)
     if not text:
         raise ValueError("请先填写视频提示词")
     if prompt.freshness == "needs_update":
         raise ValueError("提示词需要更新，请先保存或确认后再生成视频")
     return text
+
+
+def _ordered_character_snapshots(session, project_id: str, shot: ProjectStoryboardShot) -> list[ProjectCharacterSnapshot]:
+    ids = [item for item in _loads(shot.character_snapshot_ids, []) if isinstance(item, str)]
+    if not ids:
+        return []
+    snapshots = session.scalars(
+        select(ProjectCharacterSnapshot).where(
+            ProjectCharacterSnapshot.project_id == project_id,
+            ProjectCharacterSnapshot.id.in_(ids),
+        )
+    ).all()
+    by_id = {snapshot.id: snapshot for snapshot in snapshots}
+    return [by_id[item] for item in ids if item in by_id]
+
+
+def _append_section(lines: list[str], title: str, items: list[str]) -> None:
+    clean_items = [item for item in items if item]
+    if clean_items:
+        lines.append(f"{title}：")
+        lines.extend(f"- {item}" for item in clean_items)
+
+
+def _compose_video_prompt_text(
+    session,
+    project_id: str,
+    shot: ProjectStoryboardShot,
+    prompt: ProjectShotPrompt | None,
+    base_prompt: str,
+) -> str:
+    lines = [base_prompt]
+
+    character_lines = []
+    for snapshot in _ordered_character_snapshots(session, project_id, shot):
+        identity = "，".join(item for item in (_clean(snapshot.gender), _clean(snapshot.role_type)) if item)
+        prefix = f"{snapshot.name}（{identity}）" if identity else snapshot.name
+        visual = _clean(snapshot.visual_description)
+        character_lines.append(f"{prefix}：{visual}" if visual else prefix)
+    _append_section(lines, "角色一致性", character_lines)
+
+    props = [item for item in _loads(shot.props, []) if isinstance(item, str) and item.strip()]
+    _append_section(lines, "镜头视觉", [
+        f"主体：{_clean(shot.subject_description)}" if _clean(shot.subject_description) else "",
+        f"核心画面：{_clean(shot.visual_description)}" if _clean(shot.visual_description) else "",
+        f"动作：{_clean(shot.action)}" if _clean(shot.action) else "",
+        f"景别：{_clean(shot.shot_size)}" if _clean(shot.shot_size) else "",
+        f"机位/角度：{_clean(shot.camera_angle)}" if _clean(shot.camera_angle) else "",
+        f"运镜：{_clean(shot.camera_movement)}" if _clean(shot.camera_movement) else "",
+        f"构图：{_clean(shot.composition)}" if _clean(shot.composition) else "",
+        f"表情：{_clean(shot.expression)}" if _clean(shot.expression) else "",
+        f"环境：{_clean(shot.environment)}" if _clean(shot.environment) else "",
+        f"道具：{'、'.join(props)}" if props else "",
+    ])
+
+    if prompt:
+        _append_section(lines, "首尾帧约束", [
+            f"首帧：{_clean(prompt.first_frame_description)}" if _clean(prompt.first_frame_description) else "",
+            f"尾帧：{_clean(prompt.last_frame_description)}" if _clean(prompt.last_frame_description) else "",
+        ])
+        negative = _clean(prompt.negative_prompt)
+        if negative:
+            lines.append(f"负面提示：{negative}")
+
+    return "\n".join(lines)
 
 
 def _duration_seconds(shot: ProjectStoryboardShot, options: ShotVideoGenerationCreatePayload | None) -> int:
@@ -177,15 +246,13 @@ def _request_payload(
     prompt_text: str,
     options: ShotVideoGenerationCreatePayload | None = None,
 ) -> dict[str, Any]:
-    negative = (prompt.negative_prompt or "").strip() if prompt else ""
-    text = f"{prompt_text}\n负面提示：{negative}" if negative else prompt_text
     resolution = _resolution(options)
     aspect_ratio = _aspect_ratio(prompt, options)
     duration_seconds = _duration_seconds(shot, options)
     if config.get("provider_preset") == SEEDANCE_VIDEO_PRESET:
         return {
             "model": config["model_name"],
-            "content": [{"type": "text", "text": text}],
+            "content": [{"type": "text", "text": prompt_text}],
             "resolution": resolution,
             "ratio": aspect_ratio,
             "duration": duration_seconds,
@@ -195,7 +262,7 @@ def _request_payload(
         }
     return {
         "model": config["model_name"],
-        "prompt": text,
+        "prompt": prompt_text,
         "size": VIDEO_SIZE_MAP.get((resolution, aspect_ratio), config.get("image_size") or "1280x720"),
         "duration": duration_seconds,
         "n": 1,
@@ -287,7 +354,8 @@ async def create_video_generation(
     config = _enabled_video_config()
     with get_session() as session:
         shot, prompt = _shot_and_prompt(session, project_id, episode_no, shot_id)
-        prompt_text = _prompt_text(prompt)
+        base_prompt_text = _prompt_text(prompt)
+        prompt_text = _compose_video_prompt_text(session, project_id, shot, prompt, base_prompt_text)
         request_payload = _request_payload(config, shot, prompt, prompt_text, options)
         now = now_utc()
         generation = ProjectShotVideoGeneration(
