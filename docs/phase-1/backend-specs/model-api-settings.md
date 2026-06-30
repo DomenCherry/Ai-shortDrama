@@ -104,7 +104,7 @@
 | api_base_url | string | API Base URL |
 | api_key_secret | string | 后端保存的 API Key |
 | model_name | string | 模型名称 |
-| image_size | string | 图片尺寸或视频默认画幅 / 分辨率 |
+| image_size | string | 图片模型默认尺寸，视频模型不使用 |
 | endpoint_path | string | 图片或视频接口路径 |
 | supports_reference_image | boolean | 是否支持参考图输入 |
 | remark | string | 备注 |
@@ -131,7 +131,7 @@
 | provider_name | string | 供应商名称 |
 | api_base_url | string | API Base URL |
 | model_name | string | 模型名称 |
-| image_size | string | 图片尺寸或视频默认画幅 / 分辨率 |
+| image_size | string | 图片模型默认尺寸，视频模型不使用 |
 | endpoint_path | string | 图片或视频接口路径 |
 | supports_reference_image | boolean | 是否支持参考图输入 |
 | remark | string | 备注 |
@@ -188,7 +188,7 @@ POST /api/model-configs
 | api_base_url | string | 是 | API Base URL |
 | api_key | string | 是 | API Key |
 | model_name | string | 是 | 模型名称 |
-| image_size | string | image 必填，video 可选 | 图片尺寸或视频默认画幅 / 分辨率 |
+| image_size | string | image 必填，video 忽略 | 图片模型默认尺寸 |
 | endpoint_path | string | image / video 建议填写 | 图片或视频接口路径 |
 | supports_reference_image | boolean | 否 | 是否支持参考图 |
 | remark | string | 否 | 备注 |

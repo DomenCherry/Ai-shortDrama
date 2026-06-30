@@ -532,6 +532,12 @@ export type ShotVideoGeneration = {
   updated_at: string;
 };
 
+export type ShotVideoGenerationCreatePayload = {
+  resolution?: string;
+  aspect_ratio?: string;
+  duration_seconds?: number;
+};
+
 export type ProjectCopywritingPayload = {
   subtitles?: string;
   platform_title?: string;
@@ -1106,9 +1112,15 @@ export function listShotVideoGenerations(projectId: string, episodeNo: number, s
   return request<ShotVideoGeneration[]>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots/${shotId}/video-generations`);
 }
 
-export function createShotVideoGeneration(projectId: string, episodeNo: number, shotId: string) {
+export function createShotVideoGeneration(
+  projectId: string,
+  episodeNo: number,
+  shotId: string,
+  payload?: ShotVideoGenerationCreatePayload
+) {
   return request<ShotVideoGeneration>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots/${shotId}/video-generations`, {
-    method: "POST"
+    method: "POST",
+    body: payload ? JSON.stringify(payload) : undefined
   });
 }
 

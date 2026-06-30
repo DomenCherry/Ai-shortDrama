@@ -1300,6 +1300,33 @@ class StoryboardDuplicatePayload(BaseModel):
     target_scene_id: Optional[str] = None
 
 
+class ShotVideoGenerationCreatePayload(BaseModel):
+    resolution: Optional[str] = None
+    aspect_ratio: Optional[str] = None
+    duration_seconds: Optional[float] = Field(default=None, gt=0, le=60)
+
+    @field_validator("resolution", "aspect_ratio", mode="before")
+    @classmethod
+    def normalize_generation_option(cls, value):
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
+
+    @field_validator("resolution")
+    @classmethod
+    def validate_resolution(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in {"720p", "1080p"}:
+            raise ValueError("视频分辨率仅支持 720p 或 1080p")
+        return value
+
+    @field_validator("aspect_ratio")
+    @classmethod
+    def validate_aspect_ratio(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and value not in {"16:9", "9:16", "1:1", "4:3", "3:4", "21:9"}:
+            raise ValueError("视频画幅不支持")
+        return value
+
+
 class ShotVideoGenerationResponse(BaseModel):
     id: str
     project_id: str

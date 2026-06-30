@@ -18,6 +18,7 @@ from app.models.schemas import (
     ProjectEpisodeScriptPayload,
     ProjectStoryboardShotPayload,
     ShotPromptPayload,
+    ShotVideoGenerationCreatePayload,
     StoryboardDuplicatePayload,
     StoryboardReassignPayload,
     StoryboardReorderPayload,
@@ -189,12 +190,34 @@ class StoryboardAggregateTests(unittest.TestCase):
         self.assertEqual(created["video_prompt_snapshot"], "Seedance 林晚走入画面")
         self.assertEqual(fake_client.posts[0]["url"], "https://ark.test/api/v3/contents/generations/tasks")
         self.assertEqual(fake_client.posts[0]["json"]["content"][0]["text"], "Seedance 林晚走入画面")
+        self.assertEqual(fake_client.posts[0]["json"]["resolution"], "720p")
+        self.assertEqual(fake_client.posts[0]["json"]["ratio"], "16:9")
+        self.assertEqual(fake_client.posts[0]["json"]["duration"], 3)
         self.assertEqual(refreshed["status"], "succeeded")
         self.assertEqual(refreshed["result_url"], "https://cdn.test/video.mp4")
 
         adopted = shot_videos.adopt_video_generation("project-storyboard", 1, shot["id"], created["id"])
         self.assertTrue(adopted["adopted"])
         self.assertFalse(adopted["is_stale"])
+
+    def test_shot_video_generation_accepts_per_request_options(self) -> None:
+        shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
+        fake_client = _FakeVideoClient(post_data={"id": "seedance-task-options", "status": "queued"})
+
+        with patch.object(shot_videos.httpx, "AsyncClient", return_value=fake_client):
+            created = asyncio.run(shot_videos.create_video_generation(
+                "project-storyboard",
+                1,
+                shot["id"],
+                ShotVideoGenerationCreatePayload(resolution="1080p", aspect_ratio="9:16", duration_seconds=6),
+            ))
+
+        self.assertEqual(created["provider_task_id"], "seedance-task-options")
+        self.assertEqual(fake_client.posts[0]["json"]["resolution"], "1080p")
+        self.assertEqual(fake_client.posts[0]["json"]["ratio"], "9:16")
+        self.assertEqual(fake_client.posts[0]["json"]["duration"], 6)
+        self.assertEqual(created["request_payload_snapshot"]["resolution"], "1080p")
+        self.assertEqual(created["request_payload_snapshot"]["ratio"], "9:16")
 
     def test_delete_shot_with_video_generation_is_blocked(self) -> None:
         shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))

@@ -7,6 +7,7 @@ from app.models.schemas import (
     ProjectStoryboardShotPayload,
     ProjectStoryboardShotResponse,
     ProjectStoryboardResponse,
+    ShotVideoGenerationCreatePayload,
     ShotVideoGenerationResponse,
     StoryboardDuplicatePayload,
     StoryboardReassignPayload,
@@ -106,9 +107,9 @@ def list_shot_video_generations(project_id: str, episode_no: int, shot_id: str) 
     "/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-generations",
     response_model=ShotVideoGenerationResponse,
 )
-async def create_shot_video_generation(project_id: str, episode_no: int, shot_id: str) -> dict:
+async def create_shot_video_generation(project_id: str, episode_no: int, shot_id: str, payload: ShotVideoGenerationCreatePayload | None = None) -> dict:
     try:
-        return await shot_videos.create_video_generation(project_id, episode_no, shot_id)
+        return await shot_videos.create_video_generation(project_id, episode_no, shot_id, payload)
     except ValueError as exc:
         raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
 

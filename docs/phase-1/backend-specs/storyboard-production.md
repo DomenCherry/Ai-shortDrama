@@ -341,11 +341,20 @@ GET /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-ge
 POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-generations
 ```
 
+请求体：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| resolution | string | 否 | 本次生成分辨率，首版支持 `720p`、`1080p`；不传时默认 `720p` |
+| aspect_ratio | string | 否 | 本次生成画幅，首版支持 `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9`；不传时使用提示词画幅，仍为空则默认 `16:9` |
+| duration_seconds | number | 否 | 本次生成时长；不传时使用镜头时长，仍为空则默认 4 秒 |
+
 业务要求：
 
 - 使用当前启用且最近测试成功的 `config_type=video` 模型配置。
 - 首版默认使用 Seedance 适配器；无 Seedance 预设时可走通用视频生成接口。
 - 提示词优先级：`seedance_prompt` 优先；缺失时使用 `video_prompt`。
+- 分辨率、画幅、时长为单次生成参数，不写回模型配置、镜头或提示词。
 - 缺少可用提示词时返回明确错误。
 - 提示词为 `needs_update` 时第一版阻止生成。
 - 保存输入快照、模型配置、请求 payload 快照和供应商任务 ID。

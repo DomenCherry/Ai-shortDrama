@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SimpleSelect } from "@/components/ui/simple-select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -22,13 +23,40 @@ import {
   listModelConfigs, listShotVideoGenerations, refreshShotVideoGeneration,
   reorderProjectStoryboardScene, updateProjectStoryboardShot
 } from "@/lib/api";
-import type { ModelConfig, ProjectStoryboard, ProjectStoryboardShot, ProjectStoryboardShotPayload, ShotVideoGeneration, StoryboardSceneGroup } from "@/lib/api";
+import type {
+  ModelConfig,
+  ProjectStoryboard,
+  ProjectStoryboardShot,
+  ProjectStoryboardShotPayload,
+  ShotVideoGeneration,
+  ShotVideoGenerationCreatePayload,
+  StoryboardSceneGroup
+} from "@/lib/api";
 import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import type { Stage } from "../_utils/workbenchTypes";
 import { EpisodePicker } from "./shared";
 
 type SwitchTarget = { kind: "shot"; id: string } | { kind: "episode"; episodeNo: number } | { kind: "stage"; stage: Stage };
 type ShotStatus = ProjectStoryboardShot["status"];
+type VideoGenerationOptions = { resolution: string; aspect_ratio: string; duration_seconds: string };
+
+const defaultVideoGenerationOptions: VideoGenerationOptions = { resolution: "", aspect_ratio: "", duration_seconds: "" };
+
+const videoResolutionOptions = [
+  { label: "默认 720p", value: "" },
+  { label: "720p", value: "720p" },
+  { label: "1080p", value: "1080p" }
+];
+
+const videoAspectRatioOptions = [
+  { label: "默认（提示词画幅或 16:9）", value: "" },
+  { label: "16:9 横屏", value: "16:9" },
+  { label: "9:16 竖屏", value: "9:16" },
+  { label: "1:1 方形", value: "1:1" },
+  { label: "4:3 横屏", value: "4:3" },
+  { label: "3:4 竖屏", value: "3:4" },
+  { label: "21:9 宽银幕", value: "21:9" }
+];
 
 const statusLabels: Record<ShotStatus, string> = {
   draft: "草稿", pending_review: "待审核", confirmed: "已确认", needs_review: "需检查"
@@ -100,6 +128,15 @@ function cleanPayload(payload: ProjectStoryboardShotPayload): ProjectStoryboardS
   };
 }
 
+function videoCreatePayload(options: VideoGenerationOptions): ShotVideoGenerationCreatePayload | undefined {
+  const payload: ShotVideoGenerationCreatePayload = {};
+  if (options.resolution) payload.resolution = options.resolution;
+  if (options.aspect_ratio) payload.aspect_ratio = options.aspect_ratio;
+  const duration = Number(options.duration_seconds);
+  if (Number.isFinite(duration) && duration > 0) payload.duration_seconds = duration;
+  return Object.keys(payload).length ? payload : undefined;
+}
+
 export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbenchState }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -121,6 +158,7 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
   const [videoConfigs, setVideoConfigs] = useState<ModelConfig[]>([]);
   const [videoBusy, setVideoBusy] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
+  const [videoOptions, setVideoOptions] = useState<VideoGenerationOptions>(defaultVideoGenerationOptions);
 
   const scriptGroups = useMemo<StoryboardSceneGroup[]>(() => (workbench.episodeScript?.scenes ?? []).map((scene, index) => ({
     scene_id: scene.id, scene_no: index + 1, display_code: `S${String(index + 1).padStart(2, "0")}`,
@@ -188,6 +226,7 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
     } finally { setVideoLoading(false); }
   }, [workbench.projectId, workbench.selectedEpisodeNo]);
   useEffect(() => { void loadVideoGenerations(selectedShot?.id); }, [selectedShot?.id, loadVideoGenerations]);
+  useEffect(() => { setVideoOptions(defaultVideoGenerationOptions); }, [selectedShot?.id]);
   useEffect(() => {
     const protect = (event: BeforeUnloadEvent) => { if (isDirty) { event.preventDefault(); event.returnValue = ""; } };
     window.addEventListener("beforeunload", protect);
@@ -296,7 +335,12 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
     if (!selectedShot) return;
     setVideoBusy(true); setError(""); setMessage("");
     try {
-      const created = await createShotVideoGeneration(workbench.projectId, workbench.selectedEpisodeNo, selectedShot.id);
+      const created = await createShotVideoGeneration(
+        workbench.projectId,
+        workbench.selectedEpisodeNo,
+        selectedShot.id,
+        videoCreatePayload(videoOptions)
+      );
       await loadVideoGenerations(selectedShot.id);
       setMessage(created.status === "failed" ? "视频生成任务失败，请查看失败原因。" : "视频生成任务已创建。");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "创建视频生成任务失败"); }
@@ -389,7 +433,7 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
                   <TabsContent value="visual" className="pt-5"><VisualForm draft={draft} update={update} /></TabsContent>
                   <TabsContent value="sound" className="pt-5"><SoundForm draft={draft} update={update} /></TabsContent>
                   <TabsContent value="prompt" className="pt-5"><PromptForm draft={draft} update={updatePrompt} /></TabsContent>
-                  <TabsContent value="video" className="pt-5"><VideoGenerationPanel shot={selectedShot} draft={draft} generations={videoGenerations} videoConfigs={videoConfigs} loading={videoLoading} busy={videoBusy} isDirty={isDirty} onCreate={() => void createVideo()} onRefresh={(id) => void refreshVideo(id)} onAdopt={(id) => void adoptVideo(id)} onCancel={(id) => void cancelVideo(id)} /></TabsContent>
+                  <TabsContent value="video" className="pt-5"><VideoGenerationPanel shot={selectedShot} draft={draft} generations={videoGenerations} videoConfigs={videoConfigs} options={videoOptions} loading={videoLoading} busy={videoBusy} isDirty={isDirty} onOptionsChange={setVideoOptions} onCreate={() => void createVideo()} onRefresh={(id) => void refreshVideo(id)} onAdopt={(id) => void adoptVideo(id)} onCancel={(id) => void cancelVideo(id)} /></TabsContent>
                   <TabsContent value="reference" className="pt-5"><ReferencePanel shot={selectedShot} groups={groups} storyboard={storyboard} script={workbench.episodeScript} onReassign={(sceneId) => void reassign(sceneId)} disabled={saving || isDirty} /></TabsContent>
                 </Tabs>
               </div>
@@ -508,19 +552,25 @@ const videoStatusLabels: Record<ShotVideoGeneration["status"], string> = {
   queued: "排队中", running: "生成中", succeeded: "成功", failed: "失败", canceled: "已取消"
 };
 
-function VideoGenerationPanel({ shot, draft, generations, videoConfigs, loading, busy, isDirty, onCreate, onRefresh, onAdopt, onCancel }: {
+function VideoGenerationPanel({ shot, draft, generations, videoConfigs, options, loading, busy, isDirty, onOptionsChange, onCreate, onRefresh, onAdopt, onCancel }: {
   shot: ProjectStoryboardShot; draft: ProjectStoryboardShotPayload; generations: ShotVideoGeneration[]; videoConfigs: ModelConfig[];
-  loading: boolean; busy: boolean; isDirty: boolean; onCreate: () => void; onRefresh: (id: string) => void; onAdopt: (id: string) => void; onCancel: (id: string) => void;
+  options: VideoGenerationOptions; loading: boolean; busy: boolean; isDirty: boolean; onOptionsChange: (options: VideoGenerationOptions) => void;
+  onCreate: () => void; onRefresh: (id: string) => void; onAdopt: (id: string) => void; onCancel: (id: string) => void;
 }) {
   const promptText = draft.prompt?.seedance_prompt?.trim() || draft.prompt?.video_prompt?.trim() || "";
   const enabledVideoConfig = videoConfigs.find((config) => config.enabled);
   const adopted = generations.find((item) => item.adopted);
+  const optionDuration = Number(options.duration_seconds);
+  const invalidDuration = options.duration_seconds.trim() !== "" && (!Number.isFinite(optionDuration) || optionDuration <= 0 || optionDuration > 60);
   const disabledReason = isDirty ? "请先保存当前镜头修改后再生成视频。"
     : !promptText ? "请先填写 Seedance 提示词或视频提示词。"
       : shot.prompt_freshness === "needs_update" ? "提示词需要更新，请先保存或确认后再生成视频。"
-        : !enabledVideoConfig ? "请先在设置中启用视频生成模型。"
-          : enabledVideoConfig.last_test_status !== "success" ? "请先测试并通过当前视频生成模型。"
-            : "";
+        : invalidDuration ? "本次生成时长需大于 0 且不超过 60 秒。"
+          : !enabledVideoConfig ? "请先在设置中启用视频生成模型。"
+            : enabledVideoConfig.last_test_status !== "success" ? "请先测试并通过当前视频生成模型。"
+              : "";
+  const updateOption = (field: keyof VideoGenerationOptions, value: string) => onOptionsChange({ ...options, [field]: value });
+  const defaultDuration = `${Math.max(1, Math.round(shot.duration_seconds || 4))}`;
   return <div className="space-y-4">
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div className="rounded-lg border p-4">
@@ -535,6 +585,30 @@ function VideoGenerationPanel({ shot, draft, generations, videoConfigs, loading,
         <h3 className="font-semibold">视频模型</h3>
         <p className="mt-2 text-sm">{enabledVideoConfig ? enabledVideoConfig.provider_name : "未启用"}</p>
         <p className="mt-1 text-xs text-muted-foreground">{enabledVideoConfig ? `${enabledVideoConfig.model_name} · ${enabledVideoConfig.last_test_status}` : "请先到设置页配置视频模型。"}</p>
+        <div className="mt-4 flex flex-col gap-3">
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">分辨率</span>
+            <SimpleSelect value={options.resolution} onValueChange={(value) => updateOption("resolution", value)} options={videoResolutionOptions} disabled={busy} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">画幅</span>
+            <SimpleSelect value={options.aspect_ratio} onValueChange={(value) => updateOption("aspect_ratio", value)} options={videoAspectRatioOptions} disabled={busy} />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">时长（秒）</span>
+            <Input
+              type="number"
+              min="0.1"
+              max="60"
+              step="0.1"
+              value={options.duration_seconds}
+              onChange={(event) => updateOption("duration_seconds", event.target.value)}
+              placeholder={`默认 ${defaultDuration}`}
+              disabled={busy}
+              aria-invalid={invalidDuration}
+            />
+          </label>
+        </div>
         {disabledReason ? <p className="mt-3 text-sm text-destructive">{disabledReason}</p> : null}
         <Button className="mt-4 w-full" onClick={onCreate} disabled={busy || Boolean(disabledReason)}><Play />{busy ? "处理中" : "生成视频"}</Button>
       </div>

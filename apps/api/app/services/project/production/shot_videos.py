@@ -17,12 +17,29 @@ from app.models.db_models import (
     ProjectShotVideoGeneration,
     ProjectStoryboardShot,
 )
+from app.models.schemas import ShotVideoGenerationCreatePayload
 from app.services import model_configs
 from app.services.model_configs import SEEDANCE_VIDEO_PRESET
 from app.services.project.common import now_utc, validate_episode_no
 
 
 ACTIVE_STATUSES = {"queued", "running"}
+DEFAULT_VIDEO_RESOLUTION = "720p"
+DEFAULT_VIDEO_ASPECT_RATIO = "16:9"
+VIDEO_SIZE_MAP = {
+    ("720p", "16:9"): "1280x720",
+    ("720p", "9:16"): "720x1280",
+    ("720p", "1:1"): "720x720",
+    ("720p", "4:3"): "960x720",
+    ("720p", "3:4"): "720x960",
+    ("720p", "21:9"): "1680x720",
+    ("1080p", "16:9"): "1920x1080",
+    ("1080p", "9:16"): "1080x1920",
+    ("1080p", "1:1"): "1080x1080",
+    ("1080p", "4:3"): "1440x1080",
+    ("1080p", "3:4"): "1080x1440",
+    ("1080p", "21:9"): "2520x1080",
+}
 
 
 def _loads(value: str | None, fallback):
@@ -140,16 +157,38 @@ def _prompt_text(prompt: ProjectShotPrompt | None) -> str:
     return text
 
 
-def _request_payload(config: dict[str, Any], shot: ProjectStoryboardShot, prompt: ProjectShotPrompt | None, prompt_text: str) -> dict[str, Any]:
+def _duration_seconds(shot: ProjectStoryboardShot, options: ShotVideoGenerationCreatePayload | None) -> int:
+    duration = options.duration_seconds if options and options.duration_seconds is not None else shot.duration_seconds
+    return max(1, int(round(duration or 4)))
+
+
+def _aspect_ratio(prompt: ProjectShotPrompt | None, options: ShotVideoGenerationCreatePayload | None) -> str:
+    return (options.aspect_ratio if options and options.aspect_ratio else None) or (prompt.aspect_ratio if prompt and prompt.aspect_ratio else None) or DEFAULT_VIDEO_ASPECT_RATIO
+
+
+def _resolution(options: ShotVideoGenerationCreatePayload | None) -> str:
+    return (options.resolution if options and options.resolution else None) or DEFAULT_VIDEO_RESOLUTION
+
+
+def _request_payload(
+    config: dict[str, Any],
+    shot: ProjectStoryboardShot,
+    prompt: ProjectShotPrompt | None,
+    prompt_text: str,
+    options: ShotVideoGenerationCreatePayload | None = None,
+) -> dict[str, Any]:
     negative = (prompt.negative_prompt or "").strip() if prompt else ""
     text = f"{prompt_text}\n负面提示：{negative}" if negative else prompt_text
+    resolution = _resolution(options)
+    aspect_ratio = _aspect_ratio(prompt, options)
+    duration_seconds = _duration_seconds(shot, options)
     if config.get("provider_preset") == SEEDANCE_VIDEO_PRESET:
         return {
             "model": config["model_name"],
             "content": [{"type": "text", "text": text}],
-            "resolution": "720p",
-            "ratio": prompt.aspect_ratio if prompt and prompt.aspect_ratio else "16:9",
-            "duration": max(1, int(round(shot.duration_seconds or 4))),
+            "resolution": resolution,
+            "ratio": aspect_ratio,
+            "duration": duration_seconds,
             "generate_audio": False,
             "watermark": False,
             "camera_fixed": False,
@@ -157,8 +196,8 @@ def _request_payload(config: dict[str, Any], shot: ProjectStoryboardShot, prompt
     return {
         "model": config["model_name"],
         "prompt": text,
-        "size": config.get("image_size") or "1280x720",
-        "duration": max(1, int(round(shot.duration_seconds or 4))),
+        "size": VIDEO_SIZE_MAP.get((resolution, aspect_ratio), config.get("image_size") or "1280x720"),
+        "duration": duration_seconds,
         "n": 1,
     }
 
@@ -239,12 +278,17 @@ def list_video_generations(project_id: str, episode_no: int, shot_id: str) -> li
         return [_serialize_generation(generation, shot.revision, prompt.source_shot_revision if prompt else None) for generation in generations]
 
 
-async def create_video_generation(project_id: str, episode_no: int, shot_id: str) -> dict[str, Any]:
+async def create_video_generation(
+    project_id: str,
+    episode_no: int,
+    shot_id: str,
+    options: ShotVideoGenerationCreatePayload | None = None,
+) -> dict[str, Any]:
     config = _enabled_video_config()
     with get_session() as session:
         shot, prompt = _shot_and_prompt(session, project_id, episode_no, shot_id)
         prompt_text = _prompt_text(prompt)
-        request_payload = _request_payload(config, shot, prompt, prompt_text)
+        request_payload = _request_payload(config, shot, prompt, prompt_text, options)
         now = now_utc()
         generation = ProjectShotVideoGeneration(
             id=str(uuid4()),
