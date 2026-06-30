@@ -8,7 +8,7 @@
 
 - 项目资料 / 资产：项目基础信息、项目世界观快照、项目角色快照。
 - 故事文本：整体故事大纲、分集大纲、单集故事正文。
-- 短剧制作：单集剧本、分镜镜头、字幕和发布文案。
+- 短剧制作：结构化剧本、分镜、字幕和发布文案。
 
 覆盖能力：
 
@@ -24,8 +24,10 @@
 - 整体故事大纲 AI 生成、局部改写和参考故事结构抽取，见 [故事大纲](./story-outline.md)。
 - 分集大纲与单集故事正文创作的详细字段和接口规则，见 [分集大纲与单集故事正文创作](./episode-outline.md)。
 - 单集故事正文的 AI 创作、续写、润色、撤销润色、摘要和一致性质检；本阶段只要求前端展示入口，不新增后端 AI 接口。钩子提取和传播点沉淀归入短剧制作模块，本阶段同样只展示前端入口。
+- 结构化剧本详细接口，见 [结构化剧本](./structured-script.md)。
+- 场次化分镜、提示词和镜头级视频生成接口，见 [分镜制作](./storyboard-production.md)。
 - 世界观库、角色卡库原始资产 CRUD。
-- AI 自动分镜拆解、分镜图生成、配音、字幕文件生成和视频生成。
+- 分镜图生成、配音、字幕文件生成和完整视频成片生成。
 
 ## 2. 核心后端规则
 
@@ -82,8 +84,8 @@
 
 短剧制作相关接口包括：
 
-- 单集剧本。
-- 分镜镜头。
+- 结构化剧本。
+- 分镜。
 - 字幕和发布文案。
 
 这些接口不得更新：
@@ -147,7 +149,7 @@
 
 ### 3.4 ProjectEpisodeScript
 
-表示短剧制作入口中的单集脚本。
+表示短剧制作入口中的结构化剧本。详细字段以后端结构化剧本 spec 为准：[结构化剧本](./structured-script.md)。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -162,22 +164,19 @@
 | created_at | string | 创建时间 |
 | updated_at | string | 更新时间 |
 
-### 3.5 ProjectStoryboardShot
+### 3.5 ProjectStoryboard
 
-表示短剧制作入口中的分镜镜头。
+表示短剧制作入口中的场次化分镜聚合。详细字段以后端分镜制作 spec 为准：[分镜制作](./storyboard-production.md)。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| id | string | 分镜镜头 ID |
+| id | string | 分镜聚合 ID |
 | project_id | string | 所属项目 ID |
 | episode_no | number | 集数编号 |
-| shot_no | number | 镜头序号 |
-| scene | string | 场景 |
-| visual_prompt | string | 画面提示词 |
-| camera | string | 镜头 / 机位 |
-| duration_seconds | number | 镜头时长 |
-| dialogue_or_voiceover | string | 对白或旁白 |
-| status | draft / confirmed / needs_review | 内容状态 |
+| source_script_id | string | 来源结构化剧本 ID |
+| source_script_version | number | 来源结构化剧本版本 |
+| total_duration_seconds | number | 分镜总时长 |
+| status | draft / pending_review / confirmed / needs_review | 内容状态 |
 | created_at | string | 创建时间 |
 | updated_at | string | 更新时间 |
 
@@ -326,56 +325,11 @@ PUT /api/projects/{project_id}/episode-scripts/{episode_no}
 - 不得修改世界观、角色、整体故事大纲、分集大纲或单集故事正文。
 - 保存成功后，同集分镜和文案标记为 `needs_review`。
 
-### 4.11 查询某集分镜镜头
+### 4.11 分镜制作接口
 
-```text
-GET /api/projects/{project_id}/storyboard-shots/{episode_no}
-```
+场次化分镜、镜头 CRUD、排序、提示词、视频生成任务、刷新、采用和取消接口见 [分镜制作](./storyboard-production.md)。项目工作台总览只负责展示分镜状态摘要，不重复定义分镜详细接口。
 
-响应：
-
-- `200`：`ProjectStoryboardShot[]`，按 `shot_no asc` 排序。
-- `400`：集数编号非法。
-- `404`：项目不存在。
-
-### 4.12 新增某集分镜镜头
-
-```text
-POST /api/projects/{project_id}/storyboard-shots/{episode_no}
-```
-
-请求体：`ProjectStoryboardShotPayload`。
-
-业务要求：
-
-- 校验 `episode_no` 在项目集数范围内。
-- 只写入分镜镜头，不修改故事文本和资产快照。
-
-### 4.13 更新某集分镜镜头
-
-```text
-PUT /api/projects/{project_id}/storyboard-shots/{episode_no}/{shot_id}
-```
-
-请求体：`ProjectStoryboardShotPayload`。
-
-业务要求：
-
-- 分镜必须属于当前项目和当前集。
-- 只更新分镜镜头，不修改故事文本和资产快照。
-
-### 4.14 删除某集分镜镜头
-
-```text
-DELETE /api/projects/{project_id}/storyboard-shots/{episode_no}/{shot_id}
-```
-
-业务要求：
-
-- 分镜必须属于当前项目和当前集。
-- 删除分镜不影响故事文本和资产快照。
-
-### 4.15 查询某集字幕和发布文案
+### 4.12 查询某集字幕和发布文案
 
 ```text
 GET /api/projects/{project_id}/copywriting/{episode_no}
@@ -387,7 +341,7 @@ GET /api/projects/{project_id}/copywriting/{episode_no}
 - `400`：集数编号非法。
 - `404`：项目不存在。
 
-### 4.16 保存某集字幕和发布文案
+### 4.13 保存某集字幕和发布文案
 
 ```text
 PUT /api/projects/{project_id}/copywriting/{episode_no}
@@ -417,7 +371,7 @@ PUT /api/projects/{project_id}/copywriting/{episode_no}
 - 分集大纲可以按集保存，且只影响对应集下游内容状态。
 - 单集故事正文可以按集保存，且只影响对应集短剧制作内容状态。
 - 单集剧本可以按集保存，且不修改世界观、角色、整体故事大纲、分集大纲或单集故事正文。
-- 分镜镜头可以按集新增、更新、删除。
+- 分镜制作详细能力按 [分镜制作](./storyboard-production.md) 验收。
 - 字幕和发布文案可以按集保存。
 - 所有按集接口必须拒绝超出项目集数范围的 `episode_no`。
 - 短剧制作接口不得写入项目世界观快照和项目角色快照。
@@ -430,3 +384,5 @@ PUT /api/projects/{project_id}/copywriting/{episode_no}
 - [分集大纲与单集故事正文创作后端 Spec](./episode-outline.md)
 - [项目工作台资产快照后端 Spec](./project-workbench-assets.md)
 - [故事大纲后端 Spec](./story-outline.md)
+- [结构化剧本后端 Spec](./structured-script.md)
+- [分镜制作后端 Spec](./storyboard-production.md)

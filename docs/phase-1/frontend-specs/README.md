@@ -56,6 +56,7 @@ docs/phase-1/frontend-specs/<page-name>.md
 - [Skill 管理](./user-skill-management.md)
 - [项目故事大纲](./story-outline.md)
 - [结构化剧本工作台](./structured-script.md) - 场次与内容块编辑、候选预览、时长和确认流程
+- [分镜制作工作台](./storyboard-production.md) - 场次化镜头编辑、提示词、视频生成结果管理和来源关系展示
 
 ## 模板
 

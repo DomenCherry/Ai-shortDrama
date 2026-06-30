@@ -10,7 +10,7 @@
 
 - 项目资料 / 资产：维护基础信息、世界观和角色，作为整个项目的公共上下文。
 - 故事文本：负责把项目写成完整故事，包含整体故事大纲、分集大纲和每集单集故事正文，目标是形成可读的故事 / 小说化文本。
-- 短剧制作：负责把每集单集故事正文转成视频生产所需文本，包括单集脚本、分镜、字幕和平台发布文案。
+- 短剧制作：负责把每集单集故事正文转成视频生产所需文本，包括结构化剧本、分镜、字幕和平台发布文案。
 
 ## 2. 信息架构
 
@@ -116,21 +116,20 @@
 
 包含：
 
-- 单集剧本。
+- 结构化剧本。
 - 分镜。
 - 字幕 / 发布文案。
 
-单集剧本：
+结构化剧本：
 
-- 按集维护场景说明。
-- 按集维护对白。
-- 按集维护动作说明。
-- 按集维护旁白。
+- 按集维护有序场次和有序剧本内容块。
+- 详细交互见 [结构化剧本工作台 Spec](./structured-script.md)。
 
 分镜：
 
-- 按集维护镜头列表。
-- 每个镜头包含镜头序号、场景、画面提示词、镜头 / 机位、镜头时长、对白或旁白。
+- 按剧本场次维护镜头列表。
+- 每个镜头维护核心画面、声音、提示词、来源关系和视频生成结果。
+- 详细交互见 [分镜制作工作台 Spec](./storyboard-production.md)。
 
 字幕 / 发布文案：
 
@@ -224,11 +223,8 @@
 | 读取/保存整体大纲 | `getProjectStoryOutline` / `updateProjectStoryOutline` | `GET/PUT /api/projects/{project_id}/story-outline` | 整体大纲字段 | 整体大纲 | 展示大纲加载或保存失败 |
 | 读取/保存分集大纲 | `listProjectEpisodeOutlines` / `updateProjectEpisodeOutline` | `GET /api/projects/{project_id}/episode-outlines`，`PUT /api/projects/{project_id}/episode-outlines/{episode_no}` | 分集大纲字段 | 分集大纲 | 展示分集大纲加载或保存失败 |
 | 读取/保存单集故事正文 | `getProjectEpisodeContent` / `updateProjectEpisodeContent` | `GET/PUT /api/projects/{project_id}/episode-contents/{episode_no}` | 单集故事正文字段 | 单集故事正文 | 展示单集故事正文加载或保存失败 |
-| 读取/保存剧本 | `getProjectEpisodeScript` / `updateProjectEpisodeScript` | `GET/PUT /api/projects/{project_id}/episode-scripts/{episode_no}` | 剧本字段 | 剧本 | 展示剧本加载或保存失败 |
-| 分镜镜头列表 | `listProjectStoryboardShots` | `GET /api/projects/{project_id}/storyboard-shots/{episode_no}` | episode_no | 分镜镜头列表 | 展示分镜加载失败 |
-| 新增分镜镜头 | `createProjectStoryboardShot` | `POST /api/projects/{project_id}/storyboard-shots/{episode_no}` | 镜头字段 | 分镜镜头 | 展示分镜新增失败 |
-| 更新分镜镜头 | `updateProjectStoryboardShot` | `PUT /api/projects/{project_id}/storyboard-shots/{episode_no}/{shot_id}` | 镜头字段 | 分镜镜头 | 展示分镜保存失败 |
-| 删除分镜镜头 | `deleteProjectStoryboardShot` | `DELETE /api/projects/{project_id}/storyboard-shots/{episode_no}/{shot_id}` | shot_id | `{ ok: true }` | 展示分镜删除失败 |
+| 读取/保存剧本 | `getProjectEpisodeScript` / `updateProjectEpisodeScript` | `GET/PUT /api/projects/{project_id}/episode-scripts/{episode_no}` | 剧本字段 | 剧本 | 展示剧本加载或保存失败；详细见结构化剧本 Spec |
+| 分镜制作 | 见分镜制作 Spec | 见分镜制作 Spec | 镜头、提示词、视频任务字段 | 分镜聚合与视频生成记录 | 展示分镜或视频生成错误 |
 | 读取/保存文案 | `getProjectCopywriting` / `updateProjectCopywriting` | `GET/PUT /api/projects/{project_id}/copywriting/{episode_no}` | 文案字段 | 文案 | 展示文案加载或保存失败 |
 
 ## 5. 桌面端布局要求
@@ -247,7 +243,7 @@
 - 项目资料 / 资产模块顶部将基础信息、世界观和角色展示为三个同级入口，不展示“世界观与角色”二级导航。
 - 世界观顶部入口显示 `0/1` 或 `1/1`，角色顶部入口显示当前已加载数量。
 - 故事文本入口可以维护整体故事大纲、分集大纲和单集故事正文。
-- 短剧制作入口可以维护剧本、分镜和文案。
+- 短剧制作入口可以维护结构化剧本、分镜和文案。
 - 短剧制作入口不能直接编辑世界观和角色。
 - 短剧制作入口展示当前沿用的世界观、角色和故事文本摘要。
 - 基础信息保存、校验、时长影响提示正常。
@@ -264,7 +260,7 @@
 ## 7. 非目标
 
 - 不在短剧制作区域提供世界观或角色编辑能力。
-- 不接完整 AI 生成闭环。
+- 不在项目入口页接完整 AI 生成闭环；结构化剧本和分镜制作模块可在各自工作台内提供 AI 生成能力。
 - 不做项目内快照与来源资产的复杂差异对比。
 - 不做资产库新版本自动同步到项目快照。
-- 不做完整视频生成和素材导出。
+- 不做完整视频成片生成和素材导出；镜头级视频生成结果管理见分镜制作 Spec。

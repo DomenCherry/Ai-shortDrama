@@ -8,10 +8,12 @@
 
 - 文本模型配置 CRUD。
 - 图片模型配置 CRUD。
+- 视频模型配置 CRUD。
 - 配置软删除。
 - 配置启用切换。
 - 文本模型连通性测试。
 - 图片模型连通性测试。
+- 视频模型连通性测试。
 - 测试日志记录。
 - 生成任务前置校验。
 
@@ -30,8 +32,9 @@
 
 - `text`：文本生成模型。
 - `image`：图片生成模型。
+- `video`：视频生成模型。
 
-文本生成任务只读取当前启用且最近测试成功的文本配置；图片生成任务只读取当前启用且最近测试成功的图片配置。
+文本生成任务只读取当前启用且最近测试成功的文本配置；图片生成任务只读取当前启用且最近测试成功的图片配置；镜头级视频生成任务只读取当前启用且最近测试成功的视频配置。
 
 ### 2.2 API Key 安全
 
@@ -94,15 +97,15 @@
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | id | string | 配置 ID |
-| config_type | text / image | 配置类型 |
+| config_type | text / image / video | 配置类型 |
 | provider_mode | preset / custom | 供应商配置方式 |
 | provider_preset | string | 供应商预设标识 |
 | provider_name | string | 供应商名称 |
 | api_base_url | string | API Base URL |
 | api_key_secret | string | 后端保存的 API Key |
 | model_name | string | 模型名称 |
-| image_size | string | 图片尺寸，仅图片模型使用 |
-| endpoint_path | string | 图片接口路径，仅图片模型使用 |
+| image_size | string | 图片尺寸或视频默认画幅 / 分辨率 |
+| endpoint_path | string | 图片或视频接口路径 |
 | supports_reference_image | boolean | 是否支持参考图输入 |
 | remark | string | 备注 |
 | enabled | boolean | 是否启用 |
@@ -122,14 +125,14 @@
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | id | string | 配置 ID |
-| config_type | text / image | 配置类型 |
+| config_type | text / image / video | 配置类型 |
 | provider_mode | preset / custom | 供应商配置方式 |
 | provider_preset | string | 供应商预设标识 |
 | provider_name | string | 供应商名称 |
 | api_base_url | string | API Base URL |
 | model_name | string | 模型名称 |
-| image_size | string | 图片尺寸 |
-| endpoint_path | string | 图片接口路径 |
+| image_size | string | 图片尺寸或视频默认画幅 / 分辨率 |
+| endpoint_path | string | 图片或视频接口路径 |
 | supports_reference_image | boolean | 是否支持参考图输入 |
 | remark | string | 备注 |
 | enabled | boolean | 是否启用 |
@@ -146,7 +149,7 @@
 | --- | --- | --- |
 | id | string | 测试日志 ID |
 | config_id | string | 关联配置 ID |
-| config_type | text / image | 配置类型 |
+| config_type | text / image / video | 配置类型 |
 | request_summary | string | 脱敏请求摘要 |
 | success | boolean | 是否成功 |
 | response_summary | string | 脱敏响应摘要 |
@@ -159,7 +162,7 @@
 ### 4.1 查询配置列表
 
 ```text
-GET /api/model-configs?config_type=text|image
+GET /api/model-configs?config_type=text|image|video
 ```
 
 响应：
@@ -178,15 +181,15 @@ POST /api/model-configs
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| config_type | text / image | 是 | 配置类型 |
+| config_type | text / image / video | 是 | 配置类型 |
 | provider_mode | preset / custom | 是 | 配置方式 |
 | provider_preset | string | 否 | 供应商预设 |
 | provider_name | string | 是 | 供应商名称 |
 | api_base_url | string | 是 | API Base URL |
 | api_key | string | 是 | API Key |
 | model_name | string | 是 | 模型名称 |
-| image_size | string | image 必填 | 图片尺寸 |
-| endpoint_path | string | 否 | 图片接口路径 |
+| image_size | string | image 必填，video 可选 | 图片尺寸或视频默认画幅 / 分辨率 |
+| endpoint_path | string | image / video 建议填写 | 图片或视频接口路径 |
 | supports_reference_image | boolean | 否 | 是否支持参考图 |
 | remark | string | 否 | 备注 |
 | enabled | boolean | 否 | 是否启用 |
@@ -278,6 +281,7 @@ POST /api/model-configs/{config_id}/test
 
 - 文本配置发送轻量文本测试请求。
 - 图片配置发送轻量文生图测试请求。
+- 视频配置发送轻量文生视频测试请求，或确认供应商成功创建可追踪任务。
 - 每次测试必须写入 `ModelApiTestLog`。
 - 每次测试必须更新配置的 `last_test_status`、`last_tested_at` 和 `last_test_error`。
 - 测试失败信息必须是可理解的中文错误，不暴露内部堆栈。
@@ -293,6 +297,12 @@ POST /api/model-configs/{config_id}/test
 
 - 必须存在 `config_type = image`、`enabled=true`、`deleted_at is null` 的配置。
 - 该配置 `last_test_status` 必须为 `success`。
+
+视频生成任务执行前：
+
+- 必须存在 `config_type = video`、`enabled=true`、`deleted_at is null` 的配置。
+- 该配置 `last_test_status` 必须为 `success`。
+- 分镜视频生成首版默认使用 Seedance 预设；自定义视频配置可走通用视频生成接口。
 
 参考图参与图片生成时：
 
@@ -319,4 +329,4 @@ POST /api/model-configs/{config_id}/test
 - 删除当前启用的唯一配置后，该类型没有启用配置。
 - 已删除配置不能编辑、测试或启用。
 - 同一配置类型最多只有一条启用配置。
-- 文本和图片生成任务只使用启用且测试成功的配置。
+- 文本、图片和视频生成任务只使用启用且测试成功的配置。

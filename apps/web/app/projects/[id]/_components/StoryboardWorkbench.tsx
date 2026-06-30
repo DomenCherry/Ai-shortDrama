@@ -34,6 +34,10 @@ const statusLabels: Record<ShotStatus, string> = {
   draft: "草稿", pending_review: "待审核", confirmed: "已确认", needs_review: "需检查"
 };
 
+const sourceStatusLabels: Record<string, string> = {
+  draft: "草稿", pending_review: "待审核", confirmed: "已确认", needs_review: "需检查"
+};
+
 function payloadFromShot(shot: ProjectStoryboardShot): ProjectStoryboardShotPayload {
   return {
     revision: shot.revision,
@@ -128,6 +132,14 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
   const allShots = useMemo(() => groups.flatMap((group) => group.shots), [groups]);
   const selectedShot = allShots.find((shot) => shot.id === selectedId) ?? null;
   const isDirty = draft !== null && JSON.stringify(cleanPayload(draft)) !== savedDraft;
+  const currentScript = workbench.episodeScript;
+  const sourceMismatch = Boolean(
+    storyboard && currentScript && (
+      storyboard.source_script_id !== currentScript.id ||
+      storyboard.source_script_version !== currentScript.version ||
+      storyboard.source_script_status !== currentScript.status
+    )
+  );
 
   const setUrlShot = useCallback((id: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -337,7 +349,8 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
         <Button className="xl:hidden" size="icon" variant="outline" onClick={() => setNavOpen(true)} aria-label="打开镜头导航"><Menu /></Button>
         <EpisodePicker episodeCount={workbench.project?.episode_count ?? 1} value={workbench.selectedEpisodeNo} onChange={(episodeNo) => requestSwitch({ kind: "episode", episodeNo })} />
         <div className="h-7 w-px bg-border" />
-        <Metric label="来源" value={storyboard?.source_script_version ? `剧本 v${storyboard.source_script_version}` : "未关联"} />
+        <Metric label="来源剧本" value={storyboard?.source_script_version ? `v${storyboard.source_script_version}` : "未关联"} />
+        <Metric label="当前剧本" value={currentScript ? `v${currentScript.version}` : "未创建"} />
         <Metric label="状态" value={storyboard ? statusLabels[storyboard.status] : "未创建"} />
         <Metric label="镜头" value={`${allShots.length}`} />
         <Metric label="总时长" value={`${(storyboard?.total_duration_seconds ?? 0).toFixed(1)}s`} />
@@ -347,6 +360,7 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
         </div>
       </header>
       {(error || message) && <div className={`border-b px-4 py-2 text-sm ${error ? "bg-destructive/5 text-destructive" : "bg-emerald-50 text-emerald-700"}`}>{error || message}</div>}
+      <SourceRelationBanner storyboard={storyboard} currentScript={currentScript} sourceMismatch={sourceMismatch} />
 
       <div className="grid h-[calc(100vh-13.5rem)] min-h-[620px] xl:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="hidden min-h-0 border-r xl:block">{navigator}</aside>
@@ -376,7 +390,7 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
                   <TabsContent value="sound" className="pt-5"><SoundForm draft={draft} update={update} /></TabsContent>
                   <TabsContent value="prompt" className="pt-5"><PromptForm draft={draft} update={updatePrompt} /></TabsContent>
                   <TabsContent value="video" className="pt-5"><VideoGenerationPanel shot={selectedShot} draft={draft} generations={videoGenerations} videoConfigs={videoConfigs} loading={videoLoading} busy={videoBusy} isDirty={isDirty} onCreate={() => void createVideo()} onRefresh={(id) => void refreshVideo(id)} onAdopt={(id) => void adoptVideo(id)} onCancel={(id) => void cancelVideo(id)} /></TabsContent>
-                  <TabsContent value="reference" className="pt-5"><ReferencePanel shot={selectedShot} groups={groups} script={workbench.episodeScript} onReassign={(sceneId) => void reassign(sceneId)} disabled={saving || isDirty} /></TabsContent>
+                  <TabsContent value="reference" className="pt-5"><ReferencePanel shot={selectedShot} groups={groups} storyboard={storyboard} script={workbench.episodeScript} onReassign={(sceneId) => void reassign(sceneId)} disabled={saving || isDirty} /></TabsContent>
                 </Tabs>
               </div>
             ) : null}
@@ -401,6 +415,22 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
 }
 
 function Metric({ label, value }: { label: string; value: string }) { return <div className="min-w-16"><p className="text-[11px] text-muted-foreground">{label}</p><p className="text-sm font-medium">{value}</p></div>; }
+
+function SourceRelationBanner({ storyboard, currentScript, sourceMismatch }: { storyboard: ProjectStoryboard | null; currentScript: ProjectWorkbenchState["episodeScript"]; sourceMismatch: boolean }) {
+  const sourceVersion = storyboard?.source_script_version ? `剧本 v${storyboard.source_script_version}` : "未关联剧本";
+  const currentVersion = currentScript ? `当前剧本 v${currentScript.version}` : "当前剧本未创建";
+  const sourceStatus = storyboard?.source_script_status ? sourceStatusLabels[storyboard.source_script_status] ?? storyboard.source_script_status : "未知";
+  const currentStatus = currentScript ? sourceStatusLabels[currentScript.status] ?? currentScript.status : "未创建";
+  return <div className={`border-b px-4 py-2 text-xs ${sourceMismatch || storyboard?.status === "needs_review" ? "bg-amber-50 text-amber-800" : "bg-muted/30 text-muted-foreground"}`}>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <span className="font-medium text-foreground">剧本 → 分镜</span>
+      <span>分镜按剧本场次分组，镜头保存剧本块引用和制作快照。</span>
+      <span>{sourceVersion}（{sourceStatus}）</span>
+      <span>{currentVersion}（{currentStatus}）</span>
+      {sourceMismatch ? <span className="font-medium">当前剧本已变化，请复核分镜来源。</span> : null}
+    </div>
+  </div>;
+}
 
 function ShotNavigator({ groups, selectedId, query, filter, collapsed, generationStates, onQuery, onFilter, onToggle, onSelect, onMove, onGenerate }: {
   groups: StoryboardSceneGroup[]; selectedId: string; query: string; filter: "all" | ShotStatus; collapsed: Set<string>;
@@ -545,12 +575,43 @@ function VideoResultCard({ generation, title, busy, onRefresh, onAdopt, onCancel
   </div>;
 }
 
-function ReferencePanel({ shot, groups, script, onReassign, disabled }: { shot: ProjectStoryboardShot; groups: StoryboardSceneGroup[]; script: ProjectWorkbenchState["episodeScript"]; onReassign: (sceneId: string) => void; disabled: boolean }) {
+function ReferencePanel({ shot, groups, storyboard, script, onReassign, disabled }: {
+  shot: ProjectStoryboardShot; groups: StoryboardSceneGroup[]; storyboard: ProjectStoryboard | null; script: ProjectWorkbenchState["episodeScript"];
+  onReassign: (sceneId: string) => void; disabled: boolean;
+}) {
   const group = groups.find((item) => item.scene_id === shot.source_scene_id);
   const scene = script?.scenes.find((item) => item.id === shot.source_scene_id);
+  const sourceBlocks = scene?.blocks.filter((block) => shot.source_block_ids?.includes(block.id)) ?? [];
+  const sourceStatus = shot.source_status === "valid" ? "有效" : shot.source_status === "changed" ? "已变化" : shot.source_status === "scene_deleted" ? "场次已删除" : "未归属";
   return <div className="grid gap-4 lg:grid-cols-2">
-    <div className="rounded-lg border p-4"><h3 className="font-semibold">来源剧本块 · {group?.display_code ?? "未归属"}</h3><p className="mt-1 text-sm text-muted-foreground">{group?.title}</p><div className="mt-4 space-y-2">{scene?.blocks.map((block) => <p key={block.id} className="rounded-md bg-muted/60 p-2 text-sm"><span className="mr-2 text-xs text-muted-foreground">{block.block_type}</span>{block.content || "（空）"}</p>) ?? <p className="text-sm text-muted-foreground">暂无来源剧本块。</p>}</div></div>
-    <div className="space-y-3"><div className="rounded-lg border p-4"><h3 className="font-semibold">连续性与检查</h3><p className="mt-2 text-sm text-muted-foreground">来源状态：{shot.source_status}；提示词状态：{shot.prompt_freshness}</p>{shot.status === "needs_review" && <p className="mt-2 text-sm text-destructive">该镜头需要人工检查后再确认。</p>}<div className="mt-4"><p className="mb-1.5 text-sm font-medium">重新归属场次</p><Select value={shot.source_scene_id ?? ""} onValueChange={onReassign} disabled={disabled}><SelectTrigger className="w-full"><SelectValue placeholder="选择场次" /></SelectTrigger><SelectContent>{groups.filter((item) => item.scene_id).map((item) => <SelectItem key={item.scene_id} value={item.scene_id!}>{item.display_code} · {item.title}</SelectItem>)}</SelectContent></Select>{disabled && <p className="mt-1 text-xs text-muted-foreground">请先保存当前修改。</p>}</div></div><div className="rounded-lg border p-4"><h3 className="font-semibold">人物素材</h3><p className="mt-2 text-sm text-muted-foreground">已关联 {shot.character_snapshot_ids?.length ?? 0} 个人物快照。</p></div></div>
+    <div className="rounded-lg border p-4">
+      <h3 className="font-semibold">镜头来源关系</h3>
+      <div className="mt-3 grid gap-2 text-sm">
+        <div className="flex justify-between gap-3"><span className="text-muted-foreground">来源剧本</span><span>{storyboard?.source_script_version ? `v${storyboard.source_script_version}` : "未关联"}</span></div>
+        <div className="flex justify-between gap-3"><span className="text-muted-foreground">归属场次</span><span>{group ? `${group.display_code} · ${group.title}` : "未归属"}</span></div>
+        <div className="flex justify-between gap-3"><span className="text-muted-foreground">引用剧本块</span><span>{shot.source_block_ids?.length ?? 0} 个</span></div>
+        <div className="flex justify-between gap-3"><span className="text-muted-foreground">来源状态</span><span>{sourceStatus}</span></div>
+      </div>
+      <p className="mt-3 rounded-md bg-muted/60 p-3 text-xs text-muted-foreground">镜头字段是制作快照，编辑画面、对白、提示词或视频结果不会反向修改结构化剧本。</p>
+      <div className="mt-4">
+        <p className="mb-1.5 text-sm font-medium">重新归属场次</p>
+        <Select value={shot.source_scene_id ?? ""} onValueChange={onReassign} disabled={disabled}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="选择场次" /></SelectTrigger>
+          <SelectContent>{groups.filter((item) => item.scene_id).map((item) => <SelectItem key={item.scene_id} value={item.scene_id!}>{item.display_code} · {item.title}</SelectItem>)}</SelectContent>
+        </Select>
+        {disabled && <p className="mt-1 text-xs text-muted-foreground">请先保存当前修改。</p>}
+      </div>
+    </div>
+    <div className="rounded-lg border p-4">
+      <h3 className="font-semibold">来源剧本块 · {group?.display_code ?? "未归属"}</h3>
+      <p className="mt-1 text-sm text-muted-foreground">{group?.title}</p>
+      <div className="mt-4 space-y-2">
+        {(sourceBlocks.length ? sourceBlocks : scene?.blocks ?? []).map((block) => <p key={block.id} className={`rounded-md p-2 text-sm ${shot.source_block_ids?.includes(block.id) ? "bg-primary/10" : "bg-muted/60"}`}><span className="mr-2 text-xs text-muted-foreground">{block.block_type}</span>{block.content || "（空）"}</p>)}
+        {!scene ? <p className="text-sm text-muted-foreground">暂无来源剧本块。</p> : null}
+      </div>
+    </div>
+    <div className="rounded-lg border p-4"><h3 className="font-semibold">连续性与检查</h3><p className="mt-2 text-sm text-muted-foreground">提示词状态：{shot.prompt_freshness}</p>{shot.status === "needs_review" && <p className="mt-2 text-sm text-destructive">该镜头需要人工检查后再确认。</p>}</div>
+    <div className="rounded-lg border p-4"><h3 className="font-semibold">人物素材</h3><p className="mt-2 text-sm text-muted-foreground">已关联 {shot.character_snapshot_ids?.length ?? 0} 个人物快照。</p></div>
   </div>;
 }
 
