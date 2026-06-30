@@ -499,6 +499,39 @@ export type ProjectStoryboard = {
   updated_at: string;
 };
 
+export type ShotVideoGeneration = {
+  id: string;
+  project_id: string;
+  episode_no: number;
+  storyboard_id: string;
+  shot_id: string;
+  prompt_id?: string;
+  source_shot_revision: number;
+  source_prompt_revision?: number;
+  video_prompt_snapshot: string;
+  negative_prompt_snapshot?: string;
+  reference_asset_ids: string[];
+  model_config_id: string;
+  model_name: string;
+  provider_preset?: string;
+  provider_task_id?: string;
+  status: "queued" | "running" | "succeeded" | "failed" | "canceled";
+  result_url?: string;
+  local_asset_path?: string;
+  thumbnail_url?: string;
+  duration_seconds?: number;
+  width?: number;
+  height?: number;
+  error_message?: string;
+  request_payload_snapshot: Record<string, unknown>;
+  elapsed_ms?: number;
+  adopted: boolean;
+  adopted_at?: string;
+  is_stale: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ProjectCopywritingPayload = {
   subtitles?: string;
   platform_title?: string;
@@ -1066,6 +1099,34 @@ export function updateProjectStoryboardShot(
 export function deleteProjectStoryboardShot(projectId: string, episodeNo: number, shotId: string) {
   return request<{ ok: boolean }>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots/${shotId}`, {
     method: "DELETE"
+  });
+}
+
+export function listShotVideoGenerations(projectId: string, episodeNo: number, shotId: string) {
+  return request<ShotVideoGeneration[]>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots/${shotId}/video-generations`);
+}
+
+export function createShotVideoGeneration(projectId: string, episodeNo: number, shotId: string) {
+  return request<ShotVideoGeneration>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots/${shotId}/video-generations`, {
+    method: "POST"
+  });
+}
+
+export function refreshShotVideoGeneration(projectId: string, episodeNo: number, shotId: string, generationId: string) {
+  return request<ShotVideoGeneration>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots/${shotId}/video-generations/${generationId}/refresh`, {
+    method: "POST"
+  });
+}
+
+export function adoptShotVideoGeneration(projectId: string, episodeNo: number, shotId: string, generationId: string) {
+  return request<ShotVideoGeneration>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots/${shotId}/video-generations/${generationId}/adopt`, {
+    method: "POST"
+  });
+}
+
+export function cancelShotVideoGeneration(projectId: string, episodeNo: number, shotId: string, generationId: string) {
+  return request<ShotVideoGeneration>(`/api/projects/${projectId}/storyboards/${episodeNo}/shots/${shotId}/video-generations/${generationId}/cancel`, {
+    method: "POST"
   });
 }
 

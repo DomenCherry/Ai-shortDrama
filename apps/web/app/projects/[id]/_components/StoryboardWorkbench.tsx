@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronRight, Copy, List, Menu, Plus, Save, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, ExternalLink, List, Menu, Play, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,11 +15,14 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import {
+  adoptShotVideoGeneration, cancelShotVideoGeneration,
   createProjectStoryboardShot, deleteProjectStoryboardShot, duplicateProjectStoryboardShot,
+  createShotVideoGeneration,
   generateProjectStoryboardScene, getProjectStoryboard, reassignProjectStoryboardShot,
+  listModelConfigs, listShotVideoGenerations, refreshShotVideoGeneration,
   reorderProjectStoryboardScene, updateProjectStoryboardShot
 } from "@/lib/api";
-import type { ProjectStoryboard, ProjectStoryboardShot, ProjectStoryboardShotPayload, StoryboardSceneGroup } from "@/lib/api";
+import type { ModelConfig, ProjectStoryboard, ProjectStoryboardShot, ProjectStoryboardShotPayload, ShotVideoGeneration, StoryboardSceneGroup } from "@/lib/api";
 import type { ProjectWorkbenchState } from "../_hooks/useProjectWorkbench";
 import type { Stage } from "../_utils/workbenchTypes";
 import { EpisodePicker } from "./shared";
@@ -110,6 +113,10 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
   const [pendingSwitch, setPendingSwitch] = useState<SwitchTarget | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const [generationStates, setGenerationStates] = useState<Record<string, "running" | "succeeded" | "failed">>({});
+  const [videoGenerations, setVideoGenerations] = useState<ShotVideoGeneration[]>([]);
+  const [videoConfigs, setVideoConfigs] = useState<ModelConfig[]>([]);
+  const [videoBusy, setVideoBusy] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(false);
 
   const scriptGroups = useMemo<StoryboardSceneGroup[]>(() => (workbench.episodeScript?.scenes ?? []).map((scene, index) => ({
     scene_id: scene.id, scene_no: index + 1, display_code: `S${String(index + 1).padStart(2, "0")}`,
@@ -156,6 +163,19 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
     const next = payloadFromShot(selectedShot);
     setDraft(next); setSavedDraft(JSON.stringify(cleanPayload(next)));
   }, [selectedShot]);
+  useEffect(() => {
+    void listModelConfigs("video").then(setVideoConfigs).catch(() => setVideoConfigs([]));
+  }, []);
+  const loadVideoGenerations = useCallback(async (shotId?: string) => {
+    if (!shotId) { setVideoGenerations([]); return; }
+    setVideoLoading(true);
+    try {
+      setVideoGenerations(await listShotVideoGenerations(workbench.projectId, workbench.selectedEpisodeNo, shotId));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "读取视频生成记录失败");
+    } finally { setVideoLoading(false); }
+  }, [workbench.projectId, workbench.selectedEpisodeNo]);
+  useEffect(() => { void loadVideoGenerations(selectedShot?.id); }, [selectedShot?.id, loadVideoGenerations]);
   useEffect(() => {
     const protect = (event: BeforeUnloadEvent) => { if (isDirty) { event.preventDefault(); event.returnValue = ""; } };
     window.addEventListener("beforeunload", protect);
@@ -260,6 +280,48 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
     setMessage(`整集生成完成：${succeeded}/${targets.length} 个场次成功；失败场次可在左侧重试。`);
   };
 
+  const createVideo = async () => {
+    if (!selectedShot) return;
+    setVideoBusy(true); setError(""); setMessage("");
+    try {
+      const created = await createShotVideoGeneration(workbench.projectId, workbench.selectedEpisodeNo, selectedShot.id);
+      await loadVideoGenerations(selectedShot.id);
+      setMessage(created.status === "failed" ? "视频生成任务失败，请查看失败原因。" : "视频生成任务已创建。");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "创建视频生成任务失败"); }
+    finally { setVideoBusy(false); }
+  };
+
+  const refreshVideo = async (generationId: string) => {
+    if (!selectedShot) return;
+    setVideoBusy(true); setError("");
+    try {
+      await refreshShotVideoGeneration(workbench.projectId, workbench.selectedEpisodeNo, selectedShot.id, generationId);
+      await loadVideoGenerations(selectedShot.id);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "刷新视频生成状态失败"); }
+    finally { setVideoBusy(false); }
+  };
+
+  const adoptVideo = async (generationId: string) => {
+    if (!selectedShot) return;
+    setVideoBusy(true); setError("");
+    try {
+      await adoptShotVideoGeneration(workbench.projectId, workbench.selectedEpisodeNo, selectedShot.id, generationId);
+      await loadVideoGenerations(selectedShot.id);
+      setMessage("已采用该视频结果。");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "采用视频结果失败"); }
+    finally { setVideoBusy(false); }
+  };
+
+  const cancelVideo = async (generationId: string) => {
+    if (!selectedShot) return;
+    setVideoBusy(true); setError("");
+    try {
+      await cancelShotVideoGeneration(workbench.projectId, workbench.selectedEpisodeNo, selectedShot.id, generationId);
+      await loadVideoGenerations(selectedShot.id);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "取消视频生成任务失败"); }
+    finally { setVideoBusy(false); }
+  };
+
   const update = (field: keyof ProjectStoryboardShotPayload, value: unknown) => setDraft((current) => current ? ({ ...current, [field]: value }) : current);
   const updatePrompt = (field: string, value: string) => setDraft((current) => current ? ({ ...current, prompt: { ...current.prompt, reference_asset_ids: current.prompt?.reference_asset_ids ?? [], [field]: value } }) : current);
   const selectedIndex = allShots.findIndex((shot) => shot.id === selectedId);
@@ -308,11 +370,12 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
                 <Tabs defaultValue="visual">
                   <TabsList variant="line" className="w-full justify-start border-b">
                     <TabsTrigger value="visual">核心画面</TabsTrigger><TabsTrigger value="sound">声音</TabsTrigger>
-                    <TabsTrigger value="prompt">提示词</TabsTrigger><TabsTrigger value="reference">参考与检查</TabsTrigger>
+                    <TabsTrigger value="prompt">提示词</TabsTrigger><TabsTrigger value="video">视频生成</TabsTrigger><TabsTrigger value="reference">参考与检查</TabsTrigger>
                   </TabsList>
                   <TabsContent value="visual" className="pt-5"><VisualForm draft={draft} update={update} /></TabsContent>
                   <TabsContent value="sound" className="pt-5"><SoundForm draft={draft} update={update} /></TabsContent>
                   <TabsContent value="prompt" className="pt-5"><PromptForm draft={draft} update={updatePrompt} /></TabsContent>
+                  <TabsContent value="video" className="pt-5"><VideoGenerationPanel shot={selectedShot} draft={draft} generations={videoGenerations} videoConfigs={videoConfigs} loading={videoLoading} busy={videoBusy} isDirty={isDirty} onCreate={() => void createVideo()} onRefresh={(id) => void refreshVideo(id)} onAdopt={(id) => void adoptVideo(id)} onCancel={(id) => void cancelVideo(id)} /></TabsContent>
                   <TabsContent value="reference" className="pt-5"><ReferencePanel shot={selectedShot} groups={groups} script={workbench.episodeScript} onReassign={(sceneId) => void reassign(sceneId)} disabled={saving || isDirty} /></TabsContent>
                 </Tabs>
               </div>
@@ -410,6 +473,77 @@ function PromptForm({ draft, update }: { draft: ProjectStoryboardShotPayload; up
   <Field label="首帧描述" value={draft.prompt?.first_frame_description} onChange={(value) => update("first_frame_description", value)} />
   <Field label="尾帧描述" value={draft.prompt?.last_frame_description} onChange={(value) => update("last_frame_description", value)} />
 </div>; }
+
+const videoStatusLabels: Record<ShotVideoGeneration["status"], string> = {
+  queued: "排队中", running: "生成中", succeeded: "成功", failed: "失败", canceled: "已取消"
+};
+
+function VideoGenerationPanel({ shot, draft, generations, videoConfigs, loading, busy, isDirty, onCreate, onRefresh, onAdopt, onCancel }: {
+  shot: ProjectStoryboardShot; draft: ProjectStoryboardShotPayload; generations: ShotVideoGeneration[]; videoConfigs: ModelConfig[];
+  loading: boolean; busy: boolean; isDirty: boolean; onCreate: () => void; onRefresh: (id: string) => void; onAdopt: (id: string) => void; onCancel: (id: string) => void;
+}) {
+  const promptText = draft.prompt?.seedance_prompt?.trim() || draft.prompt?.video_prompt?.trim() || "";
+  const enabledVideoConfig = videoConfigs.find((config) => config.enabled);
+  const adopted = generations.find((item) => item.adopted);
+  const disabledReason = isDirty ? "请先保存当前镜头修改后再生成视频。"
+    : !promptText ? "请先填写 Seedance 提示词或视频提示词。"
+      : shot.prompt_freshness === "needs_update" ? "提示词需要更新，请先保存或确认后再生成视频。"
+        : !enabledVideoConfig ? "请先在设置中启用视频生成模型。"
+          : enabledVideoConfig.last_test_status !== "success" ? "请先测试并通过当前视频生成模型。"
+            : "";
+  return <div className="space-y-4">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="rounded-lg border p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-semibold">本次使用提示词</h3>
+          <Badge variant="secondary">{draft.prompt?.seedance_prompt?.trim() ? "Seedance" : "通用视频"}</Badge>
+          {shot.prompt_freshness === "needs_update" ? <Badge variant="outline">需更新</Badge> : null}
+        </div>
+        <p className="mt-3 whitespace-pre-wrap rounded-md bg-muted/60 p-3 text-sm text-muted-foreground">{promptText || "暂无可用视频提示词。"}</p>
+      </div>
+      <div className="rounded-lg border p-4">
+        <h3 className="font-semibold">视频模型</h3>
+        <p className="mt-2 text-sm">{enabledVideoConfig ? enabledVideoConfig.provider_name : "未启用"}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{enabledVideoConfig ? `${enabledVideoConfig.model_name} · ${enabledVideoConfig.last_test_status}` : "请先到设置页配置视频模型。"}</p>
+        {disabledReason ? <p className="mt-3 text-sm text-destructive">{disabledReason}</p> : null}
+        <Button className="mt-4 w-full" onClick={onCreate} disabled={busy || Boolean(disabledReason)}><Play />{busy ? "处理中" : "生成视频"}</Button>
+      </div>
+    </div>
+    {adopted ? <VideoResultCard generation={adopted} title="当前采用素材" busy={busy} onRefresh={onRefresh} onAdopt={onAdopt} onCancel={onCancel} /> : <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">当前镜头还没有采用的视频素材。</div>}
+    <div className="rounded-lg border">
+      <div className="flex items-center justify-between border-b px-4 py-3"><h3 className="font-semibold">候选历史</h3>{loading ? <span className="text-xs text-muted-foreground">加载中...</span> : null}</div>
+      <div className="divide-y">{generations.length === 0 && !loading ? <p className="p-4 text-sm text-muted-foreground">暂无视频生成记录。</p> : generations.map((generation) => <VideoResultCard key={generation.id} generation={generation} busy={busy} onRefresh={onRefresh} onAdopt={onAdopt} onCancel={onCancel} />)}</div>
+    </div>
+  </div>;
+}
+
+function VideoResultCard({ generation, title, busy, onRefresh, onAdopt, onCancel }: {
+  generation: ShotVideoGeneration; title?: string; busy: boolean; onRefresh: (id: string) => void; onAdopt: (id: string) => void; onCancel: (id: string) => void;
+}) {
+  const canPreview = generation.result_url || generation.local_asset_path;
+  return <div className="grid gap-4 p-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+    <div className="flex aspect-video items-center justify-center overflow-hidden rounded-md bg-muted">
+      {generation.result_url ? <video className="h-full w-full object-cover" src={generation.result_url} controls poster={generation.thumbnail_url} /> : generation.thumbnail_url ? <img className="h-full w-full object-cover" src={generation.thumbnail_url} alt="视频缩略图" /> : <span className="text-xs text-muted-foreground">暂无预览</span>}
+    </div>
+    <div className="min-w-0 space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="font-semibold">{title ?? new Date(generation.created_at).toLocaleString()}</h4>
+        <Badge variant={generation.status === "failed" ? "destructive" : generation.status === "succeeded" ? "secondary" : "outline"}>{videoStatusLabels[generation.status]}</Badge>
+        {generation.adopted ? <Badge variant="secondary">已采用</Badge> : null}
+        {generation.is_stale ? <Badge variant="outline">可能过期</Badge> : null}
+      </div>
+      <p className="line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">{generation.video_prompt_snapshot}</p>
+      {generation.error_message ? <p className="text-sm text-destructive">{generation.error_message}</p> : null}
+      <div className="flex flex-wrap gap-2">
+        {(generation.status === "queued" || generation.status === "running") ? <Button size="sm" variant="outline" onClick={() => onRefresh(generation.id)} disabled={busy}><RefreshCw />刷新</Button> : null}
+        {(generation.status === "queued" || generation.status === "running") ? <Button size="sm" variant="outline" onClick={() => onCancel(generation.id)} disabled={busy}><X />取消</Button> : null}
+        {generation.status === "failed" ? <Button size="sm" variant="outline" onClick={() => onRefresh(generation.id)} disabled={busy}><RefreshCw />重试刷新</Button> : null}
+        {generation.status === "succeeded" && !generation.adopted ? <Button size="sm" onClick={() => onAdopt(generation.id)} disabled={busy || !canPreview}><Check />采用</Button> : null}
+        {generation.result_url ? <Button asChild size="sm" variant="outline"><a href={generation.result_url} target="_blank" rel="noreferrer"><ExternalLink />打开</a></Button> : null}
+      </div>
+    </div>
+  </div>;
+}
 
 function ReferencePanel({ shot, groups, script, onReassign, disabled }: { shot: ProjectStoryboardShot; groups: StoryboardSceneGroup[]; script: ProjectWorkbenchState["episodeScript"]; onReassign: (sceneId: string) => void; disabled: boolean }) {
   const group = groups.find((item) => item.scene_id === shot.source_scene_id);

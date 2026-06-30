@@ -553,6 +553,41 @@ class ProjectShotPrompt(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ProjectShotVideoGeneration(Base):
+    """镜头级文生视频任务与候选结果，独立于分镜文本和提示词。"""
+    __tablename__ = "project_shot_video_generations"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
+    episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    storyboard_id: Mapped[str] = mapped_column(String(64), ForeignKey("project_storyboards.id"), nullable=False, index=True)
+    shot_id: Mapped[str] = mapped_column(String(64), ForeignKey("project_storyboard_shots.id"), nullable=False, index=True)
+    prompt_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("project_shot_prompts.id"), nullable=True, index=True)
+    source_shot_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_prompt_revision: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    video_prompt_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
+    negative_prompt_snapshot: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reference_asset_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    model_config_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    model_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    provider_preset: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    provider_task_id: Mapped[Optional[str]] = mapped_column(String(160), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="queued", index=True)
+    result_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    local_asset_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    thumbnail_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    duration_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    width: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    height: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    request_payload_snapshot: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    elapsed_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    adopted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    adopted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 class ProjectCopywriting(Base):
     """项目发布文案表，保存字幕、标题、简介和发布文案。"""
     __tablename__ = "project_copywriting"

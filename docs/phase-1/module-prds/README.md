@@ -6,7 +6,7 @@
 
 | 业务域 | 模块 | 文档 | 状态 | 说明 |
 |--------|------|------|------|------|
-| 平台配置 | 模型 API 配置 | [model-api-settings.md](./platform/model-api-settings.md) | 已实现 | 文本/图片模型配置与连通性测试 |
+| 平台配置 | 模型 API 配置 | [model-api-settings.md](./platform/model-api-settings.md) | 已实现 | 文本/图片/视频模型配置与连通性测试 |
 | 平台配置 | 用户侧 Skill 管理 | [user-skill-management.md](./platform/user-skill-management.md) | 已实现 | 用户侧业务 Skill 展示与全局启用开关 |
 | 项目管理 | 项目管理 | [project-management.md](./projects/project-management.md) | 已实现 | 项目创建、时长配置、列表管理 |
 | 项目管理 | 项目工作台 | [project-workbench.md](./projects/project-workbench.md) | 已实现 | 三类入口、内容状态机、人工编辑 |
@@ -21,7 +21,7 @@
 | 短剧制作 | 人物示意图 | [character-image.md](./production/character-image.md) | 薄占位 | AI 生成角色视觉参考 |
 | 短剧制作 | 结构化剧本 | [structured-script.md](./production/structured-script.md) | 详细设计中 | 场次、剧本内容块、生成与改写 |
 | 短剧制作 | 剧本来源正文快速参考 | [script-source-reference.md](./production/script-source-reference.md) | 已实现 | 在剧本工作台只读对照当前集故事正文 |
-| 短剧制作 | 分镜制作 | [storyboard-production.md](./production/storyboard-production.md) | 待细化 | 镜头拆分、提示词与 Seedance 适配 |
+| 短剧制作 | 分镜制作 | [storyboard-production.md](./production/storyboard-production.md) | 详细设计已确认 | 镜头拆分、提示词、Seedance 适配与镜头级视频结果管理 |
 | 短剧制作 | 后期准备 | [post-production-prep.md](./production/post-production-prep.md) | 待细化 | 配音、字幕、声音与剪辑准备 |
 | 短剧制作 | 制作包导出 | [production-package-export.md](./production/production-package-export.md) | 待细化 | 校验、版本、标准化文件与导出 |
 | 内容管理 | 内容编辑 | [content-editing.md](./content-management/content-editing.md) | 薄占位 | 版本控制与编辑管理 |

@@ -1,8 +1,11 @@
 import os
+import asyncio
 import tempfile
 import unittest
 from datetime import datetime, timezone
+from unittest.mock import patch
 
+import httpx
 from sqlalchemy import event
 
 
@@ -10,7 +13,7 @@ os.environ["API_DATABASE_URL"] = "sqlite://"
 
 from app.core.config import get_settings
 from app.core.db import Base, get_engine, get_session, get_session_factory
-from app.models.db_models import CharacterCard, Project, ProjectCharacterSnapshot
+from app.models.db_models import CharacterCard, ModelApiConfig, Project, ProjectCharacterSnapshot
 from app.models.schemas import (
     ProjectEpisodeScriptPayload,
     ProjectStoryboardShotPayload,
@@ -19,8 +22,32 @@ from app.models.schemas import (
     StoryboardReassignPayload,
     StoryboardReorderPayload,
 )
-from app.services.project.production import storyboard
+from app.services.project.production import shot_videos, storyboard
 from app.services.project.story import episode_scripts
+
+
+class _FakeVideoClient:
+    def __init__(self, post_data: dict | None = None, get_data: dict | None = None) -> None:
+        self.post_data = post_data or {"id": "video-task", "status": "queued"}
+        self.get_data = get_data or {"id": "video-task", "status": "succeeded", "data": [{"url": "https://cdn.test/video.mp4"}]}
+        self.posts: list[dict] = []
+        self.gets: list[dict] = []
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, traceback) -> None:
+        return None
+
+    async def post(self, url: str, *, json: dict, headers: dict) -> httpx.Response:
+        self.posts.append({"url": url, "json": json, "headers": headers})
+        request = httpx.Request("POST", url)
+        return httpx.Response(200, json=self.post_data, request=request)
+
+    async def get(self, url: str, *, headers: dict) -> httpx.Response:
+        self.gets.append({"url": url, "headers": headers})
+        request = httpx.Request("GET", url)
+        return httpx.Response(200, json=self.get_data, request=request)
 
 
 class StoryboardAggregateTests(unittest.TestCase):
@@ -55,6 +82,14 @@ class StoryboardAggregateTests(unittest.TestCase):
                 source_version=1, name="林晚", gender="女", role_type="主角", snapshot_content="{}",
                 loaded_at=now, updated_at=now,
             ))
+            session.add(ModelApiConfig(
+                id="video-config", config_type="video", provider_mode="preset",
+                provider_preset="volcengine_seedance_1_5", provider_name="火山方舟",
+                api_base_url="https://ark.test/api/v3", api_key_secret="video-secret",
+                model_name="seedance-model", endpoint_path="/contents/generations/tasks",
+                supports_reference_image=False, enabled=True, last_test_status="success",
+                created_at=now, updated_at=now,
+            ))
         script = episode_scripts.upsert_episode_script("project-storyboard", 1, ProjectEpisodeScriptPayload.model_validate({
             "revision": None,
             "scenes": [
@@ -76,7 +111,7 @@ class StoryboardAggregateTests(unittest.TestCase):
             source_scene_id=scene_id, shot_size="中景", subject_description=subject,
             visual_description=f"{subject}进入画面", duration_seconds=3,
             character_snapshot_ids=["snapshot"], props=[], source_block_ids=[], status="draft",
-            prompt=ShotPromptPayload(image_prompt=f"{subject}，电影感"),
+            prompt=ShotPromptPayload(image_prompt=f"{subject}，电影感", video_prompt=f"{subject}走入画面", seedance_prompt=f"Seedance {subject}走入画面"),
         )
 
     def test_grouped_crud_reorder_reassign_and_stable_codes(self) -> None:
@@ -130,3 +165,47 @@ class StoryboardAggregateTests(unittest.TestCase):
         self.assertEqual(updated["source_scene_id"], self.scene_a)
         self.assertEqual(updated["subject_description"], "林晚")
         self.assertEqual(updated["prompt"]["image_prompt"], "低照度客厅")
+
+    def test_shot_video_generation_create_refresh_and_adopt(self) -> None:
+        shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
+        fake_client = _FakeVideoClient(
+            post_data={"id": "seedance-task-1", "status": "queued"},
+            get_data={
+                "id": "seedance-task-1", "status": "succeeded",
+                "data": [{"url": "https://cdn.test/video.mp4", "duration": 3, "width": 1280, "height": 720}],
+            },
+        )
+
+        with patch.object(shot_videos.httpx, "AsyncClient", return_value=fake_client):
+            created = asyncio.run(shot_videos.create_video_generation("project-storyboard", 1, shot["id"]))
+            refreshed = asyncio.run(shot_videos.refresh_video_generation("project-storyboard", 1, shot["id"], created["id"]))
+
+        self.assertEqual(created["provider_task_id"], "seedance-task-1")
+        self.assertEqual(created["status"], "running")
+        self.assertEqual(created["video_prompt_snapshot"], "Seedance 林晚走入画面")
+        self.assertEqual(fake_client.posts[0]["url"], "https://ark.test/api/v3/contents/generations/tasks")
+        self.assertEqual(fake_client.posts[0]["json"]["content"][0]["text"], "Seedance 林晚走入画面")
+        self.assertEqual(refreshed["status"], "succeeded")
+        self.assertEqual(refreshed["result_url"], "https://cdn.test/video.mp4")
+
+        adopted = shot_videos.adopt_video_generation("project-storyboard", 1, shot["id"], created["id"])
+        self.assertTrue(adopted["adopted"])
+        self.assertFalse(adopted["is_stale"])
+
+    def test_shot_video_generation_requires_prompt_and_valid_video_config(self) -> None:
+        shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
+        empty_prompt = self.payload(self.scene_a, "林晚")
+        empty_prompt.prompt = ShotPromptPayload()
+        storyboard.update_storyboard_shot("project-storyboard", 1, shot["id"], empty_prompt)
+
+        with self.assertRaisesRegex(ValueError, "请先填写视频提示词"):
+            asyncio.run(shot_videos.create_video_generation("project-storyboard", 1, shot["id"]))
+
+        payload = self.payload(self.scene_a, "管家")
+        second = storyboard.create_storyboard_shot("project-storyboard", 1, payload)
+        with get_session() as session:
+            config = session.get(ModelApiConfig, "video-config")
+            config.last_test_status = "failed"
+
+        with self.assertRaisesRegex(ValueError, "请先测试并通过"):
+            asyncio.run(shot_videos.create_video_generation("project-storyboard", 1, second["id"]))

@@ -7,11 +7,12 @@ from app.models.schemas import (
     ProjectStoryboardShotPayload,
     ProjectStoryboardShotResponse,
     ProjectStoryboardResponse,
+    ShotVideoGenerationResponse,
     StoryboardDuplicatePayload,
     StoryboardReassignPayload,
     StoryboardReorderPayload,
 )
-from app.services.project.production import copywriting, storyboard
+from app.services.project.production import copywriting, shot_videos, storyboard
 
 router = APIRouter()
 
@@ -19,7 +20,7 @@ router = APIRouter()
 def _storyboard_status(exc: ValueError) -> int:
     if isinstance(exc, storyboard.StoryboardConflictError):
         return 409
-    if str(exc) in {"项目不存在", "项目分镜不存在"}:
+    if str(exc) in {"项目不存在", "项目分镜不存在", "视频生成记录不存在"}:
         return 404
     return 400
 
@@ -86,6 +87,61 @@ def reassign_storyboard_shot(project_id: str, episode_no: int, shot_id: str, pay
 def duplicate_storyboard_shot(project_id: str, episode_no: int, shot_id: str, payload: StoryboardDuplicatePayload) -> dict:
     try:
         return storyboard.duplicate_storyboard_shot(project_id, episode_no, shot_id, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
+
+
+@router.get(
+    "/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-generations",
+    response_model=list[ShotVideoGenerationResponse],
+)
+def list_shot_video_generations(project_id: str, episode_no: int, shot_id: str) -> list[dict]:
+    try:
+        return shot_videos.list_video_generations(project_id, episode_no, shot_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
+
+
+@router.post(
+    "/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-generations",
+    response_model=ShotVideoGenerationResponse,
+)
+async def create_shot_video_generation(project_id: str, episode_no: int, shot_id: str) -> dict:
+    try:
+        return await shot_videos.create_video_generation(project_id, episode_no, shot_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
+
+
+@router.post(
+    "/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-generations/{generation_id}/refresh",
+    response_model=ShotVideoGenerationResponse,
+)
+async def refresh_shot_video_generation(project_id: str, episode_no: int, shot_id: str, generation_id: str) -> dict:
+    try:
+        return await shot_videos.refresh_video_generation(project_id, episode_no, shot_id, generation_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
+
+
+@router.post(
+    "/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-generations/{generation_id}/adopt",
+    response_model=ShotVideoGenerationResponse,
+)
+def adopt_shot_video_generation(project_id: str, episode_no: int, shot_id: str, generation_id: str) -> dict:
+    try:
+        return shot_videos.adopt_video_generation(project_id, episode_no, shot_id, generation_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
+
+
+@router.post(
+    "/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-generations/{generation_id}/cancel",
+    response_model=ShotVideoGenerationResponse,
+)
+def cancel_shot_video_generation(project_id: str, episode_no: int, shot_id: str, generation_id: str) -> dict:
+    try:
+        return shot_videos.cancel_video_generation(project_id, episode_no, shot_id, generation_id)
     except ValueError as exc:
         raise HTTPException(status_code=_storyboard_status(exc), detail=str(exc)) from exc
 

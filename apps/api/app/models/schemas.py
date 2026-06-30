@@ -29,6 +29,7 @@ ScriptGenerationScope = Literal["episode", "scene", "blocks"]
 ScriptGenerationStatus = Literal["candidate", "adopted", "discarded"]
 StoryboardStatus = Literal["draft", "pending_review", "confirmed", "needs_review"]
 StoryboardSourceStatus = Literal["valid", "changed", "scene_deleted", "unassigned"]
+ShotVideoGenerationStatus = Literal["queued", "running", "succeeded", "failed", "canceled"]
 ScriptRewritePreset = Literal[
     "more_satisfying", "more_tragic", "more_suspenseful", "more_colloquial",
     "short_video_pacing", "compress_duration", "stronger_cliffhanger",
@@ -1297,6 +1298,39 @@ class StoryboardReassignPayload(BaseModel):
 
 class StoryboardDuplicatePayload(BaseModel):
     target_scene_id: Optional[str] = None
+
+
+class ShotVideoGenerationResponse(BaseModel):
+    id: str
+    project_id: str
+    episode_no: int
+    storyboard_id: str
+    shot_id: str
+    prompt_id: Optional[str]
+    source_shot_revision: int
+    source_prompt_revision: Optional[int]
+    video_prompt_snapshot: str
+    negative_prompt_snapshot: Optional[str]
+    reference_asset_ids: list[str]
+    model_config_id: str
+    model_name: str
+    provider_preset: Optional[str]
+    provider_task_id: Optional[str]
+    status: ShotVideoGenerationStatus
+    result_url: Optional[str]
+    local_asset_path: Optional[str]
+    thumbnail_url: Optional[str]
+    duration_seconds: Optional[float]
+    width: Optional[int]
+    height: Optional[int]
+    error_message: Optional[str]
+    request_payload_snapshot: dict[str, object]
+    elapsed_ms: Optional[int]
+    adopted: bool
+    adopted_at: Optional[str]
+    is_stale: bool
+    created_at: str
+    updated_at: str
 
 
 class ProjectCopywritingPayload(ProjectArtifactBase):
