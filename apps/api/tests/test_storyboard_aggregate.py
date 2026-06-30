@@ -200,7 +200,8 @@ class StoryboardAggregateTests(unittest.TestCase):
 
         self.assertEqual(created["provider_task_id"], "seedance-task-1")
         self.assertEqual(created["status"], "running")
-        self.assertIn("Seedance 林晚走入画面", created["video_prompt_snapshot"])
+        self.assertIn("林晚走入画面", created["video_prompt_snapshot"])
+        self.assertNotIn("Seedance 林晚走入画面", created["video_prompt_snapshot"])
         self.assertIn("角色一致性", created["video_prompt_snapshot"])
         self.assertIn("短发，白色衬衫", created["video_prompt_snapshot"])
         self.assertIn("镜头视觉", created["video_prompt_snapshot"])

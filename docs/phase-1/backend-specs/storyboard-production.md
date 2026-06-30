@@ -9,7 +9,7 @@
 - 按集读取场次化正式分镜聚合。
 - 按剧本场次生成候选镜头草稿，并采用为正式镜头。
 - 新增、编辑、复制、删除、排序和重新归属镜头。
-- 维护镜头提示词、Seedance 适配提示词和提示词新鲜度。
+- 维护镜头视频提示词、负面词、首尾帧约束和提示词新鲜度。
 - 从单镜头调用当前启用的视频模型配置创建视频生成任务。
 - 刷新、取消、采用视频生成结果，并保留候选历史。
 
@@ -152,14 +152,14 @@
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| image_prompt | string \| null | 通用图片提示词 |
+| image_prompt | string \| null | 历史兼容字段，本期分镜视频生成不展示、不使用 |
 | video_prompt | string \| null | 通用视频提示词 |
 | negative_prompt | string \| null | 负面提示词 |
 | first_frame_description | string \| null | 首帧描述 |
 | last_frame_description | string \| null | 尾帧描述 |
 | reference_asset_ids | string[] | 参考素材 |
 | aspect_ratio | string \| null | 画幅 |
-| seedance_prompt | string \| null | Seedance 适配提示词 |
+| seedance_prompt | string \| null | 历史兼容字段，仅在 `video_prompt` 为空时作为旧数据兜底 |
 
 提示词保存时必须记录内部 `source_shot_revision` 和 `customized/freshness` 状态。核心镜头字段变化后，已有提示词应标记为 `needs_update`，不得自动覆盖人工修改。
 
@@ -355,7 +355,7 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-g
 
 - 使用当前启用且最近测试成功的 `config_type=video` 模型配置。
 - 首版默认使用 Seedance 适配器；无 Seedance 预设时可走通用视频生成接口。
-- 提示词优先级：`seedance_prompt` 优先；缺失时使用 `video_prompt`。
+- 基础提示词优先使用 `video_prompt`；仅当 `video_prompt` 为空时，允许使用历史 `seedance_prompt` 兜底。
 - 后端必须统一组装最终视频提示词，并把组装结果保存到 `video_prompt_snapshot`。
 - 最终视频提示词必须包含基础提示词、出镜角色视觉锚点、关键镜头视觉字段、首尾帧约束和负面提示词。
 - 角色视觉锚点来自 `character_snapshot_ids` 对应的项目角色快照，使用 `name`、`gender`、`role_type`、`visual_description`；参考图只记录风险和素材状态，首版不发送给 Seedance 文生视频请求。
@@ -434,7 +434,7 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-g
 - 来源剧本变化后，分镜和镜头保留并标记为 `needs_review`。
 - 镜头已有视频生成记录时删除镜头返回明确错误，且不删除视频生成历史。
 - 视频任务创建会校验启用且测试成功的视频模型。
-- `seedance_prompt` 优先于 `video_prompt`。
+- 视频生成不再允许 `seedance_prompt` 覆盖 `video_prompt`。
 - 视频任务失败不覆盖已采用素材；失败任务重试允许覆盖原失败记录的任务状态和结果字段。
 - 刷新任务能保存成功、失败和进行中状态。
 - 同一镜头最多一个视频结果 `adopted=true`。

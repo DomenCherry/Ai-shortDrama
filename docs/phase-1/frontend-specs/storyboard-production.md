@@ -142,10 +142,8 @@
 
 字段：
 
-- 图片提示词。
 - 视频提示词。
 - 负面词。
-- Seedance 提示词。
 - 首帧描述。
 - 尾帧描述。
 
@@ -153,7 +151,8 @@
 
 - 用户编辑提示词后，服务端应将提示词标记为人工修改。
 - 核心镜头字段变化后，页面展示“提示词需更新”。
-- 修改 Seedance 提示词不反向修改核心镜头字段或通用视频提示词。
+- 图片提示词和 Seedance 专用提示词不在本期分镜提示词 Tab 展示。
+- 旧数据若只有 `seedance_prompt`，前端读取时可作为视频提示词兼容展示；用户保存后只写回 `video_prompt`。
 
 ### 5.5 视频生成 Tab
 
@@ -161,7 +160,7 @@
 
 展示内容：
 
-- 本次发送给模型的内容预览，优先以 `seedance_prompt` 为基础，缺失时使用 `video_prompt`。
+- 本次发送给模型的内容预览，以单一 `video_prompt` 为基础。
 - 预览中展示基础提示词来源、角色锚点数量、参考图数量、关键镜头视觉字段、首尾帧约束和负面提示词。
 - 人物一致性风险提示：主角或出镜角色缺少视觉描述、参考图或快照未加载时提示风险，但不禁用生成。
 - 声音字段说明：对白、旁白、音效和音乐不发送给文生视频模型，留给后续配音、剪辑和合成流程。
@@ -176,7 +175,7 @@
 生成按钮禁用条件：
 
 - 当前镜头有未保存修改。
-- 缺少 `seedance_prompt` 和 `video_prompt`。
+- 缺少 `video_prompt`。
 - 提示词状态为 `needs_update`。
 - 没有启用的视频模型配置。
 - 启用视频模型的 `last_test_status != success`。
@@ -186,7 +185,7 @@
 
 本次发送内容规则：
 
-- 基础提示词优先级为 `seedance_prompt` > `video_prompt`。
+- 基础提示词使用 `video_prompt`；旧数据仅在 `video_prompt` 为空时兼容读取 `seedance_prompt`。
 - 自动补充项目角色快照的 `name`、`gender`、`role_type`、`visual_description`。
 - 自动补充镜头字段 `subject_description`、`visual_description`、`action`、`shot_size`、`camera_angle`、`camera_movement`、`composition`、`expression`、`environment`、`props`。
 - 自动补充 `first_frame_description`、`last_frame_description` 和 `negative_prompt`。
@@ -302,7 +301,7 @@
 | 镜头已有视频生成记录 | 镜头已有视频生成记录，暂不支持删除 |
 | 修订冲突 | 分镜已在其他操作中更新，请刷新后合并 |
 | 重新归属被禁用 | 请先保存当前修改 |
-| 无视频提示词 | 请先填写 Seedance 提示词或视频提示词 |
+| 无视频提示词 | 请先填写视频提示词 |
 | 未保存不能生成 | 请先保存当前镜头修改后再生成视频 |
 | 提示词需更新 | 提示词需要更新，请先保存或确认后再生成视频 |
 | 无视频模型 | 请先在设置中启用视频生成模型 |

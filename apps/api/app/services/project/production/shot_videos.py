@@ -154,7 +154,7 @@ def _clean(value: Any) -> str:
 def _prompt_text(prompt: ProjectShotPrompt | None) -> str:
     if not prompt:
         raise ValueError("请先填写视频提示词")
-    text = _clean(prompt.seedance_prompt or prompt.video_prompt)
+    text = _clean(prompt.video_prompt) or _clean(prompt.seedance_prompt)
     if not text:
         raise ValueError("请先填写视频提示词")
     if prompt.freshness == "needs_update":

@@ -158,6 +158,7 @@ const sourceStatusLabels: Record<string, string> = {
 };
 
 function payloadFromShot(shot: ProjectStoryboardShot): ProjectStoryboardShotPayload {
+  const prompt = shot.prompt ?? {};
   return {
     revision: shot.revision,
     source_scene_id: shot.source_scene_id,
@@ -180,7 +181,13 @@ function payloadFromShot(shot: ProjectStoryboardShot): ProjectStoryboardShotPayl
     music_note: shot.music_note,
     continuity_note: shot.continuity_note,
     status: shot.status,
-    prompt: { ...shot.prompt, reference_asset_ids: shot.prompt?.reference_asset_ids ?? [] }
+    prompt: {
+      ...prompt,
+      image_prompt: undefined,
+      video_prompt: prompt.video_prompt || prompt.seedance_prompt,
+      seedance_prompt: undefined,
+      reference_asset_ids: prompt.reference_asset_ids ?? []
+    }
   };
 }
 
@@ -209,8 +216,8 @@ function cleanPayload(payload: ProjectStoryboardShotPayload): ProjectStoryboardS
     source_block_ids: payload.source_block_ids ?? [],
     prompt: {
       ...payload.prompt,
-      image_prompt: clean(payload.prompt?.image_prompt), video_prompt: clean(payload.prompt?.video_prompt),
-      negative_prompt: clean(payload.prompt?.negative_prompt), seedance_prompt: clean(payload.prompt?.seedance_prompt),
+      image_prompt: undefined, video_prompt: clean(payload.prompt?.video_prompt),
+      negative_prompt: clean(payload.prompt?.negative_prompt), seedance_prompt: undefined,
       first_frame_description: clean(payload.prompt?.first_frame_description),
       last_frame_description: clean(payload.prompt?.last_frame_description),
       aspect_ratio: clean(payload.prompt?.aspect_ratio),
@@ -238,8 +245,8 @@ function previewLine(label: string, value?: string | null) {
 }
 
 function buildVideoPromptPreview(draft: ProjectStoryboardShotPayload, characterSnapshots: ProjectCharacterSnapshot[]) {
-  const baseText = cleanText(draft.prompt?.seedance_prompt) || cleanText(draft.prompt?.video_prompt);
-  const promptSource = cleanText(draft.prompt?.seedance_prompt) ? "Seedance" : "通用视频";
+  const baseText = cleanText(draft.prompt?.video_prompt) || cleanText(draft.prompt?.seedance_prompt);
+  const promptSource = "视频提示词";
   const snapshotById = new Map(characterSnapshots.map((snapshot) => [snapshot.id, snapshot]));
   const shotCharacters = (draft.character_snapshot_ids ?? []).map((id) => snapshotById.get(id)).filter(Boolean) as ProjectCharacterSnapshot[];
   const missingCharacterIds = (draft.character_snapshot_ids ?? []).filter((id) => !snapshotById.has(id));
@@ -709,10 +716,8 @@ function SoundForm({ draft, update }: { draft: ProjectStoryboardShotPayload; upd
 </div>; }
 
 function PromptForm({ draft, update }: { draft: ProjectStoryboardShotPayload; update: (field: string, value: string) => void }) { return <div className="grid gap-4 md:grid-cols-2">
-  <Area label="图片提示词" value={draft.prompt?.image_prompt} onChange={(value) => update("image_prompt", value)} />
   <Area label="视频提示词" value={draft.prompt?.video_prompt} onChange={(value) => update("video_prompt", value)} />
   <Area label="负面词" value={draft.prompt?.negative_prompt} onChange={(value) => update("negative_prompt", value)} />
-  <Area label="Seedance 提示词" value={draft.prompt?.seedance_prompt} onChange={(value) => update("seedance_prompt", value)} />
   <Field label="首帧描述" value={draft.prompt?.first_frame_description} onChange={(value) => update("first_frame_description", value)} />
   <Field label="尾帧描述" value={draft.prompt?.last_frame_description} onChange={(value) => update("last_frame_description", value)} />
 </div>; }
@@ -726,14 +731,14 @@ function VideoGenerationPanel({ shot, draft, characterSnapshots, generations, vi
   options: VideoGenerationOptions; loading: boolean; busy: boolean; isDirty: boolean; onOptionsChange: (options: VideoGenerationOptions) => void;
   onCreate: () => void; onRefresh: (id: string) => void; onAdopt: (id: string) => void; onCancel: (id: string) => void;
 }) {
-  const promptText = draft.prompt?.seedance_prompt?.trim() || draft.prompt?.video_prompt?.trim() || "";
+  const promptText = draft.prompt?.video_prompt?.trim() || draft.prompt?.seedance_prompt?.trim() || "";
   const promptPreview = buildVideoPromptPreview(draft, characterSnapshots);
   const enabledVideoConfig = videoConfigs.find((config) => config.enabled);
   const adopted = generations.find((item) => item.adopted);
   const optionDuration = Number(options.duration_seconds);
   const invalidDuration = options.duration_seconds.trim() !== "" && (!Number.isFinite(optionDuration) || optionDuration <= 0 || optionDuration > 60);
   const disabledReason = isDirty ? "请先保存当前镜头修改后再生成视频。"
-    : !promptText ? "请先填写 Seedance 提示词或视频提示词。"
+    : !promptText ? "请先填写视频提示词。"
       : shot.prompt_freshness === "needs_update" ? "提示词需要更新，请先保存或确认后再生成视频。"
         : invalidDuration ? "本次生成时长需大于 0 且不超过 60 秒。"
           : !enabledVideoConfig ? "请先在设置中启用视频生成模型。"
