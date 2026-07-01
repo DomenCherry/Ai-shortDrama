@@ -170,7 +170,9 @@ class WorldBook(Base):
     taboo_or_constraints: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     tone_style: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # 版本号用于判断项目世界观快照是否落后于资产库来源。
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # archived 世界观不再作为新项目加载候选，但历史项目快照仍保留来源追踪。
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -188,6 +190,7 @@ class WorldEntry(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     applicable_scope: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # disabled 条目保留在资产库中但不进入项目快照，方便后续恢复和版本追踪。
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="active", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -205,10 +208,13 @@ class ProjectWorldSnapshot(Base):
     source_world_book_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("world_books.id"), nullable=False, index=True
     )
+    # 记录加载时来源世界观版本，后续可提示项目快照是否需要手动刷新。
     source_version: Mapped[int] = mapped_column(Integer, nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     genre: Mapped[str] = mapped_column(String(120), nullable=False)
+    # 快照内容固定为加载时的世界观主设定，项目内编辑不能回写资产库。
     snapshot_content: Mapped[str] = mapped_column(Text, nullable=False)
+    # 只保存加载时启用的条目，避免禁用条目进入 AI 生成上下文。
     entry_snapshot_content: Mapped[str] = mapped_column(Text, nullable=False)
     loaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -259,6 +265,7 @@ class ReferenceStoryStructureDraft(Base):
     ending_pattern: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     adaptation_advice: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     de_specificity_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # 去具体化校验状态决定草稿是否允许应用到正式故事大纲。
     validation_status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending", index=True)
     validation_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
@@ -328,8 +335,10 @@ class EpisodeContentGenerationVersion(Base):
     episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     generation_type: Mapped[str] = mapped_column(String(24), nullable=False, default="create", index=True)
     instruction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # 输入快照用于采用候选时做并发保护，防止覆盖生成后被用户修改的正文。
     input_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
     output_text: Mapped[str] = mapped_column(Text, nullable=False)
+    # candidate/adopted/discarded 让候选稿保留历史，同时只有采用后才覆盖正式正文。
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="candidate", index=True)
     client_request_id: Mapped[str] = mapped_column(String(80), nullable=False)
     model_config_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
@@ -355,11 +364,15 @@ class ProjectEpisodeScript(Base):
     action_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     voiceover: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     title: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    # revision 作为乐观锁，阻止旧页面覆盖最新剧本。
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # version 只在实质剧本内容变化时递增，用于历史快照和候选基准校验。
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # 来源正文版本用于提示剧本是否落后于当前单集正文。
     source_content_version: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
     auto_duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     manual_duration_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    # effective 时长优先使用人工覆盖值，否则使用服务端估算值参与偏差检查。
     effective_duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="draft", index=True)
     confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -378,6 +391,7 @@ class ProjectScriptScene(Base):
     location: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
     time_of_day: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
     interior_exterior: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    # 场次人物必须引用项目内角色快照，而不是资产库角色卡，保证生成上下文稳定。
     character_snapshot_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     auto_duration_seconds: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     manual_duration_seconds: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -417,6 +431,7 @@ class ProjectEpisodeScriptVersion(Base):
     script_id: Mapped[str] = mapped_column(String(64), ForeignKey("project_episode_scripts.id"), nullable=False, index=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     source_content_version: Mapped[Optional[str]] = mapped_column(String(160), nullable=True)
+    # 保存正式剧本版本的完整结构快照，后续编辑不会改变历史版本内容。
     snapshot: Mapped[str] = mapped_column(Text, nullable=False)
     change_source: Mapped[str] = mapped_column(String(32), nullable=False)
     generation_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
@@ -441,8 +456,10 @@ class ProjectScriptGeneration(Base):
     target_block_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     rewrite_preset: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     instruction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # 候选生成绑定基准版本和修订号，采用时必须再次校验以防覆盖较新剧本。
     base_script_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     base_script_revision: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # 输入/输出快照保留模型生成证据，候选未采用前不影响正式剧本。
     input_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
     output_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="candidate", index=True)
@@ -482,6 +499,7 @@ class ProjectStoryboard(Base):
     project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False, index=True)
     episode_no: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    # revision 用于判断分镜和提示词是否已落后于镜头最新内容。
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     source_script_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("project_episode_scripts.id"), nullable=True)
     source_script_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -522,6 +540,7 @@ class ProjectStoryboardShot(Base):
     sound_effect: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     music_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     continuity_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # source_status 标记来源场次删除、未归属或已变化，驱动分镜组进入 needs_review。
     source_status: Mapped[str] = mapped_column(String(24), nullable=False, default="valid")
     scene: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     visual_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -539,6 +558,7 @@ class ProjectShotPrompt(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     shot_id: Mapped[str] = mapped_column(String(64), ForeignKey("project_storyboard_shots.id"), nullable=False, unique=True, index=True)
+    # 记录提示词基于哪个镜头修订生成，镜头变化后可提示用户刷新提示词。
     source_shot_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     image_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     video_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -549,6 +569,7 @@ class ProjectShotPrompt(Base):
     aspect_ratio: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     seedance_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     customized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # freshness 阻断过期提示词直接提交视频生成，防止画面描述和镜头内容不一致。
     freshness: Mapped[str] = mapped_column(String(24), nullable=False, default="current")
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -563,8 +584,10 @@ class ProjectShotVideoGeneration(Base):
     storyboard_id: Mapped[str] = mapped_column(String(64), ForeignKey("project_storyboards.id"), nullable=False, index=True)
     shot_id: Mapped[str] = mapped_column(String(64), ForeignKey("project_storyboard_shots.id"), nullable=False, index=True)
     prompt_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("project_shot_prompts.id"), nullable=True, index=True)
+    # 视频结果绑定生成时的镜头和提示词修订号，后续内容变化时可标记结果过期。
     source_shot_revision: Mapped[int] = mapped_column(Integer, nullable=False)
     source_prompt_revision: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # 保存实际发送给供应商的提示词，便于复盘生成结果且不依赖后续提示词编辑。
     video_prompt_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
     negative_prompt_snapshot: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     reference_asset_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
@@ -572,6 +595,7 @@ class ProjectShotVideoGeneration(Base):
     model_name: Mapped[str] = mapped_column(String(160), nullable=False)
     provider_preset: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
     provider_task_id: Mapped[Optional[str]] = mapped_column(String(160), nullable=True, index=True)
+    # queued/running/succeeded/failed/canceled 映射外部供应商任务状态，刷新时只更新当前记录。
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="queued", index=True)
     result_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     local_asset_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -582,6 +606,7 @@ class ProjectShotVideoGeneration(Base):
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     request_payload_snapshot: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     elapsed_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    # 同一镜头只能有一个 adopted 结果，采用新结果会撤销旧结果采用标记。
     adopted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     adopted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

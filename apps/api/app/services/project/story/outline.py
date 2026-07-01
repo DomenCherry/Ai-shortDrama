@@ -338,6 +338,7 @@ def apply_reference_to_outline(
         normalized = normalize_optional_text(getattr(preview, field))
         if not normalized:
             continue
+        # fill_empty 只补空字段，避免参考结构应用时覆盖作者已经确认的项目化设定。
         if apply_mode == "overwrite" or not getattr(outline, field):
             setattr(outline, field, normalized)
     outline.status = "draft"
@@ -391,6 +392,7 @@ async def generate_story_outline(project_id: str, payload: StoryOutlineGenerateP
             if not reference_draft or reference_draft.project_id != project_id:
                 raise ValueError("参考框架草稿不存在")
             if reference_draft.validation_status != "passed":
+                # 参考框架必须先通过去具体化校验，防止把样本故事专有元素带入新项目。
                 raise ValueError("参考框架草稿未通过去具体化校验，不能用于生成故事大纲")
         context_summary = project_context_summary(project, world_snapshots, character_snapshots, reference_draft)
         prompt = outline_generation_prompt(
@@ -408,6 +410,7 @@ async def generate_story_outline(project_id: str, payload: StoryOutlineGenerateP
     outline_payload = generated_outline_payload(data)
 
     if payload.write_mode == "preview":
+        # 预览模式只返回候选大纲，不写库也不触发下游 needs_review，避免未确认内容影响正式流程。
         return {
             "outline": outline_payload_dict(outline_payload),
             "applied": False,
@@ -624,6 +627,7 @@ async def extract_reference_story_structure(project_id: str, payload: ReferenceS
     validation_status, validation_notes = validate_reference_structure(data, payload.source_text)
 
     if validation_status == "failed":
+        # 首轮结果若仍含参考故事具体元素，带着失败原因重试一次，优先修正而不是直接落库失败稿。
         retry_prompt = reference_extraction_prompt(project, payload, validation_notes)
         data = await call_text_generation_api(system_prompt, retry_prompt, max_tokens=1800)
         validation_status, validation_notes = validate_reference_structure(data, payload.source_text)
@@ -668,6 +672,7 @@ def apply_reference_story_structure_draft(
         if draft.status == "discarded":
             raise ValueError("参考框架草稿已废弃")
         if draft.validation_status != "passed":
+            # 未通过校验的草稿只能保留为诊断材料，不能进入正式故事大纲。
             raise ValueError("抽取结果未通过去具体化校验，不能应用到正式故事大纲")
 
         current_time = now_utc()

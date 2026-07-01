@@ -179,6 +179,7 @@ def _is_public_reference_url(value: str) -> bool:
         address = ip_address(host)
     except ValueError:
         return True
+    # 参考图 URL 会发送给外部视频模型，禁止本地/内网地址以避免泄露开发环境或私有网络入口。
     return not (address.is_private or address.is_loopback or address.is_link_local or address.is_reserved)
 
 
@@ -190,6 +191,7 @@ def _prompt_text(prompt: ProjectShotPrompt | None) -> str:
 
 def _validate_prompt_freshness(prompt: ProjectShotPrompt | None) -> None:
     if prompt and prompt.freshness == "needs_update":
+        # 分镜已变化时旧提示词可能不再匹配镜头内容，必须先刷新后才能发起视频生成。
         raise ValueError("提示词需要更新，请先保存或确认后再生成视频")
 
 
@@ -342,6 +344,7 @@ def _request_payload(
     aspect_ratio = _aspect_ratio(prompt, options)
     duration_seconds = _duration_seconds(shot, options)
     if config.get("provider_preset") == SEEDANCE_VIDEO_PRESET:
+        # Seedance 走 content 数组协议，角色参考图作为 image_url 传入，其他供应商仍使用普通 prompt。
         content: list[dict[str, Any]] = [{"type": "text", "text": prompt_text}]
         content.extend({"type": "image_url", "image_url": {"url": url}} for url in reference_image_urls or [])
         return {
@@ -507,6 +510,7 @@ async def create_video_generation(
             prompt_id=prompt.id if prompt else None,
             source_shot_revision=shot.revision,
             source_prompt_revision=prompt.source_shot_revision if prompt else None,
+            # 保存发送给模型的提示词与来源修订号，后续分镜或提示词变化时可判断结果是否过期。
             video_prompt_snapshot=prompt_text,
             negative_prompt_snapshot=prompt.negative_prompt if prompt else None,
             reference_asset_ids=prompt.reference_asset_ids if prompt else "[]",
@@ -514,6 +518,7 @@ async def create_video_generation(
             model_name=config["model_name"],
             provider_preset=config.get("provider_preset"),
             status="queued",
+            # 仅保存脱敏后的请求快照，方便排查供应商参数，同时不持久化 API Key。
             request_payload_snapshot=json.dumps(_redact_payload(request_payload), ensure_ascii=False),
             adopted=False,
             created_at=now,
@@ -590,6 +595,7 @@ async def refresh_video_generation(project_id: str, episode_no: int, shot_id: st
 
     with get_session() as session:
         generation = _generation_for_shot(session, project_id, episode_no, shot_id, generation_id)
+        # 兼容供应商先返回 succeeded 但结果 URL 延迟可取的情况，刷新时补齐结果并保持用户可见状态。
         generation.status = "succeeded" if parsed.get("result_url") else parsed.get("status", generation.status)
         generation.result_url = parsed.get("result_url") or generation.result_url
         generation.thumbnail_url = parsed.get("thumbnail_url") or generation.thumbnail_url
@@ -608,6 +614,7 @@ def adopt_video_generation(project_id: str, episode_no: int, shot_id: str, gener
         if generation.status != "succeeded" or not (generation.result_url or generation.local_asset_path):
             raise ValueError("只能采用已成功生成的视频结果")
         now = now_utc()
+        # 同一镜头只能有一个最终采用的视频结果，新的采用会撤销旧采用标记。
         session.execute(
             update(ProjectShotVideoGeneration)
             .where(ProjectShotVideoGeneration.shot_id == shot_id)

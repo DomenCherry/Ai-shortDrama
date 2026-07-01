@@ -148,6 +148,7 @@ def _structure_issues_from_rows(scenes: list[dict[str, Any]], target_seconds: fl
     if target_seconds > 0:
         deviation = abs(effective_seconds - target_seconds) / target_seconds * 100
         if deviation > 10:
+            # 时长偏差先作为 warning 暴露给用户复核，不阻断保存，避免创作中间态无法继续调整。
             code = "duration_severe_deviation" if deviation > 25 else "duration_deviation"
             issues.append({"code": code, "severity": "warning", "message": f"剧本时长与项目目标偏差 {deviation:.1f}%", "scene_id": None, "block_id": None, "details": {"deviation_percent": round(deviation, 1)}})
     return issues
@@ -265,6 +266,7 @@ def _validate_payload_ownership(session, project_id: str, script: ProjectEpisode
             existing_blocks.update(block.id for block in _block_rows(session, scene_id))
     supplied_scene_ids: set[str] = set()
     supplied_block_ids: set[str] = set()
+    # 客户端提交的场次、内容块和角色引用必须属于当前项目，防止跨项目 ID 污染剧本结构。
     for scene in payload.scenes:
         if scene.id:
             if scene.id not in existing_scenes or scene.id in supplied_scene_ids:
@@ -284,6 +286,7 @@ def _validate_payload_ownership(session, project_id: str, script: ProjectEpisode
 
 
 def _write_version(session, script: ProjectEpisodeScript, response: dict[str, Any], change_source: str, generation_id: str | None = None) -> None:
+    # 只为正式剧本的实质变化写不可变快照，便于回看生成采用或手工编辑造成的版本差异。
     session.add(ProjectEpisodeScriptVersion(
         id=str(uuid4()), script_id=script.id, version=script.version,
         source_content_version=script.source_content_version,
@@ -303,6 +306,7 @@ def _save_in_session(
 ) -> dict[str, Any]:
     script = _script_for_episode(session, project.id, episode_no)
     if script and payload.revision != script.revision:
+        # revision 是乐观锁，阻断旧页面覆盖较新的剧本编辑。
         raise ScriptConflictError("剧本已在其他操作中更新")
     if not script and payload.revision is not None:
         raise ScriptConflictError("剧本尚不存在，请刷新后重试")
@@ -310,6 +314,7 @@ def _save_in_session(
 
     current_response = _serialize_script(session, project, script) if script else {"scenes": [], "manual_duration_seconds": None}
     requested = _payload_dict(payload)
+    # 只有场次、内容块、时长等实质内容变化才提升 version，标题等元数据调整只递增 revision。
     substantive = not script or _substantive_signature(current_response) != _substantive_signature(requested)
     now = now_utc()
     content = session.scalars(select(ProjectEpisodeContent).where(
@@ -445,6 +450,7 @@ def _generation_target(script_data: dict[str, Any] | None, payload: ScriptGenera
     except ValueError as exc:
         raise ValueError("目标内容块不存在") from exc
     if len(set(positions)) != len(positions) or sorted(positions) != list(range(min(positions), max(positions) + 1)):
+        # 局部改写限制为连续块，避免模型输出插回原剧本时破坏叙事顺序。
         raise ValueError("局部改写仅支持同一场次内连续内容块")
     return {"scene_id": scene["id"], "blocks": [scene["blocks"][index] for index in sorted(positions)]}
 
@@ -493,10 +499,12 @@ async def generate_episode_script(project_id: str, episode_no: int, payload: Scr
             ProjectScriptGeneration.client_request_id == payload.client_request_id,
         )).first()
         if existing:
+            # 生成接口按请求 ID 幂等，前端重试只能复用原候选，不能重复创建多个相同候选。
             return _generation_response(existing)
         script = _script_for_episode(session, project_id, episode_no)
         script_data = _serialize_script(session, project, script) if script else None
         if script and (payload.base_script_version != script.version or payload.base_script_revision != script.revision):
+            # 候选必须基于用户当前看到的正式剧本生成，否则采用时会覆盖较新的修改。
             raise ScriptConflictError("正式剧本已变化，请刷新后重新生成")
         if not script and (payload.base_script_version is not None or payload.base_script_revision is not None):
             raise ScriptConflictError("正式剧本基准无效")
@@ -574,6 +582,7 @@ async def generate_episode_script(project_id: str, episode_no: int, payload: Scr
             ProjectScriptGeneration.episode_no == episode_no,
             ProjectScriptGeneration.status == "candidate",
         ).order_by(ProjectScriptGeneration.created_at.desc())).all()
+        # 候选历史只保留最近 20 条，避免长时间试生成拖大数据库。
         for stale in candidates[20:]:
             session.delete(stale)
         return _generation_response(generation)
@@ -632,6 +641,7 @@ def adopt_script_generation(project_id: str, episode_no: int, generation_id: str
         if (script.revision if script else None) != revision.revision:
             raise ScriptConflictError("剧本已在候选生成后更新")
         if (script.version if script else None) != generation.base_script_version or (script.revision if script else None) != generation.base_script_revision:
+            # 采用候选时再次校验基准，确保生成结果仍然适用于当前正式剧本。
             raise ScriptConflictError("候选基准已变化，请重新生成")
         output = _loads(generation.output_snapshot, {})
         if generation.generation_scope == "episode":
@@ -760,6 +770,7 @@ def _transition_status(project_id: str, episode_no: int, payload: ScriptRevision
         data = _serialize_script(session, project, script)
         errors = [item for item in data["validation_issues"] if item["severity"] == "error"]
         if errors:
+            # pending_review 和 confirmed 是对外可依赖状态，结构错误未清空前不能进入这些状态。
             raise ScriptValidationError("剧本仍有结构错误", errors)
         script.status = status
         script.revision += 1

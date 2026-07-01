@@ -343,6 +343,7 @@ def load_world_book_to_project(project_id: str, payload: ProjectWorldSnapshotCre
         ).all()
         now = _now()
         entry_count, active_entry_count = _entry_counts(session, book.id)
+        # 加载时固化世界观资产和启用条目，后续资产库改动不自动改变项目创作上下文。
         snapshot_content = json.dumps(
             _world_book_to_response(book, entry_count=entry_count, active_entry_count=active_entry_count),
             ensure_ascii=False,
@@ -351,6 +352,7 @@ def load_world_book_to_project(project_id: str, payload: ProjectWorldSnapshotCre
 
         if payload.load_mode == "replace":
             if not payload.replace_snapshot_id:
+                # 替换必须显式指定项目内快照，避免误把当前唯一世界观覆盖成用户未选择的资产。
                 raise ValueError("替换世界观时必须提供项目内世界观快照 ID")
             snapshot = session.get(ProjectWorldSnapshot, payload.replace_snapshot_id)
             if not snapshot or snapshot.project_id != project_id:
@@ -368,6 +370,7 @@ def load_world_book_to_project(project_id: str, payload: ProjectWorldSnapshotCre
                 select(ProjectWorldSnapshot).where(ProjectWorldSnapshot.project_id == project_id)
             )
             if existing_snapshot:
+                # 一期工作台每个项目只允许一个世界观主快照，避免生成上下文出现互相冲突的世界规则。
                 raise ValueError("每个项目只能加载一个世界观，请先移除或替换当前项目世界观")
 
             snapshot = ProjectWorldSnapshot(

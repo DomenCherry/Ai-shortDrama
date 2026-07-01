@@ -30,7 +30,9 @@ def upgrade() -> None:
         sa.Column("taboo_or_constraints", sa.Text(), nullable=True),
         sa.Column("tone_style", sa.Text(), nullable=True),
         sa.Column("summary", sa.Text(), nullable=True),
+        # 版本字段用于项目快照判断来源世界观是否已更新。
         sa.Column("version", sa.Integer(), nullable=False),
+        # archived 代替硬删除，避免破坏历史项目世界观快照的来源追踪。
         sa.Column("status", sa.String(length=24), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
@@ -50,6 +52,7 @@ def upgrade() -> None:
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("applicable_scope", sa.Text(), nullable=True),
         sa.Column("priority", sa.Integer(), nullable=False),
+        # disabled 条目不进入项目快照，但保留在资产库中便于恢复。
         sa.Column("status", sa.String(length=24), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
@@ -66,10 +69,13 @@ def upgrade() -> None:
         sa.Column("id", sa.String(length=64), nullable=False),
         sa.Column("project_id", sa.String(length=64), nullable=False),
         sa.Column("source_world_book_id", sa.String(length=64), nullable=False),
+        # 快照记录加载时的来源版本，后续可提示项目上下文是否落后。
         sa.Column("source_version", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("genre", sa.String(length=120), nullable=False),
+        # 快照内容固定为加载时的资产内容，项目编辑不能回写世界观库。
         sa.Column("snapshot_content", sa.Text(), nullable=False),
+        # 只固化加载时 active 条目，避免 disabled 条目进入生成上下文。
         sa.Column("entry_snapshot_content", sa.Text(), nullable=False),
         sa.Column("loaded_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),

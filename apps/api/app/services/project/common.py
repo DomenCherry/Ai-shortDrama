@@ -345,6 +345,7 @@ def mark_script_downstream_for_review(session, project_id: str, episode_no: int)
 
 
 def _mark_storyboards_for_review(session, condition, current_time) -> None:
+    """上游变化传播到分镜聚合时递增修订号，避免旧视频/提示词结果被误认为仍然新鲜。"""
     session.execute(
         update(ProjectStoryboard)
         .where(condition, ProjectStoryboard.status != "needs_review")

@@ -25,8 +25,10 @@ def upgrade() -> None:
         sa.Column("storyboard_id", sa.String(length=64), sa.ForeignKey("project_storyboards.id"), nullable=False),
         sa.Column("shot_id", sa.String(length=64), sa.ForeignKey("project_storyboard_shots.id"), nullable=False),
         sa.Column("prompt_id", sa.String(length=64), sa.ForeignKey("project_shot_prompts.id"), nullable=True),
+        # 结果绑定生成时的镜头和提示词修订号，后续内容变化时可判断视频是否过期。
         sa.Column("source_shot_revision", sa.Integer(), nullable=False),
         sa.Column("source_prompt_revision", sa.Integer(), nullable=True),
+        # 保存实际发送给供应商的提示词，便于复盘生成效果且不依赖后续提示词编辑。
         sa.Column("video_prompt_snapshot", sa.Text(), nullable=False),
         sa.Column("negative_prompt_snapshot", sa.Text(), nullable=True),
         sa.Column("reference_asset_ids", sa.Text(), nullable=False, server_default="[]"),
@@ -34,6 +36,7 @@ def upgrade() -> None:
         sa.Column("model_name", sa.String(length=160), nullable=False),
         sa.Column("provider_preset", sa.String(length=80), nullable=True),
         sa.Column("provider_task_id", sa.String(length=160), nullable=True),
+        # status 映射外部异步任务状态，刷新操作只更新当前生成记录。
         sa.Column("status", sa.String(length=24), nullable=False, server_default="queued"),
         sa.Column("result_url", sa.Text(), nullable=True),
         sa.Column("local_asset_path", sa.Text(), nullable=True),
@@ -42,8 +45,10 @@ def upgrade() -> None:
         sa.Column("width", sa.Integer(), nullable=True),
         sa.Column("height", sa.Integer(), nullable=True),
         sa.Column("error_message", sa.Text(), nullable=True),
+        # 请求快照用于排查供应商参数；服务层写入前必须避免持久化 API Key。
         sa.Column("request_payload_snapshot", sa.Text(), nullable=False, server_default="{}"),
         sa.Column("elapsed_ms", sa.Integer(), nullable=True),
+        # 同一镜头只能有一个最终采用结果，采用新结果会撤销旧采用标记。
         sa.Column("adopted", sa.Boolean(), nullable=False, server_default=sa.false()),
         sa.Column("adopted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),

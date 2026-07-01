@@ -25,8 +25,10 @@ def upgrade() -> None:
         sa.Column("id", sa.String(length=64), primary_key=True),
         sa.Column("project_id", sa.String(length=64), sa.ForeignKey("projects.id"), nullable=False),
         sa.Column("episode_no", sa.Integer(), nullable=False),
+        # version/revision 分别支撑正式内容版本和并发编辑校验。
         sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("revision", sa.Integer(), nullable=False, server_default="1"),
+        # 记录来源剧本版本，剧本变化后可标记分镜需要复核。
         sa.Column("source_script_id", sa.String(length=64), sa.ForeignKey("project_episode_scripts.id"), nullable=True),
         sa.Column("source_script_version", sa.Integer(), nullable=True),
         sa.Column("source_script_status", sa.String(length=24), nullable=True),
@@ -45,6 +47,7 @@ def upgrade() -> None:
         sa.Column("storyboard_id", sa.String(length=64), sa.ForeignKey("project_storyboards.id"), nullable=True),
         sa.Column("source_scene_id", sa.String(length=64), sa.ForeignKey("project_script_scenes.id"), nullable=True),
         sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
+        # 镜头 revision 用于判断提示词和视频结果是否落后于最新镜头内容。
         sa.Column("revision", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("shot_size", sa.String(length=40), nullable=True),
         sa.Column("subject_description", sa.Text(), nullable=True),
@@ -63,6 +66,7 @@ def upgrade() -> None:
         sa.Column("sound_effect", sa.Text(), nullable=True),
         sa.Column("music_note", sa.Text(), nullable=True),
         sa.Column("continuity_note", sa.Text(), nullable=True),
+        # 来源场次缺失或变化时通过 source_status 驱动分镜进入 needs_review。
         sa.Column("source_status", sa.String(length=24), nullable=False, server_default="unassigned"),
     )
     for column in additions:
@@ -74,6 +78,7 @@ def upgrade() -> None:
         "project_shot_prompts",
         sa.Column("id", sa.String(length=64), primary_key=True),
         sa.Column("shot_id", sa.String(length=64), sa.ForeignKey("project_storyboard_shots.id"), nullable=False, unique=True),
+        # 提示词记录基于哪个镜头修订生成，镜头变化后 freshness 可变为 needs_update。
         sa.Column("source_shot_revision", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("image_prompt", sa.Text(), nullable=True),
         sa.Column("video_prompt", sa.Text(), nullable=True),
@@ -84,12 +89,14 @@ def upgrade() -> None:
         sa.Column("aspect_ratio", sa.String(length=32), nullable=True),
         sa.Column("seedance_prompt", sa.Text(), nullable=True),
         sa.Column("customized", sa.Boolean(), nullable=False, server_default=sa.false()),
+        # freshness 阻断过期提示词直接提交视频生成。
         sa.Column("freshness", sa.String(length=24), nullable=False, server_default="current"),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
     )
     op.create_index(op.f("ix_project_shot_prompts_shot_id"), "project_shot_prompts", ["shot_id"], unique=True)
 
     if not context.is_offline_mode():
+        # 旧分镜没有场次聚合，迁移时按文本弱匹配归入场次，无法匹配的镜头保留为 unassigned 待复核。
         _migrate_legacy_shots()
 
 

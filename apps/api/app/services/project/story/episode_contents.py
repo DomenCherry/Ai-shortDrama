@@ -115,6 +115,7 @@ def _generation_system_prompt(generation_type: str) -> str:
     base_rule = read_rule("episode-content-writing-rule.md")
     humanizer_skill_path = rules_root().parent / "runtime-skills" / "humanizer-zh" / "SKILL.md"
     if not humanizer_skill_path.exists():
+        # 正文生成依赖 Humanizer-zh 降低 AI 腔；缺少规则时宁可失败，也不要生成风格不可控的候选稿。
         raise ValueError("Humanizer-zh skill 未安装，请先安装到项目 runtime-skills/humanizer-zh")
     humanizer_skill = humanizer_skill_path.read_text(encoding="utf-8")
     humanizer_adaptation_rule = read_rule("episode-content-humanizer-rule.md")
@@ -203,6 +204,7 @@ async def generate_episode_content(
             )
         ).first()
         if existing:
+            # client_request_id 保证前端重试不会重复创建候选稿，避免用户误采用过期或重复版本。
             return episode_content_generation_to_response(existing)
 
         episode_outline = session.scalars(
@@ -234,6 +236,7 @@ async def generate_episode_content(
         ).first()
         current_content_text = _clean_content(current_content.detailed_content if current_content else None)
         if generation_type in {"continue", "polish"} and not current_content_text:
+            # 续写和润色必须以当前正式正文为基准，空正文会让模型脱离用户已确认内容。
             label = GENERATION_TYPE_LABELS[generation_type]
             raise ValueError(f"{label}需要当前正文非空，请先填写并保存正文")
         previous_content = None
@@ -383,6 +386,7 @@ def adopt_episode_content_generation(project_id: str, episode_no: int, generatio
         expected_updated_at = snapshot.get("current_content_updated_at")
         actual_updated_at = content.updated_at.isoformat() if content else None
         if expected_updated_at != actual_updated_at:
+            # 候选稿采用前校验生成时的正文快照，防止覆盖用户在生成后手工修改的正式正文。
             raise ValueError("当前正文已在候选稿生成后更新，请重新生成候选稿")
 
         current_time = now_utc()
@@ -413,6 +417,7 @@ def adopt_episode_content_generation(project_id: str, episode_no: int, generatio
         generation.status = "adopted"
         generation.adopted_at = current_time
         generation.updated_at = current_time
+        # 同一集只允许一个候选被采用，其余候选标记废弃，避免多个候选同时代表“最新正式来源”。
         session.execute(
             update(EpisodeContentGenerationVersion)
             .where(

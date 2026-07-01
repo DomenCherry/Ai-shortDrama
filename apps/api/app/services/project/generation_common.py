@@ -71,6 +71,7 @@ async def call_text_generation_raw(
         raise ValueError("请先配置并测试成功文本生成模型 API")
 
     url = text_chat_completions_url(text_config["api_base_url"])
+    # API Key 只在后端服务端参与外部模型调用，不能进入前端响应或生成上下文快照。
     payload = {
         "model": text_config["model_name"],
         "messages": [
@@ -104,6 +105,7 @@ async def call_text_generation_api(system_prompt: str, user_prompt: str, *, max_
     """调用当前启用文本模型，并将响应解析为结构化 JSON。"""
     response = await call_text_generation_raw(system_prompt, user_prompt, max_tokens=max_tokens)
     if response.finish_reason in {"length", "max_tokens"}:
+        # 截断响应可能是不完整 JSON 或缺字段内容，必须阻断保存，避免污染正式创作资产。
         raise ValueError("模型响应因长度限制被截断，请缩短输入后重试")
     return extract_json_object(response.content)
 
@@ -143,6 +145,7 @@ def outline_generation_prompt(
     """构建故事大纲生成提示词，合并项目设定和用户补充要求。"""
     context = {
         "project": project_to_response(project),
+        # 生成上下文优先使用项目内快照，确保资产库后续修改不会悄悄改变当前项目生成结果。
         "world_snapshots": [world_snapshot_to_response(snapshot) for snapshot in world_snapshots],
         "character_snapshots": [character_snapshot_to_response(snapshot) for snapshot in character_snapshots],
         "reference_structure": reference_draft_to_response(reference_draft) if reference_draft else None,

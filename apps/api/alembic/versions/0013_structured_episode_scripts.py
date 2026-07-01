@@ -20,8 +20,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column("project_episode_scripts", sa.Column("title", sa.String(length=120), nullable=True))
+    # revision 是乐观锁；version 只在实质内容变化时递增，用于候选采用和历史版本追踪。
     op.add_column("project_episode_scripts", sa.Column("revision", sa.Integer(), nullable=False, server_default="1"))
     op.add_column("project_episode_scripts", sa.Column("version", sa.Integer(), nullable=False, server_default="1"))
+    # 来源正文版本用于判断结构化剧本是否落后于当前单集正文。
     op.add_column("project_episode_scripts", sa.Column("source_content_version", sa.String(length=160), nullable=True))
     op.add_column("project_episode_scripts", sa.Column("auto_duration_seconds", sa.Float(), nullable=False, server_default="0"))
     op.add_column("project_episode_scripts", sa.Column("manual_duration_seconds", sa.Float(), nullable=True))
@@ -36,6 +38,7 @@ def upgrade() -> None:
         sa.Column("location", sa.String(length=120), nullable=True),
         sa.Column("time_of_day", sa.String(length=24), nullable=True),
         sa.Column("interior_exterior", sa.String(length=24), nullable=True),
+        # 场次人物引用项目内角色快照，避免资产库后续编辑改变正式剧本上下文。
         sa.Column("character_snapshot_ids", sa.Text(), nullable=False, server_default="[]"),
         sa.Column("auto_duration_seconds", sa.Float(), nullable=False, server_default="0"),
         sa.Column("manual_duration_seconds", sa.Float(), nullable=True),
@@ -72,6 +75,7 @@ def upgrade() -> None:
         sa.Column("script_id", sa.String(length=64), sa.ForeignKey("project_episode_scripts.id"), nullable=False),
         sa.Column("version", sa.Integer(), nullable=False),
         sa.Column("source_content_version", sa.String(length=160), nullable=True),
+        # 正式版本快照不可变，后续编辑不会改变历史版本内容。
         sa.Column("snapshot", sa.Text(), nullable=False),
         sa.Column("change_source", sa.String(length=32), nullable=False),
         sa.Column("generation_id", sa.String(length=64), nullable=True),
@@ -90,8 +94,10 @@ def upgrade() -> None:
         sa.Column("target_block_ids", sa.Text(), nullable=False, server_default="[]"),
         sa.Column("rewrite_preset", sa.String(length=40), nullable=True),
         sa.Column("instruction", sa.Text(), nullable=True),
+        # 候选绑定生成时的剧本版本和修订号，采用时再次校验以防覆盖较新编辑。
         sa.Column("base_script_version", sa.Integer(), nullable=True),
         sa.Column("base_script_revision", sa.Integer(), nullable=True),
+        # 输入/输出快照保留模型生成证据，候选未采用前不影响正式剧本。
         sa.Column("input_snapshot", sa.Text(), nullable=False),
         sa.Column("output_snapshot", sa.Text(), nullable=False),
         sa.Column("status", sa.String(length=24), nullable=False, server_default="candidate"),
@@ -123,6 +129,7 @@ def upgrade() -> None:
     op.create_index(op.f("ix_project_script_check_runs_script_id"), "project_script_check_runs", ["script_id"])
 
     if not context.is_offline_mode():
+        # 在线迁移把旧平铺字段拆成默认场次和内容块，并标记 needs_review 让用户复核结构化结果。
         _migrate_legacy_scripts()
 
 
