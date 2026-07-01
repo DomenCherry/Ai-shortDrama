@@ -240,6 +240,37 @@ class StoryboardAggregateTests(unittest.TestCase):
         self.assertEqual(created["request_payload_snapshot"]["resolution"], "1080p")
         self.assertEqual(created["request_payload_snapshot"]["ratio"], "9:16")
 
+    def test_successful_video_generation_without_url_can_refresh_nested_result_url(self) -> None:
+        shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
+        fake_client = _FakeVideoClient(
+            post_data={"id": "seedance-task-nested", "status": "succeeded"},
+            get_data={
+                "id": "seedance-task-nested",
+                "status": "succeeded",
+                "result": {
+                    "content": [
+                        {
+                            "type": "video",
+                            "video": {"url": "https://cdn.test/signed-result"},
+                            "cover_url": "https://cdn.test/cover.jpg",
+                        }
+                    ],
+                    "duration": 5,
+                },
+            },
+        )
+
+        with patch.object(shot_videos.httpx, "AsyncClient", return_value=fake_client):
+            created = asyncio.run(shot_videos.create_video_generation("project-storyboard", 1, shot["id"]))
+            refreshed = asyncio.run(shot_videos.refresh_video_generation("project-storyboard", 1, shot["id"], created["id"]))
+
+        self.assertEqual(created["status"], "succeeded")
+        self.assertIsNone(created["result_url"])
+        self.assertEqual(refreshed["status"], "succeeded")
+        self.assertEqual(refreshed["result_url"], "https://cdn.test/signed-result")
+        self.assertEqual(refreshed["thumbnail_url"], "https://cdn.test/cover.jpg")
+        self.assertEqual(len(fake_client.gets), 1)
+
     def test_delete_shot_with_video_generation_is_blocked(self) -> None:
         shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
         fake_client = _FakeVideoClient(post_data={"id": "seedance-task-delete", "status": "queued"})
@@ -253,15 +284,26 @@ class StoryboardAggregateTests(unittest.TestCase):
         self.assertEqual(len(generations), 1)
         self.assertEqual(generations[0]["provider_task_id"], "seedance-task-delete")
 
-    def test_shot_video_generation_requires_prompt_and_valid_video_config(self) -> None:
+    def test_shot_video_generation_uses_visual_fields_without_prompt_and_requires_generation_source(self) -> None:
         shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
         empty_prompt = self.payload(self.scene_a, "林晚")
         empty_prompt.revision = shot["revision"]
         empty_prompt.prompt = ShotPromptPayload()
         storyboard.update_storyboard_shot("project-storyboard", 1, shot["id"], empty_prompt)
 
-        with self.assertRaisesRegex(ValueError, "请先填写视频提示词"):
-            asyncio.run(shot_videos.create_video_generation("project-storyboard", 1, shot["id"]))
+        fake_client = _FakeVideoClient(post_data={"id": "seedance-task-visual-only", "status": "queued"})
+        with patch.object(shot_videos.httpx, "AsyncClient", return_value=fake_client):
+            created = asyncio.run(shot_videos.create_video_generation("project-storyboard", 1, shot["id"]))
+
+        self.assertIn("镜头视觉", created["video_prompt_snapshot"])
+        self.assertIn("核心画面：林晚进入画面", created["video_prompt_snapshot"])
+        self.assertNotIn("生成补充", created["video_prompt_snapshot"])
+
+        blank = storyboard.create_storyboard_shot("project-storyboard", 1, ProjectStoryboardShotPayload(
+            source_scene_id=self.scene_a, status="draft", prompt=ShotPromptPayload(),
+        ))
+        with self.assertRaisesRegex(ValueError, "请先填写核心画面"):
+            asyncio.run(shot_videos.create_video_generation("project-storyboard", 1, blank["id"]))
 
         payload = self.payload(self.scene_a, "管家")
         second = storyboard.create_storyboard_shot("project-storyboard", 1, payload)

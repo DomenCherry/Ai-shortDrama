@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Copy, ExternalLink, List, Menu, Play, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Copy, ExternalLink, List, Maximize2, Menu, Play, Plus, RefreshCw, Save, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,7 +21,7 @@ import {
   createShotVideoGeneration,
   generateProjectStoryboardScene, getProjectStoryboard, reassignProjectStoryboardShot,
   listModelConfigs, listShotVideoGenerations, refreshShotVideoGeneration,
-  reorderProjectStoryboardScene, updateProjectStoryboardShot
+  reorderProjectStoryboardScene, resolveAssetUrl, updateProjectStoryboardShot
 } from "@/lib/api";
 import type {
   ModelConfig,
@@ -149,6 +149,29 @@ const expressionOptions = [
   { label: "恍然大悟", value: "恍然大悟" },
 ];
 
+const negativePromptPresets = [
+  {
+    label: "画质瑕疵",
+    text: "低清晰度，模糊，噪点，过曝，欠曝，压缩伪影"
+  },
+  {
+    label: "人物变形",
+    text: "畸形五官，面部崩坏，多余手指，手部变形，肢体扭曲，人物身份变化"
+  },
+  {
+    label: "文字水印",
+    text: "字幕，文字，Logo，水印，时间码，界面元素"
+  },
+  {
+    label: "运动异常",
+    text: "画面闪烁，镜头抖动，跳帧，运动拖影，主体漂移"
+  },
+  {
+    label: "风格偏差",
+    text: "卡通化，油画感，过度美颜，塑料皮肤，非写实光影"
+  },
+];
+
 const statusLabels: Record<ShotStatus, string> = {
   draft: "草稿", pending_review: "待审核", confirmed: "已确认", needs_review: "需检查"
 };
@@ -245,8 +268,8 @@ function previewLine(label: string, value?: string | null) {
 }
 
 function buildVideoPromptPreview(draft: ProjectStoryboardShotPayload, characterSnapshots: ProjectCharacterSnapshot[]) {
-  const baseText = cleanText(draft.prompt?.video_prompt) || cleanText(draft.prompt?.seedance_prompt);
-  const promptSource = "视频提示词";
+  const supplementText = cleanText(draft.prompt?.video_prompt) || cleanText(draft.prompt?.seedance_prompt);
+  const promptSource = supplementText ? "高级补充" : "分镜字段";
   const snapshotById = new Map(characterSnapshots.map((snapshot) => [snapshot.id, snapshot]));
   const shotCharacters = (draft.character_snapshot_ids ?? []).map((id) => snapshotById.get(id)).filter(Boolean) as ProjectCharacterSnapshot[];
   const missingCharacterIds = (draft.character_snapshot_ids ?? []).filter((id) => !snapshotById.has(id));
@@ -271,6 +294,13 @@ function buildVideoPromptPreview(draft: ProjectStoryboardShotPayload, characterS
     previewLine("环境", draft.environment),
     (draft.props ?? []).length ? `道具：${(draft.props ?? []).join("、")}` : "",
   ].filter(Boolean);
+  const sourceLines = [
+    draft.subject_description,
+    draft.visual_description,
+    draft.action,
+    draft.environment,
+    (draft.props ?? []).join("、"),
+  ].map((item) => cleanText(item)).filter(Boolean);
   const frameLines = [
     previewLine("首帧", draft.prompt?.first_frame_description),
     previewLine("尾帧", draft.prompt?.last_frame_description),
@@ -279,20 +309,21 @@ function buildVideoPromptPreview(draft: ProjectStoryboardShotPayload, characterS
   const missingReferenceCharacters = charactersToCheck.filter((snapshot) => !cleanText(snapshot.reference_image_url) && !cleanText(snapshot.reference_local_path));
   const referenceCount = shotCharacters.filter((snapshot) => cleanText(snapshot.reference_image_url) || cleanText(snapshot.reference_local_path)).length;
   const finalSections = [
-    baseText,
-    characterLines.length ? `角色一致性：\n${characterLines.map((line) => `- ${line}`).join("\n")}` : "",
     visualLines.length ? `镜头视觉：\n${visualLines.map((line) => `- ${line}`).join("\n")}` : "",
+    characterLines.length ? `角色一致性：\n${characterLines.map((line) => `- ${line}`).join("\n")}` : "",
+    supplementText ? `生成补充：\n- ${supplementText}` : "",
     frameLines.length ? `首尾帧约束：\n${frameLines.map((line) => `- ${line}`).join("\n")}` : "",
     cleanText(draft.prompt?.negative_prompt) ? `负面提示：${cleanText(draft.prompt?.negative_prompt)}` : "",
   ].filter(Boolean);
 
   return {
     promptSource,
-    baseText,
+    supplementText,
     characterLines,
     visualLines,
     frameLines,
     finalText: finalSections.join("\n"),
+    hasGenerationSource: Boolean(supplementText || sourceLines.length),
     referenceCount,
     missingCharacterIds,
     missingVisualCharacters,
@@ -679,8 +710,53 @@ function ShotNavigator({ groups, selectedId, query, filter, collapsed, generatio
   </div>;
 }
 
-function Field({ label, value, onChange, placeholder }: { label: string; value?: string; onChange: (value: string) => void; placeholder?: string }) { return <label className="space-y-1.5 text-sm"><span className="font-medium">{label}</span><Input value={value ?? ""} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} /></label>; }
-function Area({ label, value, onChange, rows = 4 }: { label: string; value?: string; onChange: (value: string) => void; rows?: number }) { return <label className="space-y-1.5 text-sm"><span className="font-medium">{label}</span><Textarea rows={rows} value={value ?? ""} onChange={(event) => onChange(event.target.value)} /></label>; }
+function Field({ label, value, onChange, placeholder }: { label: string; value?: string; onChange: (value: string) => void; placeholder?: string }) { return <label className="flex flex-col gap-1.5 text-sm"><span className="font-medium">{label}</span><Input value={value ?? ""} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} /></label>; }
+function Area({ label, value, onChange, rows = 4 }: { label: string; value?: string; onChange: (value: string) => void; rows?: number }) { return <label className="flex flex-col gap-1.5 text-sm"><span className="font-medium">{label}</span><Textarea rows={rows} value={value ?? ""} onChange={(event) => onChange(event.target.value)} /></label>; }
+function textLength(value?: string) {
+  return (value ?? "").trim().length;
+}
+
+function appendNegativePromptPreset(current: string | undefined, preset: string) {
+  const terms = [...(current ?? "").split(/[，,、;；\n]/), ...preset.split(/[，,、;；\n]/)]
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return Array.from(new Set(terms)).join("，");
+}
+
+function NegativePromptField({ value, onChange }: { value?: string; onChange: (value: string) => void }) {
+  return <section className="flex flex-col gap-3 rounded-lg border bg-background p-4">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <h3 className="text-sm font-semibold">负面控制</h3>
+        <p className="mt-1 text-xs text-muted-foreground">保存后作为负面提示词随视频任务提交。</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <Badge variant="outline">{textLength(value)} 字</Badge>
+        <Button type="button" size="xs" variant="ghost" onClick={() => onChange("")} disabled={!value?.trim()}>清空</Button>
+      </div>
+    </div>
+    <Textarea rows={4} value={value ?? ""} onChange={(event) => onChange(event.target.value)} />
+    <div className="flex flex-col gap-2">
+      <span className="text-xs font-medium text-muted-foreground">常用预设</span>
+      <div className="grid gap-2 md:grid-cols-2">
+        {negativePromptPresets.map((preset) => (
+          <div key={preset.label} className="grid gap-2 rounded-md border bg-muted/20 p-2">
+            <div className="min-w-0">
+              <span className="flex items-center gap-2">
+                <Badge variant="secondary">{preset.label}</Badge>
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-muted-foreground">{preset.text}</span>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" size="xs" variant="outline" onClick={() => onChange(appendNegativePromptPreset(value, preset.text))}>追加</Button>
+              <Button type="button" size="xs" variant="ghost" onClick={() => onChange(preset.text)}>替换</Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>;
+}
 function PresetField({ label, value, options, onChange, placeholder }: { label: string; value?: string; options: { label: string; value: string }[]; onChange: (value: string) => void; placeholder?: string }) {
   const currentValue = value ?? "";
   const knownValue = options.some((option) => option.value === currentValue);
@@ -715,30 +791,64 @@ function SoundForm({ draft, update }: { draft: ProjectStoryboardShotPayload; upd
   <Area label="音乐" value={draft.music_note} onChange={(value) => update("music_note", value)} />
 </div>; }
 
-function PromptForm({ draft, update }: { draft: ProjectStoryboardShotPayload; update: (field: string, value: string) => void }) { return <div className="grid gap-4 md:grid-cols-2">
-  <Area label="视频提示词" value={draft.prompt?.video_prompt} onChange={(value) => update("video_prompt", value)} />
-  <Area label="负面词" value={draft.prompt?.negative_prompt} onChange={(value) => update("negative_prompt", value)} />
-  <Field label="首帧描述" value={draft.prompt?.first_frame_description} onChange={(value) => update("first_frame_description", value)} />
-  <Field label="尾帧描述" value={draft.prompt?.last_frame_description} onChange={(value) => update("last_frame_description", value)} />
-</div>; }
+function PromptForm({ draft, update }: { draft: ProjectStoryboardShotPayload; update: (field: string, value: string) => void }) {
+  const generationNote = draft.prompt?.video_prompt ?? "";
+  const firstFrame = draft.prompt?.first_frame_description ?? "";
+  const lastFrame = draft.prompt?.last_frame_description ?? "";
+  return <div className="grid gap-4">
+    <section className="grid gap-3 rounded-lg border bg-background p-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="flex flex-wrap items-start justify-between gap-3 lg:block">
+        <div>
+          <h3 className="text-sm font-semibold">生成补充</h3>
+          <p className="mt-1 text-xs text-muted-foreground">可选。视频生成默认使用分镜视觉字段，这里只写额外风格或模型控制。</p>
+        </div>
+        <Badge className="mt-2" variant={generationNote.trim() ? "secondary" : "outline"}>{textLength(generationNote)} 字</Badge>
+      </div>
+      <Textarea
+        rows={3}
+        className="min-h-24 resize-y text-sm leading-6"
+        value={generationNote}
+        onChange={(event) => update("video_prompt", event.target.value)}
+      />
+    </section>
+    <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <section className="flex flex-col gap-3 rounded-lg border bg-background p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold">首尾帧约束</h3>
+            <p className="mt-1 text-xs text-muted-foreground">用于稳定镜头开始和结束画面。</p>
+          </div>
+          <Badge variant="outline">{[firstFrame, lastFrame].filter((item) => item.trim()).length}/2</Badge>
+        </div>
+        <Field label="首帧描述" value={firstFrame} onChange={(value) => update("first_frame_description", value)} />
+        <Field label="尾帧描述" value={lastFrame} onChange={(value) => update("last_frame_description", value)} />
+      </section>
+      <NegativePromptField value={draft.prompt?.negative_prompt} onChange={(value) => update("negative_prompt", value)} />
+    </div>
+  </div>;
+}
 
 const videoStatusLabels: Record<ShotVideoGeneration["status"], string> = {
   queued: "排队中", running: "生成中", succeeded: "成功", failed: "失败", canceled: "已取消"
 };
+
+function videoPreviewUrl(generation: ShotVideoGeneration) {
+  return resolveAssetUrl(generation.result_url || generation.local_asset_path);
+}
 
 function VideoGenerationPanel({ shot, draft, characterSnapshots, generations, videoConfigs, options, loading, busy, isDirty, onOptionsChange, onCreate, onRefresh, onAdopt, onCancel }: {
   shot: ProjectStoryboardShot; draft: ProjectStoryboardShotPayload; characterSnapshots: ProjectCharacterSnapshot[]; generations: ShotVideoGeneration[]; videoConfigs: ModelConfig[];
   options: VideoGenerationOptions; loading: boolean; busy: boolean; isDirty: boolean; onOptionsChange: (options: VideoGenerationOptions) => void;
   onCreate: () => void; onRefresh: (id: string) => void; onAdopt: (id: string) => void; onCancel: (id: string) => void;
 }) {
-  const promptText = draft.prompt?.video_prompt?.trim() || draft.prompt?.seedance_prompt?.trim() || "";
+  const [previewGeneration, setPreviewGeneration] = useState<ShotVideoGeneration | null>(null);
   const promptPreview = buildVideoPromptPreview(draft, characterSnapshots);
   const enabledVideoConfig = videoConfigs.find((config) => config.enabled);
   const adopted = generations.find((item) => item.adopted);
   const optionDuration = Number(options.duration_seconds);
   const invalidDuration = options.duration_seconds.trim() !== "" && (!Number.isFinite(optionDuration) || optionDuration <= 0 || optionDuration > 60);
   const disabledReason = isDirty ? "请先保存当前镜头修改后再生成视频。"
-    : !promptText ? "请先填写视频提示词。"
+    : !promptPreview.hasGenerationSource ? "请先填写核心画面、主体或动作等画面描述。"
       : shot.prompt_freshness === "needs_update" ? "提示词需要更新，请先保存或确认后再生成视频。"
         : invalidDuration ? "本次生成时长需大于 0 且不超过 60 秒。"
           : !enabledVideoConfig ? "请先在设置中启用视频生成模型。"
@@ -748,9 +858,10 @@ function VideoGenerationPanel({ shot, draft, characterSnapshots, generations, vi
   const defaultDuration = `${Math.max(1, Math.round(shot.duration_seconds || 4))}`;
   const consistencyWarnings = [
     promptPreview.missingCharacterIds.length ? `有 ${promptPreview.missingCharacterIds.length} 个出镜角色快照未加载，无法写入人物锚点。` : "",
-    promptPreview.missingVisualCharacters.length ? `${promptPreview.missingVisualCharacters.map((item) => item.name).join("、")} 缺少视觉描述，人物一致性会更依赖基础提示词。` : "",
+    promptPreview.missingVisualCharacters.length ? `${promptPreview.missingVisualCharacters.map((item) => item.name).join("、")} 缺少视觉描述，人物一致性会更依赖镜头画面描述。` : "",
     promptPreview.missingReferenceCharacters.length ? `${promptPreview.missingReferenceCharacters.map((item) => item.name).join("、")} 缺少参考图，本期不会阻止生成。` : "",
   ].filter(Boolean);
+  const previewUrl = previewGeneration ? videoPreviewUrl(previewGeneration) : "";
   return <div className="space-y-4">
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div className="rounded-lg border p-4">
@@ -768,7 +879,7 @@ function VideoGenerationPanel({ shot, draft, characterSnapshots, generations, vi
             <p className="mt-1">{consistencyWarnings.join(" ")}</p>
           </div>
         </div> : null}
-        <p className="mt-3 whitespace-pre-wrap rounded-md bg-muted/60 p-3 text-sm text-muted-foreground">{promptPreview.finalText || "暂无可用视频提示词。"}</p>
+        <p className="mt-3 whitespace-pre-wrap rounded-md bg-muted/60 p-3 text-sm text-muted-foreground">{promptPreview.finalText || "暂无可用于视频生成的画面描述。"}</p>
         <p className="mt-2 text-xs text-muted-foreground">声音、对白、旁白、音效和音乐字段不会发送给文生视频模型，会留给后续配音、剪辑和合成流程。</p>
       </div>
       <div className="rounded-lg border p-4">
@@ -803,22 +914,41 @@ function VideoGenerationPanel({ shot, draft, characterSnapshots, generations, vi
         <Button className="mt-4 w-full" onClick={onCreate} disabled={busy || Boolean(disabledReason)}><Play />{busy ? "处理中" : "生成视频"}</Button>
       </div>
     </div>
-    {adopted ? <VideoResultCard generation={adopted} title="当前采用素材" busy={busy} onRefresh={onRefresh} onAdopt={onAdopt} onCancel={onCancel} /> : <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">当前镜头还没有采用的视频素材。</div>}
+    {adopted ? <VideoResultCard generation={adopted} title="当前采用素材" busy={busy} onPreview={setPreviewGeneration} onRefresh={onRefresh} onAdopt={onAdopt} onCancel={onCancel} /> : <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">当前镜头还没有采用的视频素材。</div>}
     <div className="rounded-lg border">
       <div className="flex items-center justify-between border-b px-4 py-3"><h3 className="font-semibold">候选历史</h3>{loading ? <span className="text-xs text-muted-foreground">加载中...</span> : null}</div>
-      <div className="divide-y">{generations.length === 0 && !loading ? <p className="p-4 text-sm text-muted-foreground">暂无视频生成记录。</p> : generations.map((generation) => <VideoResultCard key={generation.id} generation={generation} busy={busy} onRefresh={onRefresh} onAdopt={onAdopt} onCancel={onCancel} />)}</div>
+      <div className="divide-y">{generations.length === 0 && !loading ? <p className="p-4 text-sm text-muted-foreground">暂无视频生成记录。</p> : generations.map((generation) => <VideoResultCard key={generation.id} generation={generation} busy={busy} onPreview={setPreviewGeneration} onRefresh={onRefresh} onAdopt={onAdopt} onCancel={onCancel} />)}</div>
     </div>
+    <AlertDialog open={Boolean(previewGeneration)} onOpenChange={(open) => !open && setPreviewGeneration(null)}>
+      <AlertDialogContent className="max-w-[min(960px,calc(100vw-2rem))]">
+        <AlertDialogHeader>
+          <AlertDialogTitle>视频预览</AlertDialogTitle>
+          <AlertDialogDescription>{previewGeneration ? `${videoStatusLabels[previewGeneration.status]} · ${new Date(previewGeneration.created_at).toLocaleString()}` : ""}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="overflow-hidden rounded-lg bg-black">
+          {previewUrl ? <video key={previewUrl} className="aspect-video w-full" src={previewUrl} controls autoPlay poster={resolveAssetUrl(previewGeneration?.thumbnail_url)} /> : <div className="flex aspect-video items-center justify-center text-sm text-muted-foreground">暂无可预览的视频地址</div>}
+        </div>
+        {previewGeneration?.video_prompt_snapshot ? <p className="max-h-28 overflow-y-auto whitespace-pre-wrap rounded-md bg-muted/60 p-3 text-xs text-muted-foreground">{previewGeneration.video_prompt_snapshot}</p> : null}
+        <AlertDialogFooter>
+          {previewUrl ? <Button asChild variant="outline"><a href={previewUrl} target="_blank" rel="noreferrer"><ExternalLink />新窗口打开</a></Button> : null}
+          <AlertDialogCancel>关闭</AlertDialogCancel>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>;
 }
 
-function VideoResultCard({ generation, title, busy, onRefresh, onAdopt, onCancel }: {
-  generation: ShotVideoGeneration; title?: string; busy: boolean; onRefresh: (id: string) => void; onAdopt: (id: string) => void; onCancel: (id: string) => void;
+function VideoResultCard({ generation, title, busy, onPreview, onRefresh, onAdopt, onCancel }: {
+  generation: ShotVideoGeneration; title?: string; busy: boolean; onPreview: (generation: ShotVideoGeneration) => void; onRefresh: (id: string) => void; onAdopt: (id: string) => void; onCancel: (id: string) => void;
 }) {
-  const canPreview = generation.result_url || generation.local_asset_path;
+  const previewUrl = videoPreviewUrl(generation);
+  const canPreview = Boolean(previewUrl);
+  const canRefreshResult = generation.status === "queued" || generation.status === "running" || (generation.status === "succeeded" && !canPreview);
   return <div className="grid gap-4 p-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-    <div className="flex aspect-video items-center justify-center overflow-hidden rounded-md bg-muted">
-      {generation.result_url ? <video className="h-full w-full object-cover" src={generation.result_url} controls poster={generation.thumbnail_url} /> : generation.thumbnail_url ? <img className="h-full w-full object-cover" src={generation.thumbnail_url} alt="视频缩略图" /> : <span className="text-xs text-muted-foreground">暂无预览</span>}
-    </div>
+    <button type="button" className="group relative flex aspect-video items-center justify-center overflow-hidden rounded-md bg-muted text-left disabled:cursor-not-allowed" onClick={() => canPreview && onPreview(generation)} disabled={!canPreview}>
+      {previewUrl ? <video className="h-full w-full object-cover" src={previewUrl} muted playsInline preload="metadata" poster={resolveAssetUrl(generation.thumbnail_url)} /> : generation.thumbnail_url ? <img className="h-full w-full object-cover" src={resolveAssetUrl(generation.thumbnail_url)} alt="视频缩略图" /> : <span className="text-xs text-muted-foreground">暂无预览</span>}
+      {canPreview ? <span className="absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100"><Maximize2 />预览</span> : null}
+    </button>
     <div className="min-w-0 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <h4 className="font-semibold">{title ?? new Date(generation.created_at).toLocaleString()}</h4>
@@ -829,11 +959,12 @@ function VideoResultCard({ generation, title, busy, onRefresh, onAdopt, onCancel
       <p className="line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">{generation.video_prompt_snapshot}</p>
       {generation.error_message ? <p className="text-sm text-destructive">{generation.error_message}</p> : null}
       <div className="flex flex-wrap gap-2">
-        {(generation.status === "queued" || generation.status === "running") ? <Button size="sm" variant="outline" onClick={() => onRefresh(generation.id)} disabled={busy}><RefreshCw />刷新</Button> : null}
+        {canRefreshResult ? <Button size="sm" variant="outline" onClick={() => onRefresh(generation.id)} disabled={busy}><RefreshCw />{generation.status === "succeeded" ? "刷新结果" : "刷新"}</Button> : null}
         {(generation.status === "queued" || generation.status === "running") ? <Button size="sm" variant="outline" onClick={() => onCancel(generation.id)} disabled={busy}><X />取消</Button> : null}
         {generation.status === "failed" ? <Button size="sm" variant="outline" onClick={() => onRefresh(generation.id)} disabled={busy}><RefreshCw />重试刷新</Button> : null}
+        {canPreview ? <Button size="sm" variant="outline" onClick={() => onPreview(generation)} disabled={busy}><Maximize2 />预览</Button> : null}
         {generation.status === "succeeded" && !generation.adopted ? <Button size="sm" onClick={() => onAdopt(generation.id)} disabled={busy || !canPreview}><Check />采用</Button> : null}
-        {generation.result_url ? <Button asChild size="sm" variant="outline"><a href={generation.result_url} target="_blank" rel="noreferrer"><ExternalLink />打开</a></Button> : null}
+        {previewUrl ? <Button asChild size="sm" variant="outline"><a href={previewUrl} target="_blank" rel="noreferrer"><ExternalLink />打开</a></Button> : null}
       </div>
     </div>
   </div>;

@@ -153,8 +153,8 @@
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | image_prompt | string \| null | 历史兼容字段，本期分镜视频生成不展示、不使用 |
-| video_prompt | string \| null | 通用视频提示词 |
-| negative_prompt | string \| null | 负面提示词 |
+| video_prompt | string \| null | 可选生成补充；用于额外风格或模型控制，不再作为视频生成必填来源 |
+| negative_prompt | string \| null | 负面提示词；可由前端预设辅助填写，后端仅保存最终文本 |
 | first_frame_description | string \| null | 首帧描述 |
 | last_frame_description | string \| null | 尾帧描述 |
 | reference_asset_ids | string[] | 参考素材 |
@@ -355,14 +355,15 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-g
 
 - 使用当前启用且最近测试成功的 `config_type=video` 模型配置。
 - 首版默认使用 Seedance 适配器；无 Seedance 预设时可走通用视频生成接口。
-- 基础提示词优先使用 `video_prompt`；仅当 `video_prompt` 为空时，允许使用历史 `seedance_prompt` 兜底。
-- 后端必须统一组装最终视频提示词，并把组装结果保存到 `video_prompt_snapshot`。
-- 最终视频提示词必须包含基础提示词、出镜角色视觉锚点、关键镜头视觉字段、首尾帧约束和负面提示词。
+- 后端必须以分镜视觉字段为主统一组装最终视频提示词，并把组装结果保存到 `video_prompt_snapshot`。
+- `video_prompt` 为可选生成补充；仅当用户填写时追加到“生成补充”块。历史 `seedance_prompt` 仅在 `video_prompt` 为空时作为旧数据补充兜底。
+- 负面词预设不作为独立后端能力；后端只接收和保存 `negative_prompt` 最终文本，并保存到 `negative_prompt_snapshot`。
+- 最终视频提示词必须包含关键镜头视觉字段，并按存在情况补充出镜角色视觉锚点、生成补充、首尾帧约束和负面提示词。
 - 角色视觉锚点来自 `character_snapshot_ids` 对应的项目角色快照，使用 `name`、`gender`、`role_type`、`visual_description`；参考图只记录风险和素材状态，首版不发送给 Seedance 文生视频请求。
 - 关键镜头视觉字段包括 `subject_description`、`visual_description`、`action`、`shot_size`、`camera_angle`、`camera_movement`、`composition`、`expression`、`environment`、`props`。
 - `dialogue_snapshot`、`voiceover_snapshot`、`sound_effect`、`music_note`、`source_block_ids`、`source_scene_id`、`continuity_note`、`image_prompt` 不直接进入文生视频请求。
 - 分辨率、画幅、时长为单次生成参数，不写回模型配置、镜头或提示词。
-- 缺少可用提示词时返回明确错误。
+- 缺少可用于视频生成的画面描述时返回明确错误；至少应存在 `subject_description`、`visual_description`、`action`、`environment`、`props` 或可选生成补充之一。
 - 提示词为 `needs_update` 时第一版阻止生成。
 - 保存输入快照、模型配置、请求 payload 快照和供应商任务 ID。
 - 供应商提交失败时保留本地生成记录并写入 `failed` 和 `error_message`。
@@ -417,7 +418,7 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-g
 | 镜头不存在 | 404 | 项目分镜不存在 |
 | 来源场次非法 | 400 | 来源场次不属于当前集剧本 |
 | 修订冲突 | 409 | 分镜已在其他操作中更新 |
-| 缺少视频提示词 | 400 | 请先填写视频提示词 |
+| 缺少画面描述 | 400 | 请先填写核心画面、主体或动作等画面描述 |
 | 视频模型未配置 | 400 | 请先配置并启用视频生成模型 |
 | 视频模型未测试成功 | 400 | 视频生成模型暂不可用，请先完成接口测试 |
 | 视频生成记录不存在 | 404 | 视频生成记录不存在 |

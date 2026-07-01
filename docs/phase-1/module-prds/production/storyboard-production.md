@@ -194,8 +194,8 @@
 | shot_id | string | 是 | 所属镜头 |
 | source_shot_revision | integer | 是 | 生成提示词时的镜头修订号 |
 | image_prompt | string | 否 | 历史兼容字段，本期分镜视频生成不展示、不使用 |
-| video_prompt | string | 否 | 通用视频提示词 |
-| negative_prompt | string | 否 | 通用负面提示词 |
+| video_prompt | string | 否 | 可选生成补充；用于额外风格或模型控制，不再作为视频生成必填来源 |
+| negative_prompt | string | 否 | 通用负面提示词；前端可提供预设辅助填写，保存后仍为普通文本 |
 | first_frame_description | string | 否 | 首帧文字描述 |
 | last_frame_description | string | 否 | 尾帧文字描述 |
 | reference_asset_ids | array | 否 | 人物和场景参考素材 |
@@ -208,6 +208,8 @@
 | updated_at | datetime | 是 | 更新时间 |
 
 首帧和尾帧字段仅维护文字描述和参考素材，不在这些字段内生成或保存实际图片、视频文件；镜头视频结果由 `ShotVideoGeneration` 独立管理。
+
+负面提示词预设属于前端编辑辅助能力，不新增独立数据模型或模型参数。首版预设覆盖画质瑕疵、人物变形、文字水印、运动异常和风格偏差，用户可选择追加或替换，最终以 `negative_prompt` 文本随视频生成请求保存快照。
 
 ### 6.4 StoryboardGeneration
 
@@ -352,7 +354,8 @@
 
 ### 12.1.1 视频提示词字段来源
 
-- 必须进入：`video_prompt`、`negative_prompt`、`first_frame_description`、`last_frame_description`、出镜角色快照视觉锚点。
+- 必须进入：核心画面、主体、动作等关键分镜视觉字段，以及出镜角色快照视觉锚点。
+- 按存在情况进入：`video_prompt` 作为可选生成补充，`negative_prompt`、`first_frame_description`、`last_frame_description` 作为约束。
 - 作为镜头视觉补充进入：`subject_description`、`visual_description`、`action`、`shot_size`、`camera_angle`、`camera_movement`、`composition`、`expression`、`environment`、`props`。
 - 本期不进入文生视频：`dialogue_snapshot`、`voiceover_snapshot`、`sound_effect`、`music_note`、`source_block_ids`、`source_scene_id`、`continuity_note`、`image_prompt`。
 

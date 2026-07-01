@@ -25,6 +25,21 @@ from app.services.project.common import now_utc, validate_episode_no
 
 
 ACTIVE_STATUSES = {"queued", "running"}
+VIDEO_URL_KEYS = {
+    "url",
+    "video_url",
+    "content_url",
+    "result_url",
+    "output_url",
+    "download_url",
+    "play_url",
+    "file_url",
+    "source_url",
+    "video",
+    "file",
+    "media",
+}
+THUMBNAIL_URL_KEYS = {"thumbnail_url", "cover_url", "poster_url", "image_url"}
 DEFAULT_VIDEO_RESOLUTION = "720p"
 DEFAULT_VIDEO_ASPECT_RATIO = "16:9"
 VIDEO_SIZE_MAP = {
@@ -153,13 +168,41 @@ def _clean(value: Any) -> str:
 
 def _prompt_text(prompt: ProjectShotPrompt | None) -> str:
     if not prompt:
-        raise ValueError("请先填写视频提示词")
-    text = _clean(prompt.video_prompt) or _clean(prompt.seedance_prompt)
-    if not text:
-        raise ValueError("请先填写视频提示词")
-    if prompt.freshness == "needs_update":
+        return ""
+    return _clean(prompt.video_prompt) or _clean(prompt.seedance_prompt)
+
+
+def _validate_prompt_freshness(prompt: ProjectShotPrompt | None) -> None:
+    if prompt and prompt.freshness == "needs_update":
         raise ValueError("提示词需要更新，请先保存或确认后再生成视频")
-    return text
+
+
+def _shot_visual_lines(shot: ProjectStoryboardShot) -> list[str]:
+    props = [item for item in _loads(shot.props, []) if isinstance(item, str) and item.strip()]
+    return [
+        f"主体：{_clean(shot.subject_description)}" if _clean(shot.subject_description) else "",
+        f"核心画面：{_clean(shot.visual_description)}" if _clean(shot.visual_description) else "",
+        f"动作：{_clean(shot.action)}" if _clean(shot.action) else "",
+        f"景别：{_clean(shot.shot_size)}" if _clean(shot.shot_size) else "",
+        f"机位/角度：{_clean(shot.camera_angle)}" if _clean(shot.camera_angle) else "",
+        f"运镜：{_clean(shot.camera_movement)}" if _clean(shot.camera_movement) else "",
+        f"构图：{_clean(shot.composition)}" if _clean(shot.composition) else "",
+        f"表情：{_clean(shot.expression)}" if _clean(shot.expression) else "",
+        f"环境：{_clean(shot.environment)}" if _clean(shot.environment) else "",
+        f"道具：{'、'.join(props)}" if props else "",
+    ]
+
+
+def _has_video_generation_source(shot: ProjectStoryboardShot, prompt: ProjectShotPrompt | None) -> bool:
+    props = [item for item in _loads(shot.props, []) if isinstance(item, str) and item.strip()]
+    return any([
+        _prompt_text(prompt),
+        _clean(shot.subject_description),
+        _clean(shot.visual_description),
+        _clean(shot.action),
+        _clean(shot.environment),
+        bool(props),
+    ])
 
 
 def _ordered_character_snapshots(session, project_id: str, shot: ProjectStoryboardShot) -> list[ProjectCharacterSnapshot]:
@@ -190,7 +233,8 @@ def _compose_video_prompt_text(
     prompt: ProjectShotPrompt | None,
     base_prompt: str,
 ) -> str:
-    lines = [base_prompt]
+    lines = []
+    _append_section(lines, "镜头视觉", _shot_visual_lines(shot))
 
     character_lines = []
     for snapshot in _ordered_character_snapshots(session, project_id, shot):
@@ -200,19 +244,8 @@ def _compose_video_prompt_text(
         character_lines.append(f"{prefix}：{visual}" if visual else prefix)
     _append_section(lines, "角色一致性", character_lines)
 
-    props = [item for item in _loads(shot.props, []) if isinstance(item, str) and item.strip()]
-    _append_section(lines, "镜头视觉", [
-        f"主体：{_clean(shot.subject_description)}" if _clean(shot.subject_description) else "",
-        f"核心画面：{_clean(shot.visual_description)}" if _clean(shot.visual_description) else "",
-        f"动作：{_clean(shot.action)}" if _clean(shot.action) else "",
-        f"景别：{_clean(shot.shot_size)}" if _clean(shot.shot_size) else "",
-        f"机位/角度：{_clean(shot.camera_angle)}" if _clean(shot.camera_angle) else "",
-        f"运镜：{_clean(shot.camera_movement)}" if _clean(shot.camera_movement) else "",
-        f"构图：{_clean(shot.composition)}" if _clean(shot.composition) else "",
-        f"表情：{_clean(shot.expression)}" if _clean(shot.expression) else "",
-        f"环境：{_clean(shot.environment)}" if _clean(shot.environment) else "",
-        f"道具：{'、'.join(props)}" if props else "",
-    ])
+    if base_prompt:
+        _append_section(lines, "生成补充", [base_prompt])
 
     if prompt:
         _append_section(lines, "首尾帧约束", [
@@ -223,7 +256,10 @@ def _compose_video_prompt_text(
         if negative:
             lines.append(f"负面提示：{negative}")
 
-    return "\n".join(lines)
+    prompt_text = "\n".join(lines).strip()
+    if not prompt_text:
+        raise ValueError("请先填写核心画面、主体或动作等画面描述")
+    return prompt_text
 
 
 def _duration_seconds(shot: ProjectStoryboardShot, options: ShotVideoGenerationCreatePayload | None) -> int:
@@ -278,6 +314,47 @@ def _status_from_response(data: dict[str, Any]) -> str:
     return "running"
 
 
+def _looks_like_video_url(value: str) -> bool:
+    lowered = value.lower()
+    return (
+        lowered.startswith(("http://", "https://", "/api/assets/"))
+        and any(token in lowered for token in (".mp4", ".mov", ".webm", ".m3u8", "video"))
+    )
+
+
+def _looks_like_url(value: str) -> bool:
+    return value.startswith(("http://", "https://", "/api/assets/"))
+
+
+def _extract_url(value: Any, keys: set[str], *, require_video: bool = False) -> str | None:
+    if isinstance(value, dict):
+        for key in keys:
+            nested = value.get(key)
+            is_video_specific_key = key != "url"
+            if isinstance(nested, str) and (
+                not require_video
+                or _looks_like_video_url(nested)
+                or (is_video_specific_key and _looks_like_url(nested))
+            ):
+                return nested
+            if isinstance(nested, dict):
+                nested_url = _extract_url(nested, keys, require_video=require_video and not is_video_specific_key)
+                if nested_url:
+                    return nested_url
+        for nested in value.values():
+            nested_url = _extract_url(nested, keys, require_video=require_video)
+            if nested_url:
+                return nested_url
+    elif isinstance(value, list):
+        for item in value:
+            nested_url = _extract_url(item, keys, require_video=require_video)
+            if nested_url:
+                return nested_url
+    elif isinstance(value, str) and require_video and _looks_like_video_url(value):
+        return value
+    return None
+
+
 def _first_item(data: dict[str, Any]) -> dict[str, Any]:
     nested = data.get("data") or data.get("result") or data.get("output")
     if isinstance(nested, list) and nested:
@@ -293,7 +370,7 @@ def _parse_video_result(data: dict[str, Any]) -> dict[str, Any]:
     status_data = dict(data)
     if not any(status_data.get(key) for key in ("status", "task_status", "state")):
         status_data.update({key: item.get(key) for key in ("status", "task_status", "state") if item.get(key)})
-    result_url = (
+    result_url = _extract_url(data, VIDEO_URL_KEYS, require_video=True) or (
         item.get("url")
         or item.get("video_url")
         or item.get("content_url")
@@ -302,11 +379,12 @@ def _parse_video_result(data: dict[str, Any]) -> dict[str, Any]:
         or data.get("url")
         or data.get("video_url")
     )
+    thumbnail_url = _extract_url(data, THUMBNAIL_URL_KEYS) or item.get("thumbnail_url") or item.get("cover_url") or data.get("thumbnail_url")
     return {
         "provider_task_id": data.get("id") or data.get("task_id") or item.get("id"),
         "status": _status_from_response(status_data),
         "result_url": result_url,
-        "thumbnail_url": item.get("thumbnail_url") or item.get("cover_url") or data.get("thumbnail_url"),
+        "thumbnail_url": thumbnail_url,
         "duration_seconds": item.get("duration") or item.get("duration_seconds") or data.get("duration"),
         "width": item.get("width") or data.get("width"),
         "height": item.get("height") or data.get("height"),
@@ -354,6 +432,9 @@ async def create_video_generation(
     config = _enabled_video_config()
     with get_session() as session:
         shot, prompt = _shot_and_prompt(session, project_id, episode_no, shot_id)
+        _validate_prompt_freshness(prompt)
+        if not _has_video_generation_source(shot, prompt):
+            raise ValueError("请先填写核心画面、主体或动作等画面描述")
         base_prompt_text = _prompt_text(prompt)
         prompt_text = _compose_video_prompt_text(session, project_id, shot, prompt, base_prompt_text)
         request_payload = _request_payload(config, shot, prompt, prompt_text, options)
@@ -425,7 +506,8 @@ async def create_video_generation(
 async def refresh_video_generation(project_id: str, episode_no: int, shot_id: str, generation_id: str) -> dict[str, Any]:
     with get_session() as session:
         generation = _generation_for_shot(session, project_id, episode_no, shot_id, generation_id)
-        if generation.status not in ACTIVE_STATUSES or not generation.provider_task_id:
+        missing_succeeded_result = generation.status == "succeeded" and not (generation.result_url or generation.local_asset_path)
+        if (generation.status not in ACTIVE_STATUSES and not missing_succeeded_result) or not generation.provider_task_id:
             shot, prompt = _shot_and_prompt(session, project_id, episode_no, shot_id)
             return _serialize_generation(generation, shot.revision, prompt.source_shot_revision if prompt else None)
         task_id = generation.provider_task_id
