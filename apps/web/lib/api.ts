@@ -536,6 +536,7 @@ export type ShotVideoGenerationCreatePayload = {
   resolution?: string;
   aspect_ratio?: string;
   duration_seconds?: number;
+  use_reference_images?: boolean;
 };
 
 export type ProjectCopywritingPayload = {

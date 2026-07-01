@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import json
+from ipaddress import ip_address
 from time import perf_counter
 from typing import Any
+from urllib.parse import urlparse
 from uuid import uuid4
 
 import httpx
@@ -166,6 +168,20 @@ def _clean(value: Any) -> str:
     return str(value).strip() if value is not None else ""
 
 
+def _is_public_reference_url(value: str) -> bool:
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return False
+    host = parsed.hostname.lower()
+    if host == "localhost" or host.endswith(".local"):
+        return False
+    try:
+        address = ip_address(host)
+    except ValueError:
+        return True
+    return not (address.is_private or address.is_loopback or address.is_link_local or address.is_reserved)
+
+
 def _prompt_text(prompt: ProjectShotPrompt | None) -> str:
     if not prompt:
         return ""
@@ -217,6 +233,45 @@ def _ordered_character_snapshots(session, project_id: str, shot: ProjectStoryboa
     ).all()
     by_id = {snapshot.id: snapshot for snapshot in snapshots}
     return [by_id[item] for item in ids if item in by_id]
+
+
+def _snapshot_content(snapshot: ProjectCharacterSnapshot) -> dict[str, Any]:
+    data = _loads(snapshot.snapshot_content, {})
+    return data if isinstance(data, dict) else {}
+
+
+def _character_reference_image_url(snapshot: ProjectCharacterSnapshot) -> str:
+    content = _snapshot_content(snapshot)
+    candidates = [
+        _clean(content.get("turnaround_image_url")),
+        _clean(snapshot.reference_image_url),
+        _clean(content.get("reference_image_url")),
+    ]
+    return next((url for url in candidates if _is_public_reference_url(url)), "")
+
+
+def _reference_image_urls(
+    session,
+    project_id: str,
+    shot: ProjectStoryboardShot,
+    options: ShotVideoGenerationCreatePayload | None,
+) -> list[str]:
+    if not (options and options.use_reference_images):
+        return []
+
+    snapshots = _ordered_character_snapshots(session, project_id, shot)
+    if not snapshots:
+        raise ValueError("当前镜头未关联出镜角色，无法发送角色参考图")
+
+    urls: list[str] = []
+    for snapshot in snapshots:
+        url = _character_reference_image_url(snapshot)
+        if url and url not in urls:
+            urls.append(url)
+
+    if not urls:
+        raise ValueError("当前出镜角色没有可发送的公网参考图，请先确认三视图或填写公网参考图 URL")
+    return urls
 
 
 def _append_section(lines: list[str], title: str, items: list[str]) -> None:
@@ -280,15 +335,18 @@ def _request_payload(
     shot: ProjectStoryboardShot,
     prompt: ProjectShotPrompt | None,
     prompt_text: str,
+    reference_image_urls: list[str] | None = None,
     options: ShotVideoGenerationCreatePayload | None = None,
 ) -> dict[str, Any]:
     resolution = _resolution(options)
     aspect_ratio = _aspect_ratio(prompt, options)
     duration_seconds = _duration_seconds(shot, options)
     if config.get("provider_preset") == SEEDANCE_VIDEO_PRESET:
+        content: list[dict[str, Any]] = [{"type": "text", "text": prompt_text}]
+        content.extend({"type": "image_url", "image_url": {"url": url}} for url in reference_image_urls or [])
         return {
             "model": config["model_name"],
-            "content": [{"type": "text", "text": prompt_text}],
+            "content": content,
             "resolution": resolution,
             "ratio": aspect_ratio,
             "duration": duration_seconds,
@@ -437,7 +495,8 @@ async def create_video_generation(
             raise ValueError("请先填写核心画面、主体或动作等画面描述")
         base_prompt_text = _prompt_text(prompt)
         prompt_text = _compose_video_prompt_text(session, project_id, shot, prompt, base_prompt_text)
-        request_payload = _request_payload(config, shot, prompt, prompt_text, options)
+        reference_image_urls = _reference_image_urls(session, project_id, shot, options)
+        request_payload = _request_payload(config, shot, prompt, prompt_text, reference_image_urls, options)
         now = now_utc()
         generation = ProjectShotVideoGeneration(
             id=str(uuid4()),

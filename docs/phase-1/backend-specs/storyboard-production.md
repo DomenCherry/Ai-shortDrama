@@ -148,6 +148,13 @@
 
 `shot_size`、`camera_angle`、`camera_movement`、`composition`、`expression` 在前端以预设下拉为主，但后端仍按字符串保存，允许保留历史值和自定义导演术语。
 
+角色关系分层：
+
+- 项目角色快照是项目可用角色资产。
+- 剧本场次 `character_snapshot_ids` 是该场次可用人物范围。
+- 分镜镜头 `character_snapshot_ids` 是该镜头实际出镜人物，会进入视频生成的人物锚点和参考图输入统计。
+- 有来源场次的镜头只能引用该场次人物；未归属场次的镜头可引用项目角色。
+
 ### 3.4 ShotPrompt
 
 | 字段 | 类型 | 说明 |
@@ -228,6 +235,9 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/scenes/{scene_id}/gener
 
 - 校验场次属于当前集结构化剧本。
 - 以场次和内容块为输入生成候选镜头草稿。
+- 模型返回的镜头人物必须限制在来源场次人物范围内。
+- 如果模型未返回镜头人物，但镜头引用的对白块包含角色，则后端应自动补充这些对白角色。
+- 不得默认继承场次全部人物，避免把未出镜人物注入视频生成。
 - 第一版允许直接写入正式草稿镜头；后续候选采用能力落地后，应先保存候选记录再采用。
 - 不修改结构化剧本。
 
@@ -244,6 +254,7 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/shots
 - 如果当前集没有分镜，自动创建 `ProjectStoryboard` 并记录当前结构化剧本来源。
 - `source_scene_id` 为空时创建未归属镜头。
 - `source_scene_id` 非空时必须属于当前分镜来源剧本。
+- 有来源场次时，镜头出镜人物必须属于该场次人物范围。
 - 写入后重新派生排序和展示编号。
 
 ### 4.4 更新镜头
@@ -258,6 +269,7 @@ PUT /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}
 
 - 校验镜头属于当前项目、集数和分镜。
 - `revision` 不匹配时返回 `409`。
+- 有来源场次时，镜头出镜人物必须属于该场次人物范围。
 - 更新核心字段后镜头 `revision += 1`。
 - 核心字段变化后将提示词标记为 `needs_update`。
 - 不修改结构化剧本或项目资产快照。
@@ -302,6 +314,7 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/reassig
 
 - 新场次必须属于当前分镜来源剧本。
 - 移动后插入新场次末尾并重新编号。
+- 移动后移除不属于新场次人物范围的镜头出镜人物，并由前端提示复核。
 - 不自动改变镜头制作文本和提示词。
 
 ### 4.8 场次内排序
@@ -350,6 +363,7 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-g
 | resolution | string | 否 | 本次生成分辨率，首版支持 `720p`、`1080p`；不传时默认 `720p` |
 | aspect_ratio | string | 否 | 本次生成画幅，首版支持 `16:9`、`9:16`、`1:1`、`4:3`、`3:4`、`21:9`；不传时使用提示词画幅，仍为空则默认 `16:9` |
 | duration_seconds | number | 否 | 本次生成时长；不传时使用镜头时长，仍为空则默认 4 秒 |
+| use_reference_images | boolean | 否 | 是否携带当前镜头出镜角色的公网三视图/参考图；默认 `false` |
 
 业务要求：
 
@@ -359,7 +373,10 @@ POST /api/projects/{project_id}/storyboards/{episode_no}/shots/{shot_id}/video-g
 - `video_prompt` 为可选生成补充；仅当用户填写时追加到“生成补充”块。历史 `seedance_prompt` 仅在 `video_prompt` 为空时作为旧数据补充兜底。
 - 负面词预设不作为独立后端能力；后端只接收和保存 `negative_prompt` 最终文本，并保存到 `negative_prompt_snapshot`。
 - 最终视频提示词必须包含关键镜头视觉字段，并按存在情况补充出镜角色视觉锚点、生成补充、首尾帧约束和负面提示词。
-- 角色视觉锚点来自 `character_snapshot_ids` 对应的项目角色快照，使用 `name`、`gender`、`role_type`、`visual_description`；参考图只记录风险和素材状态，首版不发送给 Seedance 文生视频请求。
+- 角色视觉锚点来自 `character_snapshot_ids` 对应的项目角色快照，使用 `name`、`gender`、`role_type`、`visual_description`。
+- `character_snapshot_ids` 指镜头实际出镜人物，不是场次全部人物。
+- 默认不发送角色参考图；当 `use_reference_images=true` 时，Seedance 请求可追加当前镜头出镜角色的公网图片输入，优先使用快照内容中的 `turnaround_image_url`，其次使用 `reference_image_url`。
+- 本期只发送公网 `http(s)` 图片 URL；`reference_local_path`、内网地址和本地地址不得直接进入供应商请求。开启参考图但没有可发送公网图时返回明确错误。
 - 关键镜头视觉字段包括 `subject_description`、`visual_description`、`action`、`shot_size`、`camera_angle`、`camera_movement`、`composition`、`expression`、`environment`、`props`。
 - `dialogue_snapshot`、`voiceover_snapshot`、`sound_effect`、`music_note`、`source_block_ids`、`source_scene_id`、`continuity_note`、`image_prompt` 不直接进入文生视频请求。
 - 分辨率、画幅、时长为单次生成参数，不写回模型配置、镜头或提示词。

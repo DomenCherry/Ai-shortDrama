@@ -51,6 +51,16 @@ def _loads(value: str | None, fallback):
         return fallback
 
 
+def _ordered_unique(values: list[str]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if isinstance(value, str) and value and value not in seen:
+            result.append(value)
+            seen.add(value)
+    return result
+
+
 def _script_for_episode(session, project_id: str, episode_no: int) -> ProjectEpisodeScript | None:
     return session.scalars(select(ProjectEpisodeScript).where(
         ProjectEpisodeScript.project_id == project_id,
@@ -99,6 +109,30 @@ def _shots(session, storyboard_id: str) -> list[ProjectStoryboardShot]:
 
 def _prompt(session, shot_id: str) -> ProjectShotPrompt | None:
     return session.scalars(select(ProjectShotPrompt).where(ProjectShotPrompt.shot_id == shot_id)).first()
+
+
+def _scene_allowed_character_ids(session, script_id: str | None, scene_id: str | None) -> set[str]:
+    if not scene_id:
+        return set()
+    scene = session.get(ProjectScriptScene, scene_id)
+    if not scene or scene.script_id != script_id:
+        raise ValueError("来源场次不属于当前集剧本")
+    return set(_loads(scene.character_snapshot_ids, []))
+
+
+def _dialogue_character_ids_from_blocks(blocks: list[ProjectScriptBlock], source_block_ids: list[str], allowed_characters: set[str]) -> list[str]:
+    block_by_id = {block.id: block for block in blocks}
+    result: list[str] = []
+    for block_id in source_block_ids:
+        block = block_by_id.get(block_id)
+        if (
+            block
+            and block.block_type == "dialogue"
+            and block.character_snapshot_id
+            and block.character_snapshot_id in allowed_characters
+        ):
+            result.append(block.character_snapshot_id)
+    return _ordered_unique(result)
 
 
 def _display_map(scenes: list[ProjectScriptScene], shots: list[ProjectStoryboardShot]) -> dict[str, str]:
@@ -270,8 +304,12 @@ async def generate_storyboard_scene(project_id: str, episode_no: int, scene_id: 
             raise ValueError("模型返回的镜头格式无效")
         raw["source_scene_id"] = scene_id
         raw["status"] = "draft"
-        raw["character_snapshot_ids"] = [item for item in raw.get("character_snapshot_ids", []) if item in allowed_characters]
-        raw["source_block_ids"] = [item for item in raw.get("source_block_ids", []) if item in allowed_blocks]
+        source_block_ids = [item for item in raw.get("source_block_ids", []) if item in allowed_blocks]
+        character_ids = [item for item in raw.get("character_snapshot_ids", []) if item in allowed_characters]
+        if not character_ids:
+            character_ids = _dialogue_character_ids_from_blocks(blocks, source_block_ids, allowed_characters)
+        raw["character_snapshot_ids"] = _ordered_unique(character_ids)
+        raw["source_block_ids"] = source_block_ids
         raw.setdefault("props", [])
         raw.setdefault("prompt", {}).setdefault("reference_asset_ids", [])
         payloads.append(ProjectStoryboardShotPayload.model_validate(raw))
@@ -283,21 +321,34 @@ async def generate_storyboard_scene(project_id: str, episode_no: int, scene_id: 
     }
 
 
-def _validate_references(session, project_id: str, script_id: str | None, payload: ProjectStoryboardShotPayload) -> None:
-    if payload.source_scene_id:
-        scene = session.get(ProjectScriptScene, payload.source_scene_id)
-        if not scene or scene.script_id != script_id:
-            raise ValueError("来源场次不属于当前集剧本")
+def _validate_references(
+    session,
+    project_id: str,
+    script_id: str | None,
+    payload: ProjectStoryboardShotPayload,
+    existing_shot: ProjectStoryboardShot | None = None,
+) -> None:
+    supplied = payload.model_fields_set
+    source_scene_id = payload.source_scene_id if "source_scene_id" in supplied or not existing_shot else existing_shot.source_scene_id
+    character_snapshot_ids = (
+        payload.character_snapshot_ids
+        if "character_snapshot_ids" in supplied or not existing_shot
+        else _loads(existing_shot.character_snapshot_ids, [])
+    )
+    if source_scene_id:
+        allowed_characters = _scene_allowed_character_ids(session, script_id, source_scene_id)
+        if any(item not in allowed_characters for item in character_snapshot_ids):
+            raise ValueError("镜头出镜人物不属于当前来源场次")
     character_ids = set(session.scalars(select(ProjectCharacterSnapshot.id).where(
         ProjectCharacterSnapshot.project_id == project_id
     )).all())
-    if any(item not in character_ids for item in payload.character_snapshot_ids):
+    if any(item not in character_ids for item in character_snapshot_ids):
         raise ValueError("镜头引用的角色不属于当前项目")
     if payload.source_block_ids:
         blocks = session.scalars(select(ProjectScriptBlock).where(
             ProjectScriptBlock.id.in_(payload.source_block_ids)
         )).all()
-        if len(blocks) != len(set(payload.source_block_ids)) or any(block.scene_id != payload.source_scene_id for block in blocks):
+        if len(blocks) != len(set(payload.source_block_ids)) or any(block.scene_id != source_scene_id for block in blocks):
             raise ValueError("来源内容块不属于当前场次")
 
 
@@ -426,7 +477,7 @@ def update_storyboard_shot(project_id: str, episode_no: int, shot_id: str, paylo
         if not shot or shot.project_id != project_id or shot.episode_no != episode_no or not shot.storyboard_id:
             raise ValueError("项目分镜不存在")
         storyboard = session.get(ProjectStoryboard, shot.storyboard_id)
-        _validate_references(session, project_id, storyboard.source_script_id, payload)
+        _validate_references(session, project_id, storyboard.source_script_id, payload, existing_shot=shot)
         old_scene_id = shot.source_scene_id
         _apply_payload(session, shot, payload, creating=False)
         if old_scene_id != shot.source_scene_id:
@@ -509,6 +560,11 @@ def reassign_storyboard_shot(project_id: str, episode_no: int, shot_id: str, pay
         old_scene_id = shot.source_scene_id
         shot.source_scene_id = scene.id
         shot.sort_order = _next_order(session, storyboard.id, scene.id)
+        allowed_characters = set(_loads(scene.character_snapshot_ids, []))
+        shot.character_snapshot_ids = json.dumps(
+            [item for item in _loads(shot.character_snapshot_ids, []) if item in allowed_characters],
+            ensure_ascii=False,
+        )
         shot.source_status = "valid"
         shot.revision += 1
         shot.status = "draft"
@@ -531,10 +587,15 @@ def duplicate_storyboard_shot(project_id: str, episode_no: int, shot_id: str, pa
         if not original or not storyboard or original.storyboard_id != storyboard.id:
             raise ValueError("项目分镜不存在")
         target_scene_id = payload.target_scene_id or original.source_scene_id
+        allowed_characters: set[str] | None = None
         if target_scene_id:
             target_scene = session.get(ProjectScriptScene, target_scene_id)
             if not target_scene or target_scene.script_id != storyboard.source_script_id:
                 raise ValueError("来源场次不属于当前集剧本")
+            allowed_characters = set(_loads(target_scene.character_snapshot_ids, []))
+        character_snapshot_ids = _loads(original.character_snapshot_ids, [])
+        if allowed_characters is not None:
+            character_snapshot_ids = [item for item in character_snapshot_ids if item in allowed_characters]
         now = now_utc()
         clone = ProjectStoryboardShot(
             id=str(uuid4()), project_id=project_id, episode_no=episode_no, storyboard_id=storyboard.id,
@@ -542,7 +603,8 @@ def duplicate_storyboard_shot(project_id: str, episode_no: int, shot_id: str, pa
             revision=1, shot_no=1, shot_size=original.shot_size,
             subject_description=original.subject_description, visual_description=original.visual_description,
             action=original.action, camera_angle=original.camera_angle, camera_movement=original.camera_movement,
-            composition=original.composition, character_snapshot_ids=original.character_snapshot_ids,
+            composition=original.composition,
+            character_snapshot_ids=json.dumps(character_snapshot_ids, ensure_ascii=False),
             expression=original.expression, environment=original.environment, props=original.props,
             source_block_ids=original.source_block_ids, dialogue_snapshot=original.dialogue_snapshot,
             voiceover_snapshot=original.voiceover_snapshot, sound_effect=original.sound_effect,

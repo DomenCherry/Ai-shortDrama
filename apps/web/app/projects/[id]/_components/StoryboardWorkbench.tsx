@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SimpleSelect } from "@/components/ui/simple-select";
@@ -39,9 +40,9 @@ import { EpisodePicker } from "./shared";
 
 type SwitchTarget = { kind: "shot"; id: string } | { kind: "episode"; episodeNo: number } | { kind: "stage"; stage: Stage };
 type ShotStatus = ProjectStoryboardShot["status"];
-type VideoGenerationOptions = { resolution: string; aspect_ratio: string; duration_seconds: string };
+type VideoGenerationOptions = { resolution: string; aspect_ratio: string; duration_seconds: string; use_reference_images: boolean };
 
-const defaultVideoGenerationOptions: VideoGenerationOptions = { resolution: "", aspect_ratio: "", duration_seconds: "" };
+const defaultVideoGenerationOptions: VideoGenerationOptions = { resolution: "", aspect_ratio: "", duration_seconds: "", use_reference_images: false };
 
 const videoResolutionOptions = [
   { label: "默认 720p", value: "" },
@@ -255,11 +256,50 @@ function videoCreatePayload(options: VideoGenerationOptions): ShotVideoGeneratio
   if (options.aspect_ratio) payload.aspect_ratio = options.aspect_ratio;
   const duration = Number(options.duration_seconds);
   if (Number.isFinite(duration) && duration > 0) payload.duration_seconds = duration;
+  if (options.use_reference_images) payload.use_reference_images = true;
   return Object.keys(payload).length ? payload : undefined;
 }
 
 function cleanText(value?: string | null) {
   return value?.trim() ?? "";
+}
+
+function snapshotContent(snapshot: ProjectCharacterSnapshot): Record<string, unknown> {
+  try {
+    const data = JSON.parse(snapshot.snapshot_content || "{}");
+    return data && typeof data === "object" && !Array.isArray(data) ? data as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+function snapshotContentText(snapshot: ProjectCharacterSnapshot, field: string) {
+  const value = snapshotContent(snapshot)[field];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isPublicReferenceUrl(value?: string | null) {
+  const url = cleanText(value);
+  if (!/^https?:\/\//i.test(url)) return false;
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    if (hostname === "localhost" || hostname.endsWith(".local")) return false;
+    if (/^(127\.|10\.|192\.168\.|169\.254\.)/.test(hostname)) return false;
+    if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname)) return false;
+    if (hostname === "::1") return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function characterReferenceImageUrl(snapshot: ProjectCharacterSnapshot) {
+  const candidates = [
+    snapshotContentText(snapshot, "turnaround_image_url"),
+    snapshot.reference_image_url,
+    snapshotContentText(snapshot, "reference_image_url"),
+  ];
+  return candidates.find((url) => isPublicReferenceUrl(url)) ?? "";
 }
 
 function previewLine(label: string, value?: string | null) {
@@ -306,8 +346,9 @@ function buildVideoPromptPreview(draft: ProjectStoryboardShotPayload, characterS
     previewLine("尾帧", draft.prompt?.last_frame_description),
   ].filter(Boolean);
   const missingVisualCharacters = charactersToCheck.filter((snapshot) => !cleanText(snapshot.visual_description));
-  const missingReferenceCharacters = charactersToCheck.filter((snapshot) => !cleanText(snapshot.reference_image_url) && !cleanText(snapshot.reference_local_path));
-  const referenceCount = shotCharacters.filter((snapshot) => cleanText(snapshot.reference_image_url) || cleanText(snapshot.reference_local_path)).length;
+  const missingReferenceCharacters = charactersToCheck.filter((snapshot) => !cleanText(snapshot.reference_image_url) && !snapshotContentText(snapshot, "turnaround_image_url") && !cleanText(snapshot.reference_local_path));
+  const referenceCount = shotCharacters.filter((snapshot) => cleanText(snapshot.reference_image_url) || snapshotContentText(snapshot, "turnaround_image_url") || cleanText(snapshot.reference_local_path)).length;
+  const sendableReferenceCharacters = shotCharacters.filter((snapshot) => characterReferenceImageUrl(snapshot));
   const finalSections = [
     visualLines.length ? `镜头视觉：\n${visualLines.map((line) => `- ${line}`).join("\n")}` : "",
     characterLines.length ? `角色一致性：\n${characterLines.map((line) => `- ${line}`).join("\n")}` : "",
@@ -319,16 +360,68 @@ function buildVideoPromptPreview(draft: ProjectStoryboardShotPayload, characterS
   return {
     promptSource,
     supplementText,
+    shotCharacters,
     characterLines,
     visualLines,
     frameLines,
     finalText: finalSections.join("\n"),
     hasGenerationSource: Boolean(supplementText || sourceLines.length),
     referenceCount,
+    sendableReferenceCharacters,
     missingCharacterIds,
     missingVisualCharacters,
     missingReferenceCharacters,
   };
+}
+
+function CharacterAppearancePicker({
+  selectedIds,
+  candidates,
+  unassigned,
+  onChange,
+}: {
+  selectedIds: string[];
+  candidates: ProjectCharacterSnapshot[];
+  unassigned: boolean;
+  onChange: (ids: string[]) => void;
+}) {
+  const selectedSet = new Set(selectedIds);
+  const toggle = (id: string, checked: boolean) => {
+    onChange(checked ? [...selectedIds, id] : selectedIds.filter((item) => item !== id));
+  };
+  const selectedCount = candidates.filter((character) => selectedSet.has(character.id)).length;
+  return <section className="md:col-span-2 rounded-lg border bg-background p-4">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h3 className="text-sm font-semibold">{unassigned ? "出镜人物（未归属场次）" : "出镜人物"}</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {unassigned ? "当前镜头未归属场次，可从项目角色中选择；建议先归属场次以收紧人物范围。" : "候选来自来源剧本场次；被选人物会进入视频生成的人物锚点和参考图统计。"}
+        </p>
+      </div>
+      <Badge variant={selectedCount ? "secondary" : "outline"}>{selectedCount}/{candidates.length}</Badge>
+    </div>
+    <div className="mt-3 grid gap-2 md:grid-cols-2">
+      {candidates.map((character) => {
+        const hasVisual = Boolean(cleanText(character.visual_description));
+        const hasSendableReference = Boolean(characterReferenceImageUrl(character));
+        return <label key={character.id} className="flex min-w-0 items-start gap-3 rounded-md border bg-muted/20 p-3 text-sm">
+          <Checkbox className="mt-0.5" checked={selectedSet.has(character.id)} onCheckedChange={(checked) => toggle(character.id, checked === true)} />
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="font-medium">{character.name}</span>
+              {character.role_type ? <Badge variant="outline">{character.role_type}</Badge> : null}
+            </span>
+            <span className="mt-2 flex flex-wrap gap-1.5">
+              <Badge variant={hasVisual ? "secondary" : "outline"}>{hasVisual ? "有视觉描述" : "缺视觉描述"}</Badge>
+              <Badge variant={hasSendableReference ? "secondary" : "outline"}>{hasSendableReference ? "可发送参考图" : "无公网参考图"}</Badge>
+            </span>
+          </span>
+        </label>;
+      })}
+    </div>
+    {!candidates.length ? <p className="mt-3 rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">暂无可选项目角色。请先在项目资料中加载角色。</p> : null}
+    {selectedIds.length === 0 ? <p className="mt-3 text-xs text-muted-foreground">未选择出镜人物时仍可生成视频，但不会注入人物一致性锚点，也无法发送角色参考图。</p> : null}
+  </section>;
 }
 
 export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbenchState }) {
@@ -487,7 +580,9 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
     setSaving(true); setError("");
     try {
       const moved = await reassignProjectStoryboardShot(workbench.projectId, workbench.selectedEpisodeNo, selectedShot.id, sceneId);
-      await load(moved.id); setMessage(`${moved.display_code} 已重新归属`);
+      await load(moved.id);
+      const removedCharacterCount = Math.max(0, (selectedShot.character_snapshot_ids?.length ?? 0) - (moved.character_snapshot_ids?.length ?? 0));
+      setMessage(removedCharacterCount ? `${moved.display_code} 已重新归属，已移除 ${removedCharacterCount} 个不属于新场次的出镜人物，请复核。` : `${moved.display_code} 已重新归属`);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "重新归属失败"); }
     finally { setSaving(false); }
   };
@@ -576,6 +671,11 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
   const updatePrompt = (field: string, value: string) => setDraft((current) => current ? ({ ...current, prompt: { ...current.prompt, reference_asset_ids: current.prompt?.reference_asset_ids ?? [], [field]: value } }) : current);
   const selectedIndex = allShots.findIndex((shot) => shot.id === selectedId);
   const continuity = allShots.slice(Math.max(0, selectedIndex - 2), selectedIndex + 3);
+  const selectedSourceScene = currentScript?.scenes.find((scene) => scene.id === draft?.source_scene_id);
+  const allowedCharacterIds = selectedSourceScene?.character_snapshot_ids ?? [];
+  const characterCandidates = draft?.source_scene_id
+    ? workbench.characterSnapshots.filter((character) => allowedCharacterIds.includes(character.id))
+    : workbench.characterSnapshots;
 
   const navigator = <ShotNavigator groups={groups} selectedId={selectedId} query={query} filter={filter} collapsed={collapsed} generationStates={generationStates}
     onQuery={setQuery} onFilter={setFilter} onToggle={(key) => setCollapsed((current) => { const next = new Set(current); next.has(key) ? next.delete(key) : next.add(key); return next; })}
@@ -624,11 +724,11 @@ export function StoryboardWorkbench({ workbench }: { workbench: ProjectWorkbench
                     <TabsTrigger value="visual">核心画面</TabsTrigger><TabsTrigger value="sound">声音</TabsTrigger>
                     <TabsTrigger value="prompt">提示词</TabsTrigger><TabsTrigger value="video">视频生成</TabsTrigger><TabsTrigger value="reference">参考与检查</TabsTrigger>
                   </TabsList>
-                  <TabsContent value="visual" className="pt-5"><VisualForm draft={draft} update={update} /></TabsContent>
+                  <TabsContent value="visual" className="pt-5"><VisualForm draft={draft} update={update} characterCandidates={characterCandidates} unassigned={!draft.source_scene_id} /></TabsContent>
                   <TabsContent value="sound" className="pt-5"><SoundForm draft={draft} update={update} /></TabsContent>
                   <TabsContent value="prompt" className="pt-5"><PromptForm draft={draft} update={updatePrompt} /></TabsContent>
                   <TabsContent value="video" className="pt-5"><VideoGenerationPanel shot={selectedShot} draft={draft} characterSnapshots={workbench.characterSnapshots} generations={videoGenerations} videoConfigs={videoConfigs} options={videoOptions} loading={videoLoading} busy={videoBusy} isDirty={isDirty} onOptionsChange={setVideoOptions} onCreate={() => void createVideo()} onRefresh={(id) => void refreshVideo(id)} onAdopt={(id) => void adoptVideo(id)} onCancel={(id) => void cancelVideo(id)} /></TabsContent>
-                  <TabsContent value="reference" className="pt-5"><ReferencePanel shot={selectedShot} groups={groups} storyboard={storyboard} script={workbench.episodeScript} onReassign={(sceneId) => void reassign(sceneId)} disabled={saving || isDirty} /></TabsContent>
+                  <TabsContent value="reference" className="pt-5"><ReferencePanel shot={selectedShot} groups={groups} storyboard={storyboard} script={workbench.episodeScript} characterSnapshots={workbench.characterSnapshots} onReassign={(sceneId) => void reassign(sceneId)} disabled={saving || isDirty} /></TabsContent>
                 </Tabs>
               </div>
             ) : null}
@@ -769,9 +869,15 @@ function PresetField({ label, value, options, onChange, placeholder }: { label: 
   </label>;
 }
 
-function VisualForm({ draft, update }: { draft: ProjectStoryboardShotPayload; update: (field: keyof ProjectStoryboardShotPayload, value: unknown) => void }) { return <div className="grid gap-4 md:grid-cols-2">
+function VisualForm({ draft, update, characterCandidates, unassigned }: {
+  draft: ProjectStoryboardShotPayload;
+  update: (field: keyof ProjectStoryboardShotPayload, value: unknown) => void;
+  characterCandidates: ProjectCharacterSnapshot[];
+  unassigned: boolean;
+}) { return <div className="grid gap-4 md:grid-cols-2">
   <PresetField label="景别" value={draft.shot_size} options={shotSizeOptions} onChange={(value) => update("shot_size", value)} placeholder="例如：极近特写" />
   <label className="space-y-1.5 text-sm"><span className="font-medium">时长（秒）</span><Input type="number" min="0.1" step="0.1" value={draft.duration_seconds ?? ""} onChange={(event) => update("duration_seconds", Number(event.target.value))} /></label>
+  <CharacterAppearancePicker selectedIds={draft.character_snapshot_ids ?? []} candidates={characterCandidates} unassigned={unassigned} onChange={(ids) => update("character_snapshot_ids", ids)} />
   <Area label="主体" value={draft.subject_description} onChange={(value) => update("subject_description", value)} />
   <Area label="核心画面" value={draft.visual_description} onChange={(value) => update("visual_description", value)} />
   <Area label="动作" value={draft.action} onChange={(value) => update("action", value)} />
@@ -851,15 +957,19 @@ function VideoGenerationPanel({ shot, draft, characterSnapshots, generations, vi
     : !promptPreview.hasGenerationSource ? "请先填写核心画面、主体或动作等画面描述。"
       : shot.prompt_freshness === "needs_update" ? "提示词需要更新，请先保存或确认后再生成视频。"
         : invalidDuration ? "本次生成时长需大于 0 且不超过 60 秒。"
-          : !enabledVideoConfig ? "请先在设置中启用视频生成模型。"
-            : enabledVideoConfig.last_test_status !== "success" ? "请先测试并通过当前视频生成模型。"
-              : "";
-  const updateOption = (field: keyof VideoGenerationOptions, value: string) => onOptionsChange({ ...options, [field]: value });
+          : options.use_reference_images && promptPreview.sendableReferenceCharacters.length === 0 ? "当前出镜角色没有可发送的公网参考图，请先确认三视图或填写公网参考图 URL。"
+            : !enabledVideoConfig ? "请先在设置中启用视频生成模型。"
+              : enabledVideoConfig.last_test_status !== "success" ? "请先测试并通过当前视频生成模型。"
+                : "";
+  const updateOption = (field: "resolution" | "aspect_ratio" | "duration_seconds", value: string) => onOptionsChange({ ...options, [field]: value });
+  const updateReferenceImages = (checked: boolean) => onOptionsChange({ ...options, use_reference_images: checked });
   const defaultDuration = `${Math.max(1, Math.round(shot.duration_seconds || 4))}`;
   const consistencyWarnings = [
+    promptPreview.shotCharacters.length === 0 ? "当前镜头未选择出镜人物，本次不会注入人物一致性锚点，也无法发送角色参考图。" : "",
     promptPreview.missingCharacterIds.length ? `有 ${promptPreview.missingCharacterIds.length} 个出镜角色快照未加载，无法写入人物锚点。` : "",
     promptPreview.missingVisualCharacters.length ? `${promptPreview.missingVisualCharacters.map((item) => item.name).join("、")} 缺少视觉描述，人物一致性会更依赖镜头画面描述。` : "",
     promptPreview.missingReferenceCharacters.length ? `${promptPreview.missingReferenceCharacters.map((item) => item.name).join("、")} 缺少参考图，本期不会阻止生成。` : "",
+    options.use_reference_images && promptPreview.referenceCount > promptPreview.sendableReferenceCharacters.length ? "部分参考图不是公网 URL，本次不会发送给 Seedance。" : "",
   ].filter(Boolean);
   const previewUrl = previewGeneration ? videoPreviewUrl(previewGeneration) : "";
   return <div className="space-y-4">
@@ -868,8 +978,9 @@ function VideoGenerationPanel({ shot, draft, characterSnapshots, generations, vi
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-semibold">本次发送给模型的内容预览</h3>
           <Badge variant="secondary">{promptPreview.promptSource}</Badge>
-          <Badge variant="outline">角色 {promptPreview.characterLines.length}</Badge>
+          <Badge className="max-w-full truncate" variant="outline">{promptPreview.shotCharacters.length ? promptPreview.shotCharacters.map((item) => item.name).join("、") : "未选出镜人物"}</Badge>
           <Badge variant="outline">参考图 {promptPreview.referenceCount}</Badge>
+          {options.use_reference_images ? <Badge variant="outline">发送 {promptPreview.sendableReferenceCharacters.length}</Badge> : null}
           {shot.prompt_freshness === "needs_update" ? <Badge variant="outline">需更新</Badge> : null}
         </div>
         {consistencyWarnings.length ? <div className="mt-3 flex gap-2 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
@@ -887,6 +998,20 @@ function VideoGenerationPanel({ shot, draft, characterSnapshots, generations, vi
         <p className="mt-2 text-sm">{enabledVideoConfig ? enabledVideoConfig.provider_name : "未启用"}</p>
         <p className="mt-1 text-xs text-muted-foreground">{enabledVideoConfig ? `${enabledVideoConfig.model_name} · ${enabledVideoConfig.last_test_status}` : "请先到设置页配置视频模型。"}</p>
         <div className="mt-4 flex flex-col gap-3">
+          <label className="flex items-start gap-3 rounded-md border bg-muted/30 p-3 text-sm">
+            <Checkbox
+              className="mt-0.5"
+              checked={options.use_reference_images}
+              onCheckedChange={(checked) => updateReferenceImages(checked === true)}
+              disabled={busy}
+            />
+            <span>
+              <span className="block font-medium">携带角色参考图</span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                默认关闭。开启后发送当前出镜角色的公网三视图或参考图，当前可发送 {promptPreview.sendableReferenceCharacters.length} 张。
+              </span>
+            </span>
+          </label>
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-medium">分辨率</span>
             <SimpleSelect value={options.resolution} onValueChange={(value) => updateOption("resolution", value)} options={videoResolutionOptions} disabled={busy} />
@@ -970,13 +1095,17 @@ function VideoResultCard({ generation, title, busy, onPreview, onRefresh, onAdop
   </div>;
 }
 
-function ReferencePanel({ shot, groups, storyboard, script, onReassign, disabled }: {
+function ReferencePanel({ shot, groups, storyboard, script, characterSnapshots, onReassign, disabled }: {
   shot: ProjectStoryboardShot; groups: StoryboardSceneGroup[]; storyboard: ProjectStoryboard | null; script: ProjectWorkbenchState["episodeScript"];
+  characterSnapshots: ProjectCharacterSnapshot[];
   onReassign: (sceneId: string) => void; disabled: boolean;
 }) {
   const group = groups.find((item) => item.scene_id === shot.source_scene_id);
   const scene = script?.scenes.find((item) => item.id === shot.source_scene_id);
   const sourceBlocks = scene?.blocks.filter((block) => shot.source_block_ids?.includes(block.id)) ?? [];
+  const snapshotById = new Map(characterSnapshots.map((snapshot) => [snapshot.id, snapshot]));
+  const shotCharacters = (shot.character_snapshot_ids ?? []).map((id) => snapshotById.get(id)).filter(Boolean) as ProjectCharacterSnapshot[];
+  const missingCharacterCount = (shot.character_snapshot_ids ?? []).filter((id) => !snapshotById.has(id)).length;
   const sourceStatus = shot.source_status === "valid" ? "有效" : shot.source_status === "changed" ? "已变化" : shot.source_status === "scene_deleted" ? "场次已删除" : "未归属";
   return <div className="grid gap-4 lg:grid-cols-2">
     <div className="rounded-lg border p-4">
@@ -1006,7 +1135,15 @@ function ReferencePanel({ shot, groups, storyboard, script, onReassign, disabled
       </div>
     </div>
     <div className="rounded-lg border p-4"><h3 className="font-semibold">连续性与检查</h3><p className="mt-2 text-sm text-muted-foreground">提示词状态：{shot.prompt_freshness}</p>{shot.status === "needs_review" && <p className="mt-2 text-sm text-destructive">该镜头需要人工检查后再确认。</p>}</div>
-    <div className="rounded-lg border p-4"><h3 className="font-semibold">人物素材</h3><p className="mt-2 text-sm text-muted-foreground">已关联 {shot.character_snapshot_ids?.length ?? 0} 个人物快照。</p></div>
+    <div className="rounded-lg border p-4">
+      <h3 className="font-semibold">人物素材</h3>
+      <p className="mt-2 text-sm text-muted-foreground">来自当前镜头的出镜人物选择，会用于视频生成的人物锚点和参考图统计。</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {shotCharacters.map((character) => <Badge key={character.id} variant="secondary">{character.name}</Badge>)}
+        {missingCharacterCount ? <Badge variant="outline">缺失快照 {missingCharacterCount}</Badge> : null}
+        {!shotCharacters.length && !missingCharacterCount ? <span className="text-sm text-muted-foreground">未选择出镜人物</span> : null}
+      </div>
+    </div>
   </div>;
 }
 

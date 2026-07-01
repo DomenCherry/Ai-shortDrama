@@ -1,9 +1,10 @@
 import os
 import asyncio
+import json
 import tempfile
 import unittest
 from datetime import datetime, timezone
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 from sqlalchemy import event
@@ -13,7 +14,7 @@ os.environ["API_DATABASE_URL"] = "sqlite://"
 
 from app.core.config import get_settings
 from app.core.db import Base, get_engine, get_session, get_session_factory
-from app.models.db_models import CharacterCard, ModelApiConfig, Project, ProjectCharacterSnapshot
+from app.models.db_models import CharacterCard, ModelApiConfig, Project, ProjectCharacterSnapshot, ProjectScriptScene
 from app.models.schemas import (
     ProjectEpisodeScriptPayload,
     ProjectStoryboardShotPayload,
@@ -78,11 +79,23 @@ class StoryboardAggregateTests(unittest.TestCase):
                 goal="找到遗嘱", status="active",
                 created_at=now, updated_at=now,
             ))
+            session.add(CharacterCard(
+                id="character-2", name="沈砚", gender="男", role_type="男主", identity="医生",
+                goal="保护病人", status="active",
+                created_at=now, updated_at=now,
+            ))
             session.add(ProjectCharacterSnapshot(
                 id="snapshot", project_id="project-storyboard", source_character_card_id="character",
                 source_version=1, name="林晚", gender="女", role_type="主角", snapshot_content="{}",
                 visual_description="短发，白色衬衫，深色风衣，冷静坚定的年轻女记者",
                 reference_image_url="https://cdn.test/linwan-ref.png",
+                loaded_at=now, updated_at=now,
+            ))
+            session.add(ProjectCharacterSnapshot(
+                id="snapshot-2", project_id="project-storyboard", source_character_card_id="character-2",
+                source_version=1, name="沈砚", gender="男", role_type="男主", snapshot_content="{}",
+                visual_description="黑色短发，白大褂，胸前医院工牌，冷静专业的急诊医生",
+                reference_image_url="https://cdn.test/shenyan-ref.png",
                 loaded_at=now, updated_at=now,
             ))
             session.add(ModelApiConfig(
@@ -96,12 +109,16 @@ class StoryboardAggregateTests(unittest.TestCase):
         script = episode_scripts.upsert_episode_script("project-storyboard", 1, ProjectEpisodeScriptPayload.model_validate({
             "revision": None,
             "scenes": [
-                {"title": "客厅对峙", "location": "客厅", "character_snapshot_ids": ["snapshot"], "blocks": [{"block_type": "action", "content": "林晚推门。"}]},
+                {"title": "客厅对峙", "location": "客厅", "character_snapshot_ids": ["snapshot"], "blocks": [
+                    {"block_type": "action", "content": "林晚推门。"},
+                    {"block_type": "dialogue", "character_snapshot_id": "snapshot", "content": "这不是我的东西。"},
+                ]},
                 {"title": "走廊追逐", "location": "走廊", "character_snapshot_ids": ["snapshot"], "blocks": [{"block_type": "action", "content": "林晚追出去。"}]},
             ],
         }))
         self.scene_a = script["scenes"][0]["id"]
         self.scene_b = script["scenes"][1]["id"]
+        self.dialogue_block_a = next(block["id"] for block in script["scenes"][0]["blocks"] if block["block_type"] == "dialogue")
 
     def tearDown(self) -> None:
         get_session_factory.cache_clear()
@@ -184,6 +201,48 @@ class StoryboardAggregateTests(unittest.TestCase):
         self.assertEqual(updated["subject_description"], "林晚")
         self.assertEqual(updated["prompt"]["image_prompt"], "低照度客厅")
 
+    def test_shot_character_selection_must_belong_to_source_scene(self) -> None:
+        payload = self.payload(self.scene_a, "沈砚")
+        payload.character_snapshot_ids = ["snapshot-2"]
+
+        with self.assertRaisesRegex(ValueError, "镜头出镜人物不属于当前来源场次"):
+            storyboard.create_storyboard_shot("project-storyboard", 1, payload)
+
+    def test_generate_storyboard_scene_infers_character_from_dialogue_blocks(self) -> None:
+        async_mock = AsyncMock(return_value={
+            "shots": [{
+                "shot_size": "近景",
+                "subject_description": "林晚看向旧信封",
+                "visual_description": "林晚站在门边，低头看信封",
+                "action": "林晚停步",
+                "duration_seconds": 3,
+                "source_block_ids": [self.dialogue_block_a],
+                "character_snapshot_ids": [],
+                "dialogue_snapshot": "这不是我的东西。",
+            }]
+        })
+
+        with patch.object(storyboard, "call_text_generation_api", async_mock):
+            result = asyncio.run(storyboard.generate_storyboard_scene("project-storyboard", 1, self.scene_a))
+
+        self.assertEqual(result["status"], "succeeded")
+        aggregate = storyboard.get_storyboard("project-storyboard", 1)
+        shot = aggregate["scene_groups"][0]["shots"][0]
+        self.assertEqual(shot["character_snapshot_ids"], ["snapshot"])
+
+    def test_reassign_storyboard_shot_removes_characters_outside_target_scene(self) -> None:
+        shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
+        with get_session() as session:
+            scene_b = session.get(ProjectScriptScene, self.scene_b)
+            scene_b.character_snapshot_ids = json.dumps(["snapshot-2"], ensure_ascii=False)
+
+        moved = storyboard.reassign_storyboard_shot(
+            "project-storyboard", 1, shot["id"], StoryboardReassignPayload(source_scene_id=self.scene_b)
+        )
+
+        self.assertEqual(moved["source_scene_id"], self.scene_b)
+        self.assertEqual(moved["character_snapshot_ids"], [])
+
     def test_shot_video_generation_create_refresh_and_adopt(self) -> None:
         shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
         fake_client = _FakeVideoClient(
@@ -211,6 +270,7 @@ class StoryboardAggregateTests(unittest.TestCase):
         self.assertNotIn("门轴轻响", created["video_prompt_snapshot"])
         self.assertEqual(fake_client.posts[0]["url"], "https://ark.test/api/v3/contents/generations/tasks")
         self.assertEqual(fake_client.posts[0]["json"]["content"][0]["text"], created["video_prompt_snapshot"])
+        self.assertEqual(len(fake_client.posts[0]["json"]["content"]), 1)
         self.assertEqual(fake_client.posts[0]["json"]["resolution"], "720p")
         self.assertEqual(fake_client.posts[0]["json"]["ratio"], "16:9")
         self.assertEqual(fake_client.posts[0]["json"]["duration"], 3)
@@ -239,6 +299,34 @@ class StoryboardAggregateTests(unittest.TestCase):
         self.assertEqual(fake_client.posts[0]["json"]["duration"], 6)
         self.assertEqual(created["request_payload_snapshot"]["resolution"], "1080p")
         self.assertEqual(created["request_payload_snapshot"]["ratio"], "9:16")
+
+    def test_shot_video_generation_can_send_character_reference_images(self) -> None:
+        with get_session() as session:
+            snapshot = session.get(ProjectCharacterSnapshot, "snapshot")
+            snapshot.snapshot_content = json.dumps({
+                "turnaround_image_url": "https://cdn.test/linwan-turnaround.png",
+                "turnaround_status": "confirmed",
+            })
+
+        shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))
+        fake_client = _FakeVideoClient(post_data={"id": "seedance-task-reference", "status": "queued"})
+
+        with patch.object(shot_videos.httpx, "AsyncClient", return_value=fake_client):
+            created = asyncio.run(shot_videos.create_video_generation(
+                "project-storyboard",
+                1,
+                shot["id"],
+                ShotVideoGenerationCreatePayload(use_reference_images=True),
+            ))
+
+        content = fake_client.posts[0]["json"]["content"]
+        self.assertEqual(created["provider_task_id"], "seedance-task-reference")
+        self.assertEqual(content[0]["type"], "text")
+        self.assertEqual(content[1], {
+            "type": "image_url",
+            "image_url": {"url": "https://cdn.test/linwan-turnaround.png"},
+        })
+        self.assertEqual(created["request_payload_snapshot"]["content"][1]["image_url"]["url"], "https://cdn.test/linwan-turnaround.png")
 
     def test_successful_video_generation_without_url_can_refresh_nested_result_url(self) -> None:
         shot = storyboard.create_storyboard_shot("project-storyboard", 1, self.payload(self.scene_a, "林晚"))

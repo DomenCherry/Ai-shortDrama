@@ -1304,6 +1304,7 @@ class ShotVideoGenerationCreatePayload(BaseModel):
     resolution: Optional[str] = None
     aspect_ratio: Optional[str] = None
     duration_seconds: Optional[float] = Field(default=None, gt=0, le=60)
+    use_reference_images: bool = False
 
     @field_validator("resolution", "aspect_ratio", mode="before")
     @classmethod
